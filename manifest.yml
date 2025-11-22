@@ -1,0 +1,29 @@
+---
+applications:
+- name: financial-dashboard
+  memory: 1024M
+  disk_quota: 512M
+  instances: 1
+  buildpacks:
+  - python_buildpack
+  command: gunicorn app:server --workers 4 --timeout 120
+  env:
+    # Dashboard Configuration
+    FLASK_ENV: production
+    DASH_DEBUG: false
+
+  # IMPORTANT: Set HANA credentials using Cloud Foundry services or environment variables
+  # Do NOT hardcode credentials in this file
+  #
+  # Option 1: Use cf set-env to configure credentials
+  #   cf set-env financial-dashboard HANA_ADDRESS "your-instance.hana.ondemand.com"
+  #   cf set-env financial-dashboard HANA_PORT "443"
+  #   cf set-env financial-dashboard HANA_USER "DBADMIN"
+  #   cf set-env financial-dashboard HANA_PASSWORD "your_password"
+  #   cf set-env financial-dashboard HANA_SCHEMA "BLOOMBERG_DATA"
+  #
+  # Option 2: Bind to a user-provided service
+  #   cf create-user-provided-service hana-credentials -p '{"address":"...","port":"443",...}'
+  #   cf bind-service financial-dashboard hana-credentials
+  #
+  # See deployment guide for more details

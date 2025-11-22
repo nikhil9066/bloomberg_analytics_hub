@@ -1,0 +1,30 @@
+# SAP HANA Client
+hdbcli==2.23.27
+
+# Data Processing
+pandas==2.2.3
+numpy==2.2.3
+
+# Dashboard Framework
+dash==2.18.2
+dash-bootstrap-components==1.6.0
+plotly==5.24.1
+
+# Web Server
+gunicorn==23.0.0
+Flask==3.1.0
+
+# Utilities
+python-dotenv==1.0.1
+python-dateutil==2.9.0.post0
+pytz==2025.1
+
+# Core Dependencies
+Werkzeug==3.1.3
+click==8.1.8
+Jinja2==3.1.6
+MarkupSafe==3.0.2
+certifi==2025.1.31
+charset-normalizer==3.4.1
+idna==3.10
+urllib3==2.3.0
