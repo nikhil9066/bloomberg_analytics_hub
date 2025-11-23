@@ -85,14 +85,21 @@ def load_config():
         }
     }
 
-    # Validate required configuration
+    # Validate Bloomberg configuration (optional - only needed for data ingestion)
     missing_bloomberg = []
     if not config['bloomberg']['client_id']:
         missing_bloomberg.append('BLOOMBERG_CLIENT_ID')
     if not config['bloomberg']['client_secret']:
         missing_bloomberg.append('BLOOMBERG_CLIENT_SECRET')
 
-    # Validate HANA configuration
+    if missing_bloomberg:
+        logger = logging.getLogger(__name__)
+        logger.warning(
+            f"Bloomberg API configuration not set: {', '.join(missing_bloomberg)}. "
+            "This is only required for data ingestion pipeline, not for dashboard."
+        )
+
+    # Validate HANA configuration (required for dashboard)
     missing_hana = []
     if not config['hana']['address']:
         missing_hana.append('HANA_ADDRESS')
@@ -105,15 +112,9 @@ def load_config():
     if not config['hana']['schema']:
         missing_hana.append('HANA_SCHEMA')
 
-    # Raise errors for missing critical configuration
-    errors = []
-    if missing_bloomberg:
-        errors.append(f"Missing Bloomberg API configuration: {', '.join(missing_bloomberg)}")
+    # Only raise error for missing HANA configuration
     if missing_hana:
-        errors.append(f"Missing HANA database configuration: {', '.join(missing_hana)}")
-
-    if errors:
-        raise ValueError('\n'.join(errors))
+        raise ValueError(f"Missing required HANA database configuration: {', '.join(missing_hana)}")
 
     # Create directories if they don't exist
     for dir_path in [config['paths']['data_dir'], config['paths']['downloads_dir']]:
