@@ -58,15 +58,6 @@ def load_config():
     load_dotenv()
 
     config = {
-        # Bloomberg API settings
-        'bloomberg': {
-            'client_id': os.getenv('BLOOMBERG_CLIENT_ID'),
-            'client_secret': os.getenv('BLOOMBERG_CLIENT_SECRET'),
-            'api_host': os.getenv('BLOOMBERG_API_HOST', 'https://api.bloomberg.com'),
-            'oauth_endpoint': os.getenv('BLOOMBERG_OAUTH_ENDPOINT',
-                                      'https://bsso.blpprofessional.com/ext/api/as/token.oauth2')
-        },
-
         # SAP HANA settings
         'hana': {
             'address': os.getenv('HANA_ADDRESS'),
@@ -75,29 +66,8 @@ def load_config():
             'password': os.getenv('HANA_PASSWORD'),
             'schema': os.getenv('HANA_SCHEMA', 'BLOOMBERG_DATA'),
             'table': os.getenv('HANA_TABLE', 'FINANCIAL_RATIOS')
-        },
-
-        # File paths
-        'paths': {
-            'data_dir': os.getenv('DATA_DIR', 'data'),
-            'downloads_dir': os.getenv('DOWNLOADS_DIR', 'downloads'),
-            'identifiers_file': os.getenv('IDENTIFIERS_FILE', 'data/identifiers.json')
         }
     }
-
-    # Validate Bloomberg configuration (optional - only needed for data ingestion)
-    missing_bloomberg = []
-    if not config['bloomberg']['client_id']:
-        missing_bloomberg.append('BLOOMBERG_CLIENT_ID')
-    if not config['bloomberg']['client_secret']:
-        missing_bloomberg.append('BLOOMBERG_CLIENT_SECRET')
-
-    if missing_bloomberg:
-        logger = logging.getLogger(__name__)
-        logger.warning(
-            f"Bloomberg API configuration not set: {', '.join(missing_bloomberg)}. "
-            "This is only required for data ingestion pipeline, not for dashboard."
-        )
 
     # Validate HANA configuration (required for dashboard)
     missing_hana = []
@@ -115,9 +85,5 @@ def load_config():
     # Only raise error for missing HANA configuration
     if missing_hana:
         raise ValueError(f"Missing required HANA database configuration: {', '.join(missing_hana)}")
-
-    # Create directories if they don't exist
-    for dir_path in [config['paths']['data_dir'], config['paths']['downloads_dir']]:
-        Path(dir_path).mkdir(parents=True, exist_ok=True)
 
     return config
