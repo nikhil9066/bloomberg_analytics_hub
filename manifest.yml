@@ -2,7 +2,7 @@
 applications:
 - name: financial-dashboard
   memory: 1024M
-  disk_quota: 512M
+  disk_quota: 1024M
   instances: 1
   buildpacks:
   - python_buildpack
@@ -11,6 +11,14 @@ applications:
     # Dashboard Configuration
     FLASK_ENV: production
     DASH_DEBUG: false
+
+    # HANA Credentials (TESTING ONLY - REMOVE BEFORE PRODUCTION)
+    HANA_ADDRESS: a0b0b370-2621-4f9c-95c3-2063833ac9ef.hana.prod-us10.hanacloud.ondemand.com
+    HANA_PORT: 443
+    HANA_USER: DBADMIN
+    HANA_PASSWORD: Qwerty!123456
+    HANA_SCHEMA: BLOOMBERG_DATA
+    HANA_TABLE: FINANCIAL_RATIOS
 
   # IMPORTANT: Set HANA credentials using Cloud Foundry services or environment variables
   # Do NOT hardcode credentials in this file
