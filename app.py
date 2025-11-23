@@ -510,7 +510,7 @@ def update_summary_cards(n):
         f"{ratios_count:,}",
         "FINANCIAL_RATIOS table",
         f"{advanced_count:,}",
-        "FINANCIAL_DATA_ADVANCED table",
+        "FINANCIAL_ADVANCED table",
         f"{total:,}",
         f"{tickers:,}",
         str(last_update),

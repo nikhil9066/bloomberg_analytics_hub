@@ -163,7 +163,7 @@ class FinancialDataService:
                 "WORKING_CAPITAL",
                 "CF_FREE_CASH_FLOW",
                 "TIMESTAMP"
-            FROM "{self.schema}"."FINANCIAL_DATA_ADVANCED"
+            FROM "{self.schema}"."FINANCIAL_ADVANCED"
             ORDER BY "TIMESTAMP" DESC
             LIMIT {limit}
             """
@@ -206,7 +206,7 @@ class FinancialDataService:
             FROM "{self.schema}"."FINANCIAL_RATIOS"
             UNION ALL
             SELECT DISTINCT "TICKER"
-            FROM "{self.schema}"."FINANCIAL_DATA_ADVANCED"
+            FROM "{self.schema}"."FINANCIAL_ADVANCED"
             ORDER BY 1
             """
 
@@ -255,7 +255,7 @@ class FinancialDataService:
 
             # Get advanced data
             advanced_query = f"""
-            SELECT * FROM "{self.schema}"."FINANCIAL_DATA_ADVANCED"
+            SELECT * FROM "{self.schema}"."FINANCIAL_ADVANCED"
             WHERE "TICKER" = ?
             ORDER BY "TIMESTAMP" DESC
             """
@@ -295,13 +295,13 @@ class FinancialDataService:
             cursor.execute(f'SELECT COUNT(*) FROM "{self.schema}"."FINANCIAL_RATIOS"')
             ratios_count = cursor.fetchone()[0]
 
-            # Try to count records in FINANCIAL_DATA_ADVANCED table (may not exist)
+            # Try to count records in FINANCIAL_ADVANCED table (may not exist)
             advanced_count = 0
             try:
-                cursor.execute(f'SELECT COUNT(*) FROM "{self.schema}"."FINANCIAL_DATA_ADVANCED"')
+                cursor.execute(f'SELECT COUNT(*) FROM "{self.schema}"."FINANCIAL_ADVANCED"')
                 advanced_count = cursor.fetchone()[0]
             except Exception as e:
-                self.logger.debug(f"FINANCIAL_DATA_ADVANCED table not found or empty: {str(e)}")
+                self.logger.debug(f"FINANCIAL_ADVANCED table not found or empty: {str(e)}")
                 advanced_count = 0
 
             # Get unique tickers
