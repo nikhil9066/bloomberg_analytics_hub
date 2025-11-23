@@ -291,12 +291,18 @@ class FinancialDataService:
         try:
             cursor = self.hana_client.connection.cursor()
 
-            # Count records in each table
+            # Count records in FINANCIAL_RATIOS table
             cursor.execute(f'SELECT COUNT(*) FROM "{self.schema}"."FINANCIAL_RATIOS"')
             ratios_count = cursor.fetchone()[0]
 
-            cursor.execute(f'SELECT COUNT(*) FROM "{self.schema}"."FINANCIAL_DATA_ADVANCED"')
-            advanced_count = cursor.fetchone()[0]
+            # Try to count records in FINANCIAL_DATA_ADVANCED table (may not exist)
+            advanced_count = 0
+            try:
+                cursor.execute(f'SELECT COUNT(*) FROM "{self.schema}"."FINANCIAL_DATA_ADVANCED"')
+                advanced_count = cursor.fetchone()[0]
+            except Exception as e:
+                self.logger.debug(f"FINANCIAL_DATA_ADVANCED table not found or empty: {str(e)}")
+                advanced_count = 0
 
             # Get unique tickers
             cursor.execute(f'SELECT COUNT(DISTINCT "TICKER") FROM "{self.schema}"."FINANCIAL_RATIOS"')
