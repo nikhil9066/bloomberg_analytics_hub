@@ -119,79 +119,21 @@ class FinancialDataService:
     def get_advanced_financials(self, limit=100):
         """
         Retrieve advanced financial data
+        Note: This returns empty DataFrame as FINANCIAL_ADVANCED table doesn't exist
+        Kept for backward compatibility with dashboard code
 
         Args:
             limit (int): Maximum number of records to retrieve
 
         Returns:
-            pd.DataFrame: Advanced financial data
+            pd.DataFrame: Empty DataFrame (table doesn't exist)
         """
-        if not self.connected:
-            self.logger.error("Not connected to HANA")
-            return pd.DataFrame()
-
-        # Check cache first
-        cache_key = f"advanced_financials_{limit}"
-        cached_data = self._get_cached(cache_key)
-        if cached_data is not None:
-            return cached_data
-
-        cursor = None
-        try:
-            # Select key metrics from advanced table
-            query = f"""
-            SELECT
-                "TICKER",
-                "IDENTIFIER_TYPE",
-                "IDENTIFIER_VALUE",
-                "NET_INCOME",
-                "EBITDA",
-                "EBIT",
-                "GROSS_PROFIT",
-                "GROSS_MARGIN",
-                "EBITDA_MARGIN",
-                "OPER_MARGIN",
-                "PROF_MARGIN",
-                "IS_EPS",
-                "IS_DILUTED_EPS",
-                "EQY_DPS",
-                "SALES_GROWTH",
-                "NET_INC_GROWTH",
-                "CUR_RATIO",
-                "QUICK_RATIO",
-                "TOT_DEBT_TO_COM_EQY",
-                "WORKING_CAPITAL",
-                "CF_FREE_CASH_FLOW",
-                "TIMESTAMP"
-            FROM "{self.schema}"."FINANCIAL_ADVANCED"
-            ORDER BY "TIMESTAMP" DESC
-            LIMIT {limit}
-            """
-
-            cursor = self.hana_client.connection.cursor()
-            cursor.execute(query)
-
-            columns = [desc[0] for desc in cursor.description]
-            data = cursor.fetchall()
-
-            df = pd.DataFrame(data, columns=columns)
-            self.logger.info(f"Retrieved {len(df)} advanced financial records")
-
-            # Cache the result
-            self._set_cached(cache_key, df)
-
-            return df
-
-        except Exception as e:
-            self.logger.error(f"Error retrieving advanced financials: {str(e)}")
-            return pd.DataFrame()
-        finally:
-            if cursor:
-                cursor.close()
+        self.logger.debug("get_advanced_financials called but FINANCIAL_ADVANCED table doesn't exist")
+        return pd.DataFrame()
 
     def get_ticker_list(self):
         """
-        Get unique list of tickers from both tables
+        Get unique list of tickers from FINANCIAL_RATIOS table
 
         Returns:
             list: Unique ticker symbols
@@ -204,16 +146,13 @@ class FinancialDataService:
             query = f"""
             SELECT DISTINCT "TICKER"
             FROM "{self.schema}"."FINANCIAL_RATIOS"
-            UNION ALL
-            SELECT DISTINCT "TICKER"
-            FROM "{self.schema}"."FINANCIAL_ADVANCED"
-            ORDER BY 1
+            WHERE "TICKER" IS NOT NULL
+            ORDER BY "TICKER"
             """
 
             cursor = self.hana_client.connection.cursor()
             cursor.execute(query)
-            tickers = list(set([row[0] for row in cursor.fetchall()]))
-            tickers.sort()
+            tickers = [row[0] for row in cursor.fetchall()]
 
             return tickers
 
@@ -226,13 +165,13 @@ class FinancialDataService:
 
     def get_ticker_data(self, ticker):
         """
-        Get all data for a specific ticker from both tables
+        Get all data for a specific ticker from FINANCIAL_RATIOS table
 
         Args:
             ticker (str): Stock ticker symbol
 
         Returns:
-            dict: Dictionary with 'ratios' and 'advanced' DataFrames
+            dict: Dictionary with 'ratios' DataFrame (advanced is empty)
         """
         if not self.connected:
             return {'ratios': pd.DataFrame(), 'advanced': pd.DataFrame()}
@@ -253,21 +192,9 @@ class FinancialDataService:
             ratios_data = cursor.fetchall()
             ratios_df = pd.DataFrame(ratios_data, columns=columns)
 
-            # Get advanced data
-            advanced_query = f"""
-            SELECT * FROM "{self.schema}"."FINANCIAL_ADVANCED"
-            WHERE "TICKER" = ?
-            ORDER BY "TIMESTAMP" DESC
-            """
-
-            cursor.execute(advanced_query, [ticker])
-            columns = [desc[0] for desc in cursor.description]
-            advanced_data = cursor.fetchall()
-            advanced_df = pd.DataFrame(advanced_data, columns=columns)
-
             return {
                 'ratios': ratios_df,
-                'advanced': advanced_df
+                'advanced': pd.DataFrame()  # No advanced table
             }
 
         except Exception as e:
@@ -295,15 +222,6 @@ class FinancialDataService:
             cursor.execute(f'SELECT COUNT(*) FROM "{self.schema}"."FINANCIAL_RATIOS"')
             ratios_count = cursor.fetchone()[0]
 
-            # Try to count records in FINANCIAL_ADVANCED table (may not exist)
-            advanced_count = 0
-            try:
-                cursor.execute(f'SELECT COUNT(*) FROM "{self.schema}"."FINANCIAL_ADVANCED"')
-                advanced_count = cursor.fetchone()[0]
-            except Exception as e:
-                self.logger.debug(f"FINANCIAL_ADVANCED table not found or empty: {str(e)}")
-                advanced_count = 0
-
             # Get unique tickers
             cursor.execute(f'SELECT COUNT(DISTINCT "TICKER") FROM "{self.schema}"."FINANCIAL_RATIOS"')
             unique_tickers = cursor.fetchone()[0]
@@ -314,7 +232,7 @@ class FinancialDataService:
 
             return {
                 'ratios_count': ratios_count,
-                'advanced_count': advanced_count,
+                'advanced_count': 0,  # No advanced table
                 'unique_tickers': unique_tickers,
                 'last_update': last_update
             }

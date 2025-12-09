@@ -50,71 +50,9 @@ app = dash.Dash(
 server = app.server
 app.title = "Financial Analytics Dashboard"
 
-# Health check endpoint for monitoring
-@server.route('/health')
-def health_check():
-    """Health check endpoint for load balancers and monitoring"""
-    from flask import jsonify
-    import datetime
-
-    try:
-        # Check database connection
-        is_connected = data_service.connected
-
-        # Get basic stats to verify database is responsive
-        stats = data_service.get_summary_stats() if is_connected else {}
-
-        health_status = {
-            'status': 'healthy' if is_connected and stats else 'unhealthy',
-            'timestamp': datetime.datetime.now().isoformat(),
-            'database': {
-                'connected': is_connected,
-                'records_available': bool(stats)
-            },
-            'version': '1.0.0'
-        }
-
-        status_code = 200 if is_connected else 503
-        return jsonify(health_status), status_code
-
-    except Exception as e:
-        logger.error(f"Health check failed: {str(e)}")
-        return jsonify({
-            'status': 'unhealthy',
-            'error': str(e),
-            'timestamp': datetime.datetime.now().isoformat()
-        }), 503
-
-@server.route('/status')
-def status():
-    """Detailed status endpoint"""
-    from flask import jsonify
-    import datetime
-
-    try:
-        stats = data_service.get_summary_stats()
-
-        return jsonify({
-            'application': 'Financial Analytics Dashboard',
-            'status': 'running',
-            'timestamp': datetime.datetime.now().isoformat(),
-            'database': {
-                'connected': data_service.connected,
-                'schema': config['hana']['schema'],
-                'statistics': stats
-            }
-        }), 200
-
-    except Exception as e:
-        logger.error(f"Status check failed: {str(e)}")
-        return jsonify({
-            'status': 'error',
-            'error': str(e)
-        }), 500
-
 # Custom CSS
 custom_style = {
-    'backgroundColor': '#f8f9fa',
+    'backgroundColor': 'transparent',
     'fontFamily': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial',
 }
 
@@ -130,7 +68,7 @@ app.layout = dbc.Container([
                 ], className="text-primary mb-2"),
                 html.P("Real-time Bloomberg financial data from SAP HANA",
                        className="text-muted")
-            ], className="text-center my-4")
+            ], className="hero-panel text-center my-4")
         ])
     ]),
 
@@ -146,20 +84,20 @@ app.layout = dbc.Container([
                         html.Small(id="ratios-table-name", className="text-muted")
                     ], className="text-center")
                 ])
-            ], className="shadow-sm")
+            ], className="shadow-sm metric-card")
         ], width=12, md=6, lg=3),
 
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
                     html.Div([
-                        html.I(className="fas fa-database fa-2x text-success mb-2"),
-                        html.H3(id="advanced-count", className="mb-0"),
+                        html.I(className="fas fa-database fa-2x text-muted mb-2"),
+                        html.H3("N/A", className="mb-0 text-muted"),
                         html.P("Advanced Metrics Data", className="text-muted mb-0"),
-                        html.Small(id="advanced-table-name", className="text-muted")
+                        html.Small("Table not available", className="text-muted")
                     ], className="text-center")
                 ])
-            ], className="shadow-sm")
+            ], className="shadow-sm metric-card", style={"opacity": "0.5"})
         ], width=12, md=6, lg=3),
 
         dbc.Col([
@@ -172,7 +110,7 @@ app.layout = dbc.Container([
                         html.Small("All tables combined", className="text-muted")
                     ], className="text-center")
                 ])
-            ], className="shadow-sm")
+            ], className="shadow-sm metric-card")
         ], width=12, md=6, lg=3),
 
         dbc.Col([
@@ -185,7 +123,7 @@ app.layout = dbc.Container([
                         html.Small("Tracked in database", className="text-muted")
                     ], className="text-center")
                 ])
-            ], className="shadow-sm")
+            ], className="shadow-sm metric-card")
         ], width=12, md=6, lg=3),
     ], className="mb-3"),
 
@@ -201,7 +139,7 @@ app.layout = dbc.Container([
                         html.Small("Most recent data", className="text-muted")
                     ], className="text-center")
                 ])
-            ], className="shadow-sm")
+            ], className="shadow-sm metric-card")
         ], width=12, md=6, lg=3),
 
         dbc.Col([
@@ -214,7 +152,7 @@ app.layout = dbc.Container([
                         html.Small(id="db-status", className="text-success")
                     ], className="text-center")
                 ])
-            ], className="shadow-sm")
+            ], className="shadow-sm metric-card")
         ], width=12, md=6, lg=3),
 
         dbc.Col([
@@ -227,7 +165,7 @@ app.layout = dbc.Container([
                         html.Small("Every 5 minutes", className="text-muted")
                     ], className="text-center")
                 ])
-            ], className="shadow-sm")
+            ], className="shadow-sm metric-card")
         ], width=12, md=6, lg=3),
 
         dbc.Col([
@@ -240,7 +178,7 @@ app.layout = dbc.Container([
                         html.Small("Production Ready", className="text-success")
                     ], className="text-center")
                 ])
-            ], className="shadow-sm")
+            ], className="shadow-sm metric-card")
         ], width=12, md=6, lg=3),
     ], className="mb-4"),
 
@@ -252,16 +190,14 @@ app.layout = dbc.Container([
                        label_style={"cursor": "pointer"}),
                 dbc.Tab(label="Financial Ratios", tab_id="ratios",
                        label_style={"cursor": "pointer"}),
-                dbc.Tab(label="Advanced Metrics", tab_id="advanced",
-                       label_style={"cursor": "pointer"}),
                 dbc.Tab(label="Company Comparison", tab_id="comparison",
                        label_style={"cursor": "pointer"}),
                 dbc.Tab(label="Data Explorer", tab_id="explorer",
                        label_style={"cursor": "pointer"}),
             ], id="tabs", active_tab="overview")
-        ]),
-        dbc.CardBody(id="tab-content", className="p-4")
-    ], className="shadow-sm mb-4"),
+        ], className="section-header"),
+        dbc.CardBody(id="tab-content", className="section-body p-4")
+    ], className="shadow-sm mb-4 section-card"),
 
     # Footer
     dbc.Row([
@@ -287,7 +223,7 @@ app.layout = dbc.Container([
         n_intervals=0
     )
 
-], fluid=True, style=custom_style)
+], fluid=True, style=custom_style, className="dashboard-shell")
 
 
 # Callbacks for tab content
@@ -305,8 +241,6 @@ def render_tab_content(active_tab, ratios_data, advanced_data, ticker_list):
         return render_overview_tab()
     elif active_tab == "ratios":
         return render_ratios_tab()
-    elif active_tab == "advanced":
-        return render_advanced_tab()
     elif active_tab == "comparison":
         return render_comparison_tab(ticker_list)
     elif active_tab == "explorer":
@@ -318,6 +252,7 @@ def render_tab_content(active_tab, ratios_data, advanced_data, ticker_list):
 def render_overview_tab():
     """Render overview dashboard"""
     return dbc.Container([
+        # Row 1: Distribution and Heatmap
         dbc.Row([
             dbc.Col([
                 dcc.Graph(id='ratio-distribution-chart')
@@ -326,10 +261,38 @@ def render_overview_tab():
                 dcc.Graph(id='metrics-heatmap')
             ], width=12, md=6)
         ]),
+        # Row 2: Margin Analysis
         dbc.Row([
             dbc.Col([
                 dcc.Graph(id='margin-analysis-chart')
             ], width=12)
+        ], className="mt-4"),
+        # Row 3: Liquidity and Leverage
+        dbc.Row([
+            dbc.Col([
+                dcc.Graph(id='liquidity-analysis-chart')
+            ], width=12, md=6),
+            dbc.Col([
+                dcc.Graph(id='leverage-analysis-chart')
+            ], width=12, md=6)
+        ], className="mt-4"),
+        # Row 4: Profitability Metrics
+        dbc.Row([
+            dbc.Col([
+                dcc.Graph(id='profitability-scatter-chart')
+            ], width=12, md=6),
+            dbc.Col([
+                dcc.Graph(id='top-performers-chart')
+            ], width=12, md=6)
+        ], className="mt-4"),
+        # Row 5: Growth and Valuation
+        dbc.Row([
+            dbc.Col([
+                dcc.Graph(id='growth-metrics-chart')
+            ], width=12, md=6),
+            dbc.Col([
+                dcc.Graph(id='cash-flow-chart')
+            ], width=12, md=6)
         ], className="mt-4")
     ], fluid=True)
 
@@ -368,35 +331,6 @@ def render_ratios_tab():
                 dcc.Graph(id='ratios-detail-chart')
             ], width=12)
         ])
-    ], fluid=True)
-
-
-def render_advanced_tab():
-    """Render advanced metrics analysis"""
-    return dbc.Container([
-        dbc.Row([
-            dbc.Col([
-                html.H5("Select Company:"),
-                dcc.Dropdown(
-                    id='advanced-ticker-dropdown',
-                    placeholder="Choose a company...",
-                    className="mb-3"
-                )
-            ], width=12, md=6)
-        ]),
-        dbc.Row([
-            dbc.Col([
-                dcc.Graph(id='profitability-chart')
-            ], width=12, md=6),
-            dbc.Col([
-                dcc.Graph(id='growth-chart')
-            ], width=12, md=6)
-        ]),
-        dbc.Row([
-            dbc.Col([
-                dcc.Graph(id='eps-chart')
-            ], width=12)
-        ], className="mt-4")
     ], fluid=True)
 
 
@@ -448,8 +382,7 @@ def render_explorer_tab():
                 dcc.Dropdown(
                     id='explorer-table-dropdown',
                     options=[
-                        {'label': 'Financial Ratios', 'value': 'ratios'},
-                        {'label': 'Advanced Financials', 'value': 'advanced'}
+                        {'label': 'Financial Ratios', 'value': 'ratios'}
                     ],
                     value='ratios',
                     className="mb-3"
@@ -480,8 +413,6 @@ def render_explorer_tab():
 @app.callback(
     [Output("ratios-count", "children"),
      Output("ratios-table-name", "children"),
-     Output("advanced-count", "children"),
-     Output("advanced-table-name", "children"),
      Output("total-records", "children"),
      Output("unique-tickers", "children"),
      Output("last-update", "children"),
@@ -489,13 +420,12 @@ def render_explorer_tab():
     Input('interval-component', 'n_intervals')
 )
 def update_summary_cards(n):
-    """Update summary statistics cards with data from both tables"""
+    """Update summary statistics cards with data from FINANCIAL_RATIOS table"""
     stats = data_service.get_summary_stats()
 
-    # Get counts from both tables
+    # Get counts from ratios table only
     ratios_count = stats.get('ratios_count', 0)
-    advanced_count = stats.get('advanced_count', 0)
-    total = ratios_count + advanced_count
+    total = ratios_count
     tickers = stats.get('unique_tickers', 0)
     last_update = stats.get('last_update', 'N/A')
 
@@ -509,8 +439,6 @@ def update_summary_cards(n):
     return (
         f"{ratios_count:,}",
         "FINANCIAL_RATIOS table",
-        f"{advanced_count:,}",
-        "FINANCIAL_ADVANCED table",
         f"{total:,}",
         f"{tickers:,}",
         str(last_update),
@@ -689,16 +617,299 @@ def update_margin_analysis(data):
     return fig
 
 
+# Callback for liquidity analysis chart
+@app.callback(
+    Output('liquidity-analysis-chart', 'figure'),
+    [Input('ratios-data-store', 'data'),
+     Input('advanced-data-store', 'data')]
+)
+def update_liquidity_analysis(ratios_data, advanced_data):
+    """Create liquidity analysis chart comparing current and quick ratios"""
+    if not ratios_data or len(ratios_data) == 0:
+        return go.Figure().add_annotation(
+            text="No liquidity data available",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, showarrow=False,
+            font=dict(size=14, color="gray")
+        )
+
+    df = pd.DataFrame(ratios_data)
+
+    if 'TICKER' not in df.columns or 'CUR_RATIO' not in df.columns:
+        return go.Figure().add_annotation(
+            text="Missing required columns for liquidity analysis",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, showarrow=False,
+            font=dict(size=14, color="gray")
+        )
+
+    # Get top 15 companies by current ratio
+    top_companies = df.nlargest(15, 'CUR_RATIO')
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=top_companies['TICKER'],
+        y=top_companies['CUR_RATIO'],
+        mode='markers+lines',
+        name='Current Ratio',
+        marker=dict(size=10, color='#3498db'),
+        line=dict(width=2, color='#3498db')
+    ))
+
+    if 'QUICK_RATIO' in df.columns:
+        fig.add_trace(go.Scatter(
+            x=top_companies['TICKER'],
+            y=top_companies['QUICK_RATIO'],
+            mode='markers+lines',
+            name='Quick Ratio',
+            marker=dict(size=10, color='#e74c3c'),
+            line=dict(width=2, color='#e74c3c')
+        ))
+
+    # Add reference line at 1.0 (minimum healthy liquidity)
+    fig.add_hline(y=1.0, line_dash="dash", line_color="gray",
+                  annotation_text="Minimum Healthy Level")
+
+    fig.update_layout(
+        title="Liquidity Analysis - Current vs Quick Ratio",
+        xaxis_title="Company",
+        yaxis_title="Ratio",
+        height=400,
+        template="plotly_white",
+        hovermode='x unified'
+    )
+
+    return fig
+
+
+# Callback for leverage analysis chart
+@app.callback(
+    Output('leverage-analysis-chart', 'figure'),
+    Input('ratios-data-store', 'data')
+)
+def update_leverage_analysis(data):
+    """Create leverage analysis chart showing debt ratios"""
+    if not data or len(data) == 0:
+        return go.Figure().add_annotation(
+            text="No leverage data available",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, showarrow=False,
+            font=dict(size=14, color="gray")
+        )
+
+    df = pd.DataFrame(data)
+
+    if 'TICKER' not in df.columns or 'TOT_DEBT_TO_TOT_ASSET' not in df.columns:
+        return go.Figure().add_annotation(
+            text="Missing required columns for leverage analysis",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, showarrow=False,
+            font=dict(size=14, color="gray")
+        )
+
+    # Filter and sort by debt to asset ratio
+    df_clean = df[df['TOT_DEBT_TO_TOT_ASSET'].notna()].copy()
+    top_leveraged = df_clean.nlargest(15, 'TOT_DEBT_TO_TOT_ASSET')
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Bar(
+        x=top_leveraged['TICKER'],
+        y=top_leveraged['TOT_DEBT_TO_TOT_ASSET'],
+        name='Debt to Asset Ratio',
+        marker_color='#e74c3c',
+        text=top_leveraged['TOT_DEBT_TO_TOT_ASSET'].round(2),
+        textposition='auto'
+    ))
+
+    # Add reference line at 0.5 (50% debt ratio)
+    fig.add_hline(y=0.5, line_dash="dash", line_color="orange",
+                  annotation_text="Moderate Leverage (50%)")
+
+    fig.update_layout(
+        title="Financial Leverage - Debt to Asset Ratio",
+        xaxis_title="Company",
+        yaxis_title="Debt to Asset Ratio",
+        height=400,
+        template="plotly_white",
+        showlegend=False
+    )
+
+    return fig
+
+
+# Callback for profitability scatter chart
+@app.callback(
+    Output('profitability-scatter-chart', 'figure'),
+    [Input('ratios-data-store', 'data'),
+     Input('advanced-data-store', 'data')]
+)
+def update_profitability_scatter(ratios_data, advanced_data):
+    """Create scatter plot comparing gross margin vs EBITDA margin"""
+    if not ratios_data or len(ratios_data) == 0:
+        return go.Figure().add_annotation(
+            text="No profitability data available",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, showarrow=False,
+            font=dict(size=14, color="gray")
+        )
+
+    df = pd.DataFrame(ratios_data)
+
+    if 'GROSS_MARGIN' not in df.columns or 'EBITDA_MARGIN' not in df.columns:
+        return go.Figure().add_annotation(
+            text="Missing required columns for profitability analysis",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, showarrow=False,
+            font=dict(size=14, color="gray")
+        )
+
+    # Filter out NaN values
+    df_clean = df[df['GROSS_MARGIN'].notna() & df['EBITDA_MARGIN'].notna()].copy()
+
+    if len(df_clean) == 0:
+        return go.Figure().add_annotation(
+            text="No complete profitability data available",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, showarrow=False,
+            font=dict(size=14, color="gray")
+        )
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=df_clean['GROSS_MARGIN'],
+        y=df_clean['EBITDA_MARGIN'],
+        mode='markers',
+        marker=dict(
+            size=10,
+            color=df_clean['CUR_RATIO'] if 'CUR_RATIO' in df_clean.columns else '#3498db',
+            colorscale='Viridis',
+            showscale=True,
+            colorbar=dict(title="Current<br>Ratio")
+        ),
+        text=df_clean['TICKER'],
+        hovertemplate='<b>%{text}</b><br>Gross Margin: %{x:.2f}%<br>EBITDA Margin: %{y:.2f}%<extra></extra>'
+    ))
+
+    fig.update_layout(
+        title="Profitability Analysis - Gross Margin vs EBITDA Margin",
+        xaxis_title="Gross Margin (%)",
+        yaxis_title="EBITDA Margin (%)",
+        height=400,
+        template="plotly_white"
+    )
+
+    return fig
+
+
+# Callback for top performers chart
+@app.callback(
+    Output('top-performers-chart', 'figure'),
+    Input('ratios-data-store', 'data')
+)
+def update_top_performers(data):
+    """Create chart showing top performers by interest coverage ratio"""
+    if not data or len(data) == 0:
+        return go.Figure().add_annotation(
+            text="No performance data available",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, showarrow=False,
+            font=dict(size=14, color="gray")
+        )
+
+    df = pd.DataFrame(data)
+
+    if 'TICKER' not in df.columns or 'INTEREST_COVERAGE_RATIO' not in df.columns:
+        return go.Figure().add_annotation(
+            text="Missing required columns for performance analysis",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, showarrow=False,
+            font=dict(size=14, color="gray")
+        )
+
+    # Filter and get top 10 by interest coverage ratio
+    df_clean = df[df['INTEREST_COVERAGE_RATIO'].notna()].copy()
+
+    if len(df_clean) == 0:
+        return go.Figure().add_annotation(
+            text="No interest coverage data available",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, showarrow=False,
+            font=dict(size=14, color="gray")
+        )
+
+    # Cap extreme values for better visualization
+    df_clean['INTEREST_COVERAGE_RATIO_CAPPED'] = df_clean['INTEREST_COVERAGE_RATIO'].clip(upper=50)
+    top_performers = df_clean.nlargest(10, 'INTEREST_COVERAGE_RATIO_CAPPED')
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Bar(
+        x=top_performers['TICKER'],
+        y=top_performers['INTEREST_COVERAGE_RATIO_CAPPED'],
+        marker=dict(
+            color=top_performers['INTEREST_COVERAGE_RATIO_CAPPED'],
+            colorscale='Greens',
+            showscale=False
+        ),
+        text=top_performers['INTEREST_COVERAGE_RATIO_CAPPED'].round(2),
+        textposition='auto',
+        hovertemplate='<b>%{x}</b><br>Interest Coverage: %{y:.2f}x<extra></extra>'
+    ))
+
+    fig.update_layout(
+        title="Top Performers - Interest Coverage Ratio",
+        xaxis_title="Company",
+        yaxis_title="Interest Coverage Ratio (x)",
+        height=400,
+        template="plotly_white",
+        showlegend=False
+    )
+
+    return fig
+
+
+# Callback for growth metrics chart
+@app.callback(
+    Output('growth-metrics-chart', 'figure'),
+    Input('advanced-data-store', 'data')
+)
+def update_growth_metrics(data):
+    """Create chart showing sales and net income growth - NOT AVAILABLE"""
+    return go.Figure().add_annotation(
+        text="Growth metrics not available in current schema",
+        xref="paper", yref="paper",
+        x=0.5, y=0.5, showarrow=False,
+        font=dict(size=14, color="gray")
+    )
+
+
+# Callback for cash flow chart
+@app.callback(
+    Output('cash-flow-chart', 'figure'),
+    Input('advanced-data-store', 'data')
+)
+def update_cash_flow_chart(data):
+    """Create chart showing free cash flow - NOT AVAILABLE"""
+    return go.Figure().add_annotation(
+        text="Cash flow metrics not available in current schema",
+        xref="paper", yref="paper",
+        x=0.5, y=0.5, showarrow=False,
+        font=dict(size=14, color="gray")
+    )
+
+
 # Callback to update ticker dropdowns
 @app.callback(
-    [Output('ratios-ticker-dropdown', 'options'),
-     Output('advanced-ticker-dropdown', 'options')],
+    Output('ratios-ticker-dropdown', 'options'),
     Input('ticker-list-store', 'data')
 )
 def update_ticker_dropdowns(tickers):
     """Update ticker dropdown options"""
     options = [{'label': t, 'value': t} for t in (tickers or [])]
-    return options, options
+    return options
 
 
 # Callback for explorer table
@@ -767,144 +978,6 @@ def update_ratios_detail_chart(ticker, metric, data):
     ))
 
     fig.update_layout(height=400, template="plotly_white")
-    return fig
-
-
-# Callback for profitability chart
-@app.callback(
-    Output('profitability-chart', 'figure'),
-    Input('advanced-ticker-dropdown', 'value'),
-    State('advanced-data-store', 'data')
-)
-def update_profitability_chart(ticker, data):
-    """Update profitability metrics chart"""
-    if not data or not ticker:
-        return go.Figure().add_annotation(
-            text="Please select a company",
-            xref="paper", yref="paper",
-            x=0.5, y=0.5, showarrow=False,
-            font=dict(size=14, color="gray")
-        )
-
-    df = pd.DataFrame(data)
-    ticker_data = df[df['TICKER'] == ticker]
-
-    if ticker_data.empty:
-        return go.Figure().add_annotation(
-            text=f"No data available for {ticker}",
-            xref="paper", yref="paper",
-            x=0.5, y=0.5, showarrow=False,
-            font=dict(size=14, color="gray")
-        )
-
-    metrics = ['GROSS_MARGIN', 'EBITDA_MARGIN', 'OPER_MARGIN', 'PROF_MARGIN']
-    values = [ticker_data[m].iloc[0] if m in ticker_data.columns and not pd.isna(ticker_data[m].iloc[0]) else 0
-              for m in metrics]
-    labels = [m.replace('_', ' ').title() for m in metrics]
-
-    fig = go.Figure(data=[
-        go.Bar(x=labels, y=values, marker_color=['#3498db', '#2ecc71', '#f39c12', '#e74c3c'])
-    ])
-
-    fig.update_layout(
-        title=f"Profitability Margins - {ticker}",
-        xaxis_title="Metric",
-        yaxis_title="Percentage (%)",
-        height=400,
-        template="plotly_white"
-    )
-    return fig
-
-
-# Callback for growth chart
-@app.callback(
-    Output('growth-chart', 'figure'),
-    Input('advanced-ticker-dropdown', 'value'),
-    State('advanced-data-store', 'data')
-)
-def update_growth_chart(ticker, data):
-    """Update growth metrics chart"""
-    if not data or not ticker:
-        return go.Figure().add_annotation(
-            text="Please select a company",
-            xref="paper", yref="paper",
-            x=0.5, y=0.5, showarrow=False,
-            font=dict(size=14, color="gray")
-        )
-
-    df = pd.DataFrame(data)
-    ticker_data = df[df['TICKER'] == ticker]
-
-    if ticker_data.empty:
-        return go.Figure().add_annotation(
-            text=f"No data available for {ticker}",
-            xref="paper", yref="paper",
-            x=0.5, y=0.5, showarrow=False,
-            font=dict(size=14, color="gray")
-        )
-
-    metrics = ['SALES_GROWTH', 'NET_INC_GROWTH']
-    values = [ticker_data[m].iloc[0] if m in ticker_data.columns and not pd.isna(ticker_data[m].iloc[0]) else 0
-              for m in metrics]
-    labels = ['Sales Growth', 'Net Income Growth']
-
-    fig = go.Figure(data=[
-        go.Bar(x=labels, y=values, marker_color=['#2ecc71', '#9b59b6'])
-    ])
-
-    fig.update_layout(
-        title=f"Growth Metrics - {ticker}",
-        xaxis_title="Metric",
-        yaxis_title="Growth Rate (%)",
-        height=400,
-        template="plotly_white"
-    )
-    return fig
-
-
-# Callback for EPS chart
-@app.callback(
-    Output('eps-chart', 'figure'),
-    Input('advanced-ticker-dropdown', 'value'),
-    State('advanced-data-store', 'data')
-)
-def update_eps_chart(ticker, data):
-    """Update EPS metrics chart"""
-    if not data or not ticker:
-        return go.Figure().add_annotation(
-            text="Please select a company",
-            xref="paper", yref="paper",
-            x=0.5, y=0.5, showarrow=False,
-            font=dict(size=14, color="gray")
-        )
-
-    df = pd.DataFrame(data)
-    ticker_data = df[df['TICKER'] == ticker]
-
-    if ticker_data.empty:
-        return go.Figure().add_annotation(
-            text=f"No data available for {ticker}",
-            xref="paper", yref="paper",
-            x=0.5, y=0.5, showarrow=False,
-            font=dict(size=14, color="gray")
-        )
-
-    metrics = ['IS_EPS', 'IS_DILUTED_EPS', 'EQY_DPS']
-    values = [ticker_data[m].iloc[0] if m in ticker_data.columns and not pd.isna(ticker_data[m].iloc[0]) else 0
-              for m in metrics]
-    labels = ['Basic EPS', 'Diluted EPS', 'Dividend Per Share']
-
-    fig = go.Figure(data=[
-        go.Bar(x=labels, y=values, marker_color=['#3498db', '#e74c3c', '#f39c12'])
-    ])
-
-    fig.update_layout(
-        title=f"Earnings Per Share - {ticker}",
-        xaxis_title="Metric",
-        yaxis_title="Value ($)",
-        height=400,
-        template="plotly_white"
-    )
     return fig
 
 
