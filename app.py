@@ -422,6 +422,25 @@ def render_ratios_tab():
             dbc.Col([
                 dcc.Graph(id='industry-benchmark-chart')
             ], width=12)
+        ], className="mb-4"),
+
+        # Industry Median Benchmarking Table
+        dbc.Row([
+            dbc.Col([
+                html.H5("Industry Median Benchmarking", className="mb-3"),
+                html.Div(id='industry-median-table')
+            ], width=12)
+        ], className="mb-4"),
+
+        # Z-Score Credit Risk Analysis and Stacked EBITDA
+        dbc.Row([
+            dbc.Col([
+                html.H5("Z-Score Credit Risk Analysis", className="mb-3"),
+                html.Div(id='zscore-risk-table')
+            ], width=12, md=6),
+            dbc.Col([
+                dcc.Graph(id='stacked-ebitda-chart')
+            ], width=12, md=6)
         ])
     ], fluid=True)
 
@@ -1556,6 +1575,296 @@ def update_industry_benchmark(selected_competitors, data):
         barmode='group',
         showlegend=True,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+
+    return fig
+
+
+# Industry Median Benchmarking Table
+@app.callback(
+    Output('industry-median-table', 'children'),
+    [Input('competitor-selector', 'value'),
+     Input('ratios-data-store', 'data')]
+)
+def update_industry_median_table(selected_competitors, data):
+    """Create industry median benchmarking table"""
+    if not data or len(data) == 0:
+        return html.P("No data available", className="text-muted")
+
+    df = pd.DataFrame(data)
+
+    # Your company
+    your_ticker = 'KATB' if 'KATB' in df['TICKER'].values else df['TICKER'].iloc[0]
+    your_company = df[df['TICKER'] == your_ticker]
+
+    if your_company.empty:
+        return html.P("Your company data not found", className="text-muted")
+
+    # Metrics for benchmarking
+    metrics_config = [
+        ('EBITDA_MARGIN', 'EBITDA Margin', '%', True),  # higher is better
+        ('CUR_RATIO', 'Current Ratio', '', True),
+        ('QUICK_RATIO', 'Quick Ratio', '', True),
+        ('GROSS_MARGIN', 'Gross Margin', '%', True),
+        ('TOT_DEBT_TO_TOT_ASSET', 'Debt/Asset', '', False)  # lower is better
+    ]
+
+    # Table header
+    header_cells = [
+        html.Th("Metric", style={"backgroundColor": "#f8fafc", "fontWeight": "bold"}),
+        html.Th("Your Company", style={"backgroundColor": "#f8fafc", "fontWeight": "bold"}),
+        html.Th("Industry Median", style={"backgroundColor": "#f8fafc", "fontWeight": "bold"}),
+        html.Th("Difference", style={"backgroundColor": "#f8fafc", "fontWeight": "bold"}),
+        html.Th("Interpretation", style={"backgroundColor": "#f8fafc", "fontWeight": "bold"})
+    ]
+    table_header = [html.Thead(html.Tr(header_cells))]
+
+    rows = []
+    for metric, label, unit, higher_better in metrics_config:
+        if metric not in df.columns:
+            continue
+
+        your_val = your_company[metric].iloc[0] if not your_company.empty else None
+        median_val = df[metric].median()
+
+        if pd.notna(your_val) and pd.notna(median_val):
+            diff = your_val - median_val
+            diff_str = f"+{diff:.2f}{unit}" if diff > 0 else f"{diff:.2f}{unit}"
+
+            # Interpretation
+            if higher_better:
+                if diff > 0:
+                    interp = "Above median - positive"
+                    color_style = {"backgroundColor": "#d1fae5", "color": "#059669"}
+                else:
+                    interp = "Below median - needs improvement"
+                    color_style = {"backgroundColor": "#fecaca", "color": "#dc2626"}
+            else:  # lower is better
+                if diff < 0:
+                    interp = "Below median - positive"
+                    color_style = {"backgroundColor": "#d1fae5", "color": "#059669"}
+                else:
+                    interp = "Above median - needs improvement"
+                    color_style = {"backgroundColor": "#fecaca", "color": "#dc2626"}
+
+            rows.append(html.Tr([
+                html.Td(label, style={"fontWeight": "500", "backgroundColor": "#f8fafc"}),
+                html.Td(f"{your_val:.2f}{unit}", style={"backgroundColor": "#f0f9ff", "color": "#0ea5e9", "fontWeight": "bold"}),
+                html.Td(f"{median_val:.2f}{unit}", style={"backgroundColor": "#fafafa"}),
+                html.Td(diff_str, style=color_style),
+                html.Td(interp, style=color_style)
+            ]))
+
+    table_body = [html.Tbody(rows)]
+
+    return dbc.Table(
+        table_header + table_body,
+        bordered=True,
+        hover=True,
+        responsive=True,
+        striped=True,
+        className="mb-0"
+    )
+
+
+# Z-Score Credit Risk Analysis Table
+@app.callback(
+    Output('zscore-risk-table', 'children'),
+    [Input('competitor-selector', 'value'),
+     Input('ratios-data-store', 'data')]
+)
+def update_zscore_table(selected_competitors, data):
+    """Create Z-Score credit risk analysis table"""
+    if not data or len(data) == 0:
+        return html.P("No data available", className="text-muted")
+
+    df = pd.DataFrame(data)
+
+    # Get your company ticker
+    your_ticker = 'KATB' if 'KATB' in df['TICKER'].values else df['TICKER'].iloc[0]
+
+    # Filter for selected companies
+    companies = [your_ticker]
+    if selected_competitors:
+        companies.extend(selected_competitors[:4])  # Limit to 5 total
+
+    filtered_df = df[df['TICKER'].isin(companies)]
+
+    # Calculate simplified Z-Score (using available metrics)
+    def calculate_zscore(row):
+        """Simplified Z-Score calculation using available ratios"""
+        # Z = 1.2*WC/TA + 1.4*RE/TA + 3.3*EBIT/TA + 0.6*ME/TL + 1.0*Sales/TA
+        # Using available proxies from FINANCIAL_RATIOS
+        try:
+            cur_ratio = row.get('CUR_RATIO', 2.0)
+            ebitda_margin = row.get('EBITDA_MARGIN', 15.0) / 100
+            debt_to_asset = row.get('TOT_DEBT_TO_TOT_ASSET', 0.5)
+
+            # Simplified calculation (demonstration)
+            score = (1.5 * cur_ratio) + (3.0 * ebitda_margin) + (2.0 * (1 - debt_to_asset))
+            return max(0, min(score, 5.0))  # Cap between 0 and 5
+        except:
+            return 2.5  # Default mid-range score
+
+    z_scores = []
+    for ticker in companies:
+        ticker_data = filtered_df[filtered_df['TICKER'] == ticker]
+        if not ticker_data.empty:
+            score = calculate_zscore(ticker_data.iloc[0])
+            z_scores.append({'TICKER': ticker, 'Z_SCORE': score})
+
+    if not z_scores:
+        return html.P("Unable to calculate Z-Scores", className="text-muted")
+
+    # Risk categories
+    def get_risk_category(score):
+        if score >= 3.0:
+            return "Safe", "#d1fae5", "#059669"
+        elif score >= 1.8:
+            return "Grey Zone", "#fef3c7", "#d97706"
+        else:
+            return "Distress", "#fecaca", "#dc2626"
+
+    # Table header
+    header_cells = [
+        html.Th("Company", style={"backgroundColor": "#f8fafc", "fontWeight": "bold"}),
+        html.Th("Z-Score", style={"backgroundColor": "#f8fafc", "fontWeight": "bold"}),
+        html.Th("Risk Category", style={"backgroundColor": "#f8fafc", "fontWeight": "bold"})
+    ]
+    table_header = [html.Thead(html.Tr(header_cells))]
+
+    rows = []
+    for item in z_scores:
+        ticker = item['TICKER']
+        score = item['Z_SCORE']
+        category, bg_color, text_color = get_risk_category(score)
+
+        is_your_company = (ticker == your_ticker)
+
+        company_style = {"backgroundColor": "#f0f9ff", "color": "#0ea5e9", "fontWeight": "bold"} if is_your_company else {"backgroundColor": "#fafafa"}
+
+        company_label = html.Div([
+            html.Span(ticker),
+            html.Br(),
+            html.Small("You", style={"color": "#0ea5e9", "fontSize": "0.75rem"}) if is_your_company else html.Span()
+        ])
+
+        rows.append(html.Tr([
+            html.Td(company_label, style=company_style),
+            html.Td(f"{score:.1f}", style={"backgroundColor": bg_color, "color": text_color, "fontWeight": "bold"}),
+            html.Td(category, style={"backgroundColor": bg_color, "color": text_color, "fontWeight": "500"})
+        ]))
+
+    table_body = [html.Tbody(rows)]
+
+    # Add legend
+    legend = html.Div([
+        html.Small([
+            html.Span("Risk Levels: ", style={"fontWeight": "bold"}),
+            html.Span("Safe: > 3.0", style={"color": "#059669", "marginRight": "10px"}),
+            html.Span("Grey: 1.8–3.0", style={"color": "#d97706", "marginRight": "10px"}),
+            html.Span("Distress: < 1.8", style={"color": "#dc2626"})
+        ], className="text-muted mt-2 d-block")
+    ])
+
+    return html.Div([
+        dbc.Table(
+            table_header + table_body,
+            bordered=True,
+            hover=True,
+            responsive=True,
+            striped=True,
+            className="mb-2"
+        ),
+        legend
+    ])
+
+
+# Stacked EBITDA Margin Chart (Horizontal Bar Chart)
+@app.callback(
+    Output('stacked-ebitda-chart', 'figure'),
+    [Input('competitor-selector', 'value'),
+     Input('ratios-data-store', 'data')]
+)
+def update_stacked_ebitda_chart(selected_competitors, data):
+    """Create horizontal stacked bar chart for EBITDA margins"""
+    if not data or len(data) == 0:
+        return go.Figure().add_annotation(
+            text="No data available",
+            xref="paper", yref="paper", x=0.5, y=0.5,
+            showarrow=False, font=dict(size=14, color="gray")
+        )
+
+    df = pd.DataFrame(data)
+
+    # Get your company ticker
+    your_ticker = 'KATB' if 'KATB' in df['TICKER'].values else df['TICKER'].iloc[0]
+
+    # Filter for selected companies
+    companies = [your_ticker]
+    if selected_competitors:
+        companies.extend(selected_competitors[:5])  # Limit to 6 total
+
+    filtered_df = df[df['TICKER'].isin(companies)]
+
+    if filtered_df.empty or 'EBITDA_MARGIN' not in filtered_df.columns:
+        return go.Figure().add_annotation(
+            text="EBITDA Margin data not available",
+            xref="paper", yref="paper", x=0.5, y=0.5,
+            showarrow=False, font=dict(size=14, color="gray")
+        )
+
+    # Get latest value for each company and sort
+    chart_data = filtered_df.groupby('TICKER')['EBITDA_MARGIN'].first().reset_index()
+    chart_data = chart_data.sort_values('EBITDA_MARGIN', ascending=True)
+
+    # Get your company's value
+    your_value = chart_data[chart_data['TICKER'] == your_ticker]['EBITDA_MARGIN'].iloc[0] if your_ticker in chart_data['TICKER'].values else None
+
+    # Color code based on performance
+    colors = []
+    for _, row in chart_data.iterrows():
+        if row['TICKER'] == your_ticker:
+            colors.append('#0ea5e9')  # Blue for your company
+        elif pd.notna(your_value):
+            diff_pct = ((row['EBITDA_MARGIN'] - your_value) / abs(your_value)) * 100
+            if diff_pct >= 10:
+                colors.append('#059669')  # Strong green
+            elif diff_pct >= 5:
+                colors.append('#10b981')  # Green
+            elif diff_pct >= 0:
+                colors.append('#34d399')  # Light green
+            elif diff_pct >= -10:
+                colors.append('#fb923c')  # Orange
+            else:
+                colors.append('#dc2626')  # Red
+        else:
+            colors.append('#64748b')  # Gray
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Bar(
+        y=chart_data['TICKER'],
+        x=chart_data['EBITDA_MARGIN'],
+        orientation='h',
+        marker_color=colors,
+        text=[f"{v:.1f}%" if pd.notna(v) else "N/A" for v in chart_data['EBITDA_MARGIN']],
+        textposition='auto',
+        hovertemplate='<b>%{y}</b><br>EBITDA Margin: %{x:.2f}%<extra></extra>'
+    ))
+
+    fig.update_layout(
+        title="EBITDA Margin - Horizontal Comparison",
+        xaxis_title="EBITDA Margin (%)",
+        yaxis_title="",
+        height=400,
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        font=dict(color='#334155'),
+        xaxis=dict(gridcolor='#e2e8f0'),
+        yaxis=dict(gridcolor='#e2e8f0'),
+        showlegend=False,
+        margin=dict(l=100)
     )
 
     return fig
