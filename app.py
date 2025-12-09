@@ -363,6 +363,52 @@ def render_ratios_tab():
             ], width=12, md=6)
         ], className="mb-4"),
 
+        # Dynamic metric visualization section
+        dbc.Row([
+            dbc.Col([
+                html.H5("Dynamic Metric Analysis", className="mb-3"),
+                html.P("Select a metric and visualization type to explore the data", className="text-muted mb-3")
+            ], width=12)
+        ]),
+        dbc.Row([
+            dbc.Col([
+                html.Label("Select Metric:", className="fw-bold mb-2"),
+                dcc.Dropdown(
+                    id='dynamic-metric-selector',
+                    options=[
+                        {'label': 'EBITDA Margin', 'value': 'EBITDA_MARGIN'},
+                        {'label': 'Current Ratio', 'value': 'CUR_RATIO'},
+                        {'label': 'Quick Ratio', 'value': 'QUICK_RATIO'},
+                        {'label': 'Gross Margin', 'value': 'GROSS_MARGIN'},
+                        {'label': 'Interest Coverage', 'value': 'INTEREST_COVERAGE_RATIO'},
+                        {'label': 'Debt to Asset', 'value': 'TOT_DEBT_TO_TOT_ASSET'},
+                        {'label': 'Net Debt to Equity', 'value': 'NET_DEBT_TO_SHRHLDR_EQTY'},
+                        {'label': 'Debt to EBITDA', 'value': 'TOT_DEBT_TO_EBITDA'}
+                    ],
+                    value='EBITDA_MARGIN',
+                    className="mb-3"
+                )
+            ], width=12, md=4),
+            dbc.Col([
+                html.Label("Chart Type:", className="fw-bold mb-2"),
+                dcc.Dropdown(
+                    id='dynamic-chart-type',
+                    options=[
+                        {'label': 'Histogram', 'value': 'histogram'},
+                        {'label': 'Pie Chart', 'value': 'pie'},
+                        {'label': 'Line Chart', 'value': 'line'}
+                    ],
+                    value='histogram',
+                    className="mb-3"
+                )
+            ], width=12, md=4)
+        ], className="mb-3"),
+        dbc.Row([
+            dbc.Col([
+                dcc.Graph(id='dynamic-metric-chart')
+            ], width=12)
+        ], className="mb-4"),
+
         # Detailed comparison table
         dbc.Row([
             dbc.Col([
@@ -1055,7 +1101,11 @@ def update_competitor_bar_chart(selected_competitors, data):
         xaxis_title="Company",
         yaxis_title="EBITDA Margin (%)",
         height=350,
-        template="plotly_white",
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        font=dict(color='#334155'),
+        xaxis=dict(gridcolor='#e2e8f0'),
+        yaxis=dict(gridcolor='#e2e8f0'),
         showlegend=False
     )
 
@@ -1126,10 +1176,15 @@ def update_competitor_radar(selected_competitors, data):
                 ))
 
     fig.update_layout(
-        polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
+        polar=dict(
+            radialaxis=dict(visible=True, range=[0, 100], gridcolor='#e2e8f0'),
+            angularaxis=dict(gridcolor='#e2e8f0')
+        ),
         title="Performance Radar - Multi-Metric Comparison",
         height=350,
-        template="plotly_white",
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        font=dict(color='#334155'),
         showlegend=True
     )
 
@@ -1167,27 +1222,69 @@ def update_comparison_table(selected_competitors, data):
     metric_labels = ['Debt to Asset', 'EBITDA Margin (%)', 'Current Ratio', 'Quick Ratio', 'Gross Margin (%)', 'Interest Coverage']
 
     # Create table header with dynamic companies
-    header_cells = [html.Th("Metric")] + [html.Th(ticker, style={"color": "#0ea5e9" if ticker == companies[0] else "#64748b", "fontWeight": "bold"}) for ticker in companies]
+    header_cells = [html.Th("Metric", style={"backgroundColor": "#f8fafc"})] + [
+        html.Th(ticker, style={"color": "#0ea5e9" if ticker == companies[0] else "#64748b", "fontWeight": "bold", "backgroundColor": "#f8fafc"})
+        for ticker in companies
+    ]
     table_header = [html.Thead(html.Tr(header_cells))]
+
+    # Helper function for color coding
+    def get_cell_color(value, your_value, metric_name):
+        if pd.isna(value) or pd.isna(your_value):
+            return "#f1f5f9", "#64748b"  # light gray bg, gray text
+
+        # For metrics where higher is better
+        higher_is_better = ['EBITDA_MARGIN', 'CUR_RATIO', 'QUICK_RATIO', 'GROSS_MARGIN', 'INTEREST_COVERAGE_RATIO']
+
+        if metric_name in higher_is_better:
+            diff_pct = ((value - your_value) / abs(your_value)) * 100 if your_value != 0 else 0
+        else:  # Lower is better (debt ratios)
+            diff_pct = ((your_value - value) / abs(your_value)) * 100 if your_value != 0 else 0
+
+        # Return background color and text color
+        if diff_pct >= 20:
+            return "#d1fae5", "#059669"  # strong green bg, dark green text
+        elif diff_pct >= 10:
+            return "#d1fae5", "#10b981"  # green bg, green text
+        elif diff_pct >= 5:
+            return "#d1fae5", "#34d399"  # light green bg, light green text
+        elif diff_pct >= 0:
+            return "#fef3c7", "#d97706"  # yellow bg, orange text
+        elif diff_pct >= -10:
+            return "#fed7aa", "#fb923c"  # light orange bg, orange text
+        elif diff_pct >= -20:
+            return "#fed7aa", "#f97316"  # orange bg, dark orange text
+        else:
+            return "#fecaca", "#dc2626"  # red bg, dark red text
 
     rows = []
     for metric, label in zip(metrics, metric_labels):
         if metric not in comparison_df.columns:
             continue
 
-        row_cells = [html.Td(label, style={"fontWeight": "500"})]
+        row_cells = [html.Td(label, style={"fontWeight": "500", "backgroundColor": "#f8fafc"})]
+
+        # Get your company's value for this metric
+        your_company_data = comparison_df[comparison_df['TICKER'] == companies[0]]
+        your_value = your_company_data[metric].iloc[0] if not your_company_data.empty else None
 
         for ticker in companies:
             ticker_data = comparison_df[comparison_df['TICKER'] == ticker]
             if not ticker_data.empty and metric in ticker_data.columns:
                 value = ticker_data[metric].iloc[0]
                 if pd.notna(value):
-                    cell_style = {"color": "#0ea5e9", "fontWeight": "bold"} if ticker == companies[0] else {}
+                    if ticker == companies[0]:
+                        # Your company - blue style
+                        cell_style = {"color": "#0ea5e9", "fontWeight": "bold", "backgroundColor": "#f0f9ff"}
+                    else:
+                        # Competitor - color coded
+                        bg_color, text_color = get_cell_color(value, your_value, metric)
+                        cell_style = {"backgroundColor": bg_color, "color": text_color, "fontWeight": "500"}
                     row_cells.append(html.Td(f"{value:.2f}", style=cell_style))
                 else:
-                    row_cells.append(html.Td("N/A", className="text-muted"))
+                    row_cells.append(html.Td("N/A", className="text-muted", style={"backgroundColor": "#f1f5f9"}))
             else:
-                row_cells.append(html.Td("N/A", className="text-muted"))
+                row_cells.append(html.Td("N/A", className="text-muted", style={"backgroundColor": "#f1f5f9"}))
 
         rows.append(html.Tr(row_cells))
 
@@ -1201,6 +1298,183 @@ def update_comparison_table(selected_competitors, data):
         striped=True,
         className="mb-0"
     )
+
+
+# Dynamic metric visualization callback
+@app.callback(
+    Output('dynamic-metric-chart', 'figure'),
+    [Input('dynamic-metric-selector', 'value'),
+     Input('dynamic-chart-type', 'value'),
+     Input('competitor-selector', 'value'),
+     Input('ratios-data-store', 'data')]
+)
+def update_dynamic_metric_chart(metric, chart_type, selected_competitors, data):
+    """Create dynamic chart based on selected metric and chart type"""
+    if not data or len(data) == 0 or not metric:
+        return go.Figure().add_annotation(
+            text="No data available",
+            xref="paper", yref="paper", x=0.5, y=0.5,
+            showarrow=False, font=dict(size=14, color="gray")
+        )
+
+    df = pd.DataFrame(data)
+
+    # Get your company ticker
+    your_ticker = 'KATB' if 'KATB' in df['TICKER'].values else df['TICKER'].iloc[0]
+
+    # Filter for selected companies
+    companies = [your_ticker]
+    if selected_competitors:
+        companies.extend(selected_competitors)
+
+    filtered_df = df[df['TICKER'].isin(companies)]
+
+    if filtered_df.empty or metric not in filtered_df.columns:
+        return go.Figure().add_annotation(
+            text=f"{metric} data not available",
+            xref="paper", yref="paper", x=0.5, y=0.5,
+            showarrow=False, font=dict(size=14, color="gray")
+        )
+
+    # Get metric label
+    metric_labels = {
+        'EBITDA_MARGIN': 'EBITDA Margin (%)',
+        'CUR_RATIO': 'Current Ratio',
+        'QUICK_RATIO': 'Quick Ratio',
+        'GROSS_MARGIN': 'Gross Margin (%)',
+        'INTEREST_COVERAGE_RATIO': 'Interest Coverage Ratio',
+        'TOT_DEBT_TO_TOT_ASSET': 'Debt to Asset Ratio',
+        'NET_DEBT_TO_SHRHLDR_EQTY': 'Net Debt to Equity',
+        'TOT_DEBT_TO_EBITDA': 'Debt to EBITDA'
+    }
+    metric_label = metric_labels.get(metric, metric)
+
+    # Get your company's value for comparison
+    your_value = filtered_df[filtered_df['TICKER'] == your_ticker][metric].iloc[0] if your_ticker in filtered_df['TICKER'].values else None
+
+    # Color coding function: green if better than your company, yellow/red if worse
+    def get_performance_color(value, your_val, metric_name):
+        if pd.isna(value) or pd.isna(your_val):
+            return '#94a3b8'  # gray for N/A
+
+        # For metrics where higher is better
+        higher_is_better = ['EBITDA_MARGIN', 'CUR_RATIO', 'QUICK_RATIO', 'GROSS_MARGIN', 'INTEREST_COVERAGE_RATIO']
+
+        if metric_name in higher_is_better:
+            diff_pct = ((value - your_val) / abs(your_val)) * 100 if your_val != 0 else 0
+        else:  # Lower is better (debt ratios)
+            diff_pct = ((your_val - value) / abs(your_val)) * 100 if your_val != 0 else 0
+
+        # Color scale: dark red (worse) -> yellow -> light green -> dark green (better)
+        if diff_pct >= 20:
+            return '#059669'  # strong green
+        elif diff_pct >= 10:
+            return '#10b981'  # green
+        elif diff_pct >= 5:
+            return '#34d399'  # light green
+        elif diff_pct >= 0:
+            return '#fbbf24'  # yellow
+        elif diff_pct >= -10:
+            return '#fb923c'  # light orange
+        elif diff_pct >= -20:
+            return '#f97316'  # orange
+        else:
+            return '#dc2626'  # dark red
+
+    fig = go.Figure()
+
+    if chart_type == 'histogram':
+        # Group by ticker and get first value
+        chart_data = filtered_df.groupby('TICKER')[metric].first().reset_index()
+
+        colors = [get_performance_color(row[metric], your_value, metric) if row['TICKER'] != your_ticker
+                  else '#0ea5e9' for _, row in chart_data.iterrows()]
+
+        fig.add_trace(go.Bar(
+            x=chart_data['TICKER'],
+            y=chart_data[metric],
+            marker_color=colors,
+            text=[f"{v:.2f}" if pd.notna(v) else "N/A" for v in chart_data[metric]],
+            textposition='auto',
+            hovertemplate='<b>%{x}</b><br>' + metric_label + ': %{y:.2f}<extra></extra>'
+        ))
+
+        fig.update_layout(
+            title=f"{metric_label} - Histogram Comparison",
+            xaxis_title="Company",
+            yaxis_title=metric_label,
+            height=450,
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            font=dict(color='#334155'),
+            xaxis=dict(gridcolor='#e2e8f0'),
+            yaxis=dict(gridcolor='#e2e8f0'),
+            showlegend=False,
+            transition={'duration': 500}
+        )
+
+    elif chart_type == 'pie':
+        # Group by ticker and get first value
+        chart_data = filtered_df.groupby('TICKER')[metric].first().reset_index()
+        chart_data = chart_data[chart_data[metric].notna()]
+
+        colors = [get_performance_color(row[metric], your_value, metric) if row['TICKER'] != your_ticker
+                  else '#0ea5e9' for _, row in chart_data.iterrows()]
+
+        fig.add_trace(go.Pie(
+            labels=chart_data['TICKER'],
+            values=chart_data[metric],
+            marker=dict(colors=colors),
+            textinfo='label+percent',
+            hovertemplate='<b>%{label}</b><br>' + metric_label + ': %{value:.2f}<br>Percent: %{percent}<extra></extra>'
+        ))
+
+        fig.update_layout(
+            title=f"{metric_label} - Distribution",
+            height=450,
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            font=dict(color='#334155'),
+            transition={'duration': 500}
+        )
+
+    elif chart_type == 'line':
+        # Group by ticker and get first value, sort by value
+        chart_data = filtered_df.groupby('TICKER')[metric].first().reset_index()
+        chart_data = chart_data.sort_values(metric)
+
+        colors = [get_performance_color(row[metric], your_value, metric) if row['TICKER'] != your_ticker
+                  else '#0ea5e9' for _, row in chart_data.iterrows()]
+
+        fig.add_trace(go.Scatter(
+            x=chart_data['TICKER'],
+            y=chart_data[metric],
+            mode='lines+markers',
+            line=dict(color='#64748b', width=2),
+            marker=dict(
+                size=12,
+                color=colors,
+                line=dict(width=2, color='white')
+            ),
+            text=[f"{v:.2f}" if pd.notna(v) else "N/A" for v in chart_data[metric]],
+            hovertemplate='<b>%{x}</b><br>' + metric_label + ': %{y:.2f}<extra></extra>'
+        ))
+
+        fig.update_layout(
+            title=f"{metric_label} - Trend Line",
+            xaxis_title="Company (sorted by value)",
+            yaxis_title=metric_label,
+            height=450,
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            font=dict(color='#334155'),
+            xaxis=dict(gridcolor='#e2e8f0'),
+            yaxis=dict(gridcolor='#e2e8f0'),
+            showlegend=False,
+            transition={'duration': 500}
+        )
+
+    return fig
 
 
 # Update industry benchmark chart
@@ -1274,7 +1548,11 @@ def update_industry_benchmark(selected_competitors, data):
         xaxis_title="Metric",
         yaxis_title="Value",
         height=400,
-        template="plotly_white",
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        font=dict(color='#334155'),
+        xaxis=dict(gridcolor='#e2e8f0'),
+        yaxis=dict(gridcolor='#e2e8f0'),
         barmode='group',
         showlegend=True,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
