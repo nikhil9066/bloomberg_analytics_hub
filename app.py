@@ -298,23 +298,32 @@ def render_overview_tab():
 
 
 def render_ratios_tab():
-    """Render competitor ratio analysis - KatBotz vs Competitors"""
+    """Render competitor ratio analysis"""
     return dbc.Container([
-        # Header section
+        # Header section with company selector
         dbc.Row([
             dbc.Col([
                 html.H3("Competitor Ratio Analysis", className="mb-1"),
-                html.P("Compare KatBotz financial metrics with industry competitors", className="text-muted")
-            ], width=12)
+                html.P("Compare your company with industry competitors", className="text-muted")
+            ], width=12, md=6),
+            dbc.Col([
+                html.Label("Add Competitors to Compare:", className="fw-bold mb-2"),
+                dcc.Dropdown(
+                    id='competitor-selector',
+                    placeholder="Select companies to compare...",
+                    multi=True,
+                    className="mb-3"
+                )
+            ], width=12, md=6)
         ], className="mb-4"),
 
-        # Summary cards for KatBotz
+        # Your company summary cards
         dbc.Row([
             dbc.Col([
                 dbc.Card([
                     dbc.CardBody([
                         html.H6("Your Company", className="text-muted mb-2"),
-                        html.H4("KatBotz", className="text-primary mb-0", style={"fontWeight": "bold"})
+                        html.H4(id="your-company-name", className="text-primary mb-0", style={"fontWeight": "bold"})
                     ])
                 ], className="shadow-sm")
             ], width=12, md=3),
@@ -322,7 +331,7 @@ def render_ratios_tab():
                 dbc.Card([
                     dbc.CardBody([
                         html.Small("EBITDA Margin", className="text-muted d-block"),
-                        html.H4(id="katbotz-ebitda", className="mb-0")
+                        html.H4(id="your-company-ebitda", className="mb-0")
                     ])
                 ], className="shadow-sm")
             ], width=12, md=3),
@@ -330,7 +339,7 @@ def render_ratios_tab():
                 dbc.Card([
                     dbc.CardBody([
                         html.Small("Current Ratio", className="text-muted d-block"),
-                        html.H4(id="katbotz-current", className="mb-0")
+                        html.H4(id="your-company-current", className="mb-0")
                     ])
                 ], className="shadow-sm")
             ], width=12, md=3),
@@ -338,7 +347,7 @@ def render_ratios_tab():
                 dbc.Card([
                     dbc.CardBody([
                         html.Small("Gross Margin", className="text-muted d-block"),
-                        html.H4(id="katbotz-gross", className="mb-0")
+                        html.H4(id="your-company-gross", className="mb-0")
                     ])
                 ], className="shadow-sm")
             ], width=12, md=3),
@@ -942,54 +951,101 @@ def update_cash_flow_chart(data):
     )
 
 
-# Callbacks for new competitor comparison tab
+# Populate competitor dropdown with all tickers except your company
 @app.callback(
-    [Output('katbotz-ebitda', 'children'),
-     Output('katbotz-current', 'children'),
-     Output('katbotz-gross', 'children')],
-    Input('interval-component', 'n_intervals')
+    Output('competitor-selector', 'options'),
+    Input('ticker-list-store', 'data')
 )
-def update_katbotz_metrics(n):
-    """Load KatBotz metrics from JSON"""
-    import json
-    try:
-        with open('data/competitor_data.json', 'r') as f:
-            data = json.load(f)
-
-        katbotz = data['your_company']['metrics']
-        return (
-            f"{katbotz['EBITDA_Margin']:.1f}%",
-            f"{katbotz['Current_Ratio']:.2f}",
-            f"{katbotz['Gross_Margin']:.1f}%"
-        )
-    except:
-        return "18.5%", "2.1", "42.3%"
+def populate_competitor_dropdown(tickers):
+    """Populate dropdown with all available tickers from HANA"""
+    if not tickers:
+        return []
+    # Exclude "KATB" (your company) from the list
+    competitors = [t for t in tickers if t != 'KATB']
+    return [{'label': ticker, 'value': ticker} for ticker in competitors]
 
 
+# Update your company metrics (always show KatBotz/first ticker)
+@app.callback(
+    [Output('your-company-name', 'children'),
+     Output('your-company-ebitda', 'children'),
+     Output('your-company-current', 'children'),
+     Output('your-company-gross', 'children')],
+    Input('ratios-data-store', 'data')
+)
+def update_your_company_metrics(data):
+    """Display your company metrics from HANA"""
+    if not data or len(data) == 0:
+        return "Your Company", "N/A", "N/A", "N/A"
+
+    df = pd.DataFrame(data)
+
+    # Get data for your company (KATB ticker or first in list)
+    your_company = df[df['TICKER'] == 'KATB'] if 'KATB' in df['TICKER'].values else df.head(1)
+
+    if your_company.empty:
+        return "Your Company", "N/A", "N/A", "N/A"
+
+    company_name = your_company['TICKER'].iloc[0]
+    ebitda = your_company['EBITDA_MARGIN'].iloc[0] if 'EBITDA_MARGIN' in your_company.columns else 0
+    current = your_company['CUR_RATIO'].iloc[0] if 'CUR_RATIO' in your_company.columns else 0
+    gross = your_company['GROSS_MARGIN'].iloc[0] if 'GROSS_MARGIN' in your_company.columns else 0
+
+    return (
+        company_name,
+        f"{ebitda:.1f}%" if pd.notna(ebitda) else "N/A",
+        f"{current:.2f}" if pd.notna(current) else "N/A",
+        f"{gross:.1f}%" if pd.notna(gross) else "N/A"
+    )
+
+
+# Update comparison bar chart based on selected competitors
 @app.callback(
     Output('competitor-comparison-bar', 'figure'),
-    Input('interval-component', 'n_intervals')
+    [Input('competitor-selector', 'value'),
+     Input('ratios-data-store', 'data')]
 )
-def update_competitor_bar_chart(n):
-    """Create bar chart comparing key metrics across competitors"""
-    import json
-    try:
-        with open('data/competitor_data.json', 'r') as f:
-            data = json.load(f)
-    except:
-        return go.Figure()
+def update_competitor_bar_chart(selected_competitors, data):
+    """Create bar chart comparing EBITDA margins"""
+    if not data or len(data) == 0:
+        return go.Figure().add_annotation(
+            text="No data available",
+            xref="paper", yref="paper", x=0.5, y=0.5,
+            showarrow=False, font=dict(size=14, color="gray")
+        )
 
-    # Prepare data for comparison
-    companies = ['KatBotz'] + [c['name'] for c in data['competitors']]
-    ebitda_margins = [data['your_company']['metrics']['EBITDA_Margin']] + \
-                     [c['metrics']['EBITDA_Margin'] for c in data['competitors']]
+    df = pd.DataFrame(data)
+
+    # Start with your company
+    companies = ['KATB'] if 'KATB' in df['TICKER'].values else [df['TICKER'].iloc[0]]
+
+    # Add selected competitors
+    if selected_competitors:
+        companies.extend(selected_competitors)
+
+    # Filter data for these companies
+    comparison_df = df[df['TICKER'].isin(companies)]
+
+    if comparison_df.empty or 'EBITDA_MARGIN' not in comparison_df.columns:
+        return go.Figure().add_annotation(
+            text="EBITDA Margin data not available",
+            xref="paper", yref="paper", x=0.5, y=0.5,
+            showarrow=False, font=dict(size=14, color="gray")
+        )
+
+    # Get latest value for each company
+    latest_data = comparison_df.groupby('TICKER')['EBITDA_MARGIN'].first().reset_index()
+
+    # Create colors - your company in blue, others in gray
+    colors = ['#0ea5e9' if ticker == companies[0] else '#64748b'
+              for ticker in latest_data['TICKER']]
 
     fig = go.Figure(data=[
         go.Bar(
-            x=companies,
-            y=ebitda_margins,
-            marker_color=['#0ea5e9' if i == 0 else '#64748b' for i in range(len(companies))],
-            text=[f"{v:.1f}%" for v in ebitda_margins],
+            x=latest_data['TICKER'],
+            y=latest_data['EBITDA_MARGIN'],
+            marker_color=colors,
+            text=[f"{v:.1f}%" if pd.notna(v) else "N/A" for v in latest_data['EBITDA_MARGIN']],
             textposition='auto',
         )
     ])
@@ -1006,58 +1062,72 @@ def update_competitor_bar_chart(n):
     return fig
 
 
+# Update radar chart
 @app.callback(
     Output('competitor-radar-chart', 'figure'),
-    Input('interval-component', 'n_intervals')
+    [Input('competitor-selector', 'value'),
+     Input('ratios-data-store', 'data')]
 )
-def update_competitor_radar(n):
+def update_competitor_radar(selected_competitors, data):
     """Create radar chart for multi-metric comparison"""
-    import json
-    try:
-        with open('data/competitor_data.json', 'r') as f:
-            data = json.load(f)
-    except:
-        return go.Figure()
+    if not data or len(data) == 0:
+        return go.Figure().add_annotation(
+            text="No data available",
+            xref="paper", yref="paper", x=0.5, y=0.5,
+            showarrow=False, font=dict(size=14, color="gray")
+        )
 
-    metrics = ['EBITDA_Margin', 'ROE', 'Current_Ratio', 'Gross_Margin']
-    metric_labels = ['EBITDA Margin', 'ROE', 'Current Ratio', 'Gross Margin']
+    df = pd.DataFrame(data)
 
-    # Normalize values for radar chart (0-100 scale)
+    # Metrics available in FINANCIAL_RATIOS
+    metrics = ['EBITDA_MARGIN', 'CUR_RATIO', 'GROSS_MARGIN', 'INTEREST_COVERAGE_RATIO']
+    metric_labels = ['EBITDA Margin', 'Current Ratio', 'Gross Margin', 'Interest Coverage']
+
+    # Normalize function
     def normalize(value, metric):
+        if pd.isna(value):
+            return 0
         scales = {
-            'EBITDA_Margin': 30,
-            'ROE': 25,
-            'Current_Ratio': 3,
-            'Gross_Margin': 50
+            'EBITDA_MARGIN': 30,
+            'CUR_RATIO': 3,
+            'GROSS_MARGIN': 50,
+            'INTEREST_COVERAGE_RATIO': 15
         }
-        return (value / scales.get(metric, 1)) * 100
+        return min((value / scales.get(metric, 1)) * 100, 100)
 
     fig = go.Figure()
 
-    # KatBotz
-    katbotz_values = [normalize(data['your_company']['metrics'][m], m) for m in metrics]
-    fig.add_trace(go.Scatterpolar(
-        r=katbotz_values + [katbotz_values[0]],
-        theta=metric_labels + [metric_labels[0]],
-        fill='toself',
-        name='KatBotz',
-        line_color='#0ea5e9'
-    ))
+    # Your company
+    your_company = df[df['TICKER'] == 'KATB'] if 'KATB' in df['TICKER'].values else df.head(1)
+    if not your_company.empty:
+        your_values = [normalize(your_company[m].iloc[0], m) for m in metrics]
+        fig.add_trace(go.Scatterpolar(
+            r=your_values + [your_values[0]],
+            theta=metric_labels + [metric_labels[0]],
+            fill='toself',
+            name=your_company['TICKER'].iloc[0],
+            line_color='#0ea5e9'
+        ))
 
-    # Industry median
-    median_values = [normalize(data['industry_median'][m], m) for m in metrics]
-    fig.add_trace(go.Scatterpolar(
-        r=median_values + [median_values[0]],
-        theta=metric_labels + [metric_labels[0]],
-        fill='toself',
-        name='Industry Median',
-        line_color='#22c55e',
-        opacity=0.6
-    ))
+    # Add selected competitors
+    if selected_competitors:
+        colors = ['#22c55e', '#f59e0b', '#ef4444', '#8b5cf6']
+        for idx, ticker in enumerate(selected_competitors[:4]):  # Max 4 competitors
+            comp_data = df[df['TICKER'] == ticker]
+            if not comp_data.empty:
+                comp_values = [normalize(comp_data[m].iloc[0], m) for m in metrics]
+                fig.add_trace(go.Scatterpolar(
+                    r=comp_values + [comp_values[0]],
+                    theta=metric_labels + [metric_labels[0]],
+                    fill='toself',
+                    name=ticker,
+                    line_color=colors[idx % len(colors)],
+                    opacity=0.6
+                ))
 
     fig.update_layout(
         polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
-        title="Performance Radar - KatBotz vs Industry",
+        title="Performance Radar - Multi-Metric Comparison",
         height=350,
         template="plotly_white",
         showlegend=True
@@ -1066,53 +1136,60 @@ def update_competitor_radar(n):
     return fig
 
 
+# Update comparison table
 @app.callback(
     Output('competitor-comparison-table', 'children'),
-    Input('interval-component', 'n_intervals')
+    [Input('competitor-selector', 'value'),
+     Input('ratios-data-store', 'data')]
 )
-def update_comparison_table(n):
-    """Create detailed comparison table"""
-    import json
-    try:
-        with open('data/competitor_data.json', 'r') as f:
-            data = json.load(f)
-    except:
-        return html.P("Unable to load competitor data")
+def update_comparison_table(selected_competitors, data):
+    """Create detailed comparison table from HANA data"""
+    if not data or len(data) == 0:
+        return html.P("No data available", className="text-muted")
 
-    # Build table data
-    metrics = ['PE_Ratio', 'EBITDA_Margin', 'ROE', 'Current_Ratio', 'Gross_Margin', 'Revenue_Growth']
-    metric_labels = ['P/E Ratio', 'EBITDA Margin (%)', 'ROE (%)', 'Current Ratio', 'Gross Margin (%)', 'Revenue Growth (%)']
+    df = pd.DataFrame(data)
 
-    table_header = [
-        html.Thead(html.Tr([
-            html.Th("Metric"),
-            html.Th("KatBotz", style={"color": "#0ea5e9", "fontWeight": "bold"}),
-            html.Th("Salesforce"),
-            html.Th("Workday"),
-            html.Th("Oracle"),
-            html.Th("SAP"),
-            html.Th("Industry Median", style={"color": "#22c55e"})
-        ]))
-    ]
+    # Start with your company
+    companies = ['KATB'] if 'KATB' in df['TICKER'].values else [df['TICKER'].iloc[0]]
+
+    # Add selected competitors
+    if selected_competitors:
+        companies.extend(selected_competitors)
+
+    # Filter data
+    comparison_df = df[df['TICKER'].isin(companies)]
+
+    if comparison_df.empty:
+        return html.P("No companies selected for comparison", className="text-muted")
+
+    # Metrics from FINANCIAL_RATIOS table
+    metrics = ['TOT_DEBT_TO_TOT_ASSET', 'EBITDA_MARGIN', 'CUR_RATIO', 'QUICK_RATIO', 'GROSS_MARGIN', 'INTEREST_COVERAGE_RATIO']
+    metric_labels = ['Debt to Asset', 'EBITDA Margin (%)', 'Current Ratio', 'Quick Ratio', 'Gross Margin (%)', 'Interest Coverage']
+
+    # Create table header with dynamic companies
+    header_cells = [html.Th("Metric")] + [html.Th(ticker, style={"color": "#0ea5e9" if ticker == companies[0] else "#64748b", "fontWeight": "bold"}) for ticker in companies]
+    table_header = [html.Thead(html.Tr(header_cells))]
 
     rows = []
     for metric, label in zip(metrics, metric_labels):
-        katbotz_val = data['your_company']['metrics'][metric]
-        median_val = data['industry_median'][metric]
+        if metric not in comparison_df.columns:
+            continue
 
-        # Determine if KatBotz is above/below median
-        is_above = katbotz_val > median_val if metric != 'Debt_to_Asset' else katbotz_val < median_val
+        row_cells = [html.Td(label, style={"fontWeight": "500"})]
 
-        row = html.Tr([
-            html.Td(label, style={"fontWeight": "500"}),
-            html.Td(f"{katbotz_val:.1f}", style={"color": "#0ea5e9" if is_above else "#ef4444", "fontWeight": "bold"}),
-            html.Td(f"{data['competitors'][0]['metrics'][metric]:.1f}"),
-            html.Td(f"{data['competitors'][1]['metrics'][metric]:.1f}"),
-            html.Td(f"{data['competitors'][2]['metrics'][metric]:.1f}"),
-            html.Td(f"{data['competitors'][3]['metrics'][metric]:.1f}"),
-            html.Td(f"{median_val:.1f}", style={"color": "#22c55e", "fontWeight": "500"})
-        ])
-        rows.append(row)
+        for ticker in companies:
+            ticker_data = comparison_df[comparison_df['TICKER'] == ticker]
+            if not ticker_data.empty and metric in ticker_data.columns:
+                value = ticker_data[metric].iloc[0]
+                if pd.notna(value):
+                    cell_style = {"color": "#0ea5e9", "fontWeight": "bold"} if ticker == companies[0] else {}
+                    row_cells.append(html.Td(f"{value:.2f}", style=cell_style))
+                else:
+                    row_cells.append(html.Td("N/A", className="text-muted"))
+            else:
+                row_cells.append(html.Td("N/A", className="text-muted"))
+
+        rows.append(html.Tr(row_cells))
 
     table_body = [html.Tbody(rows)]
 
@@ -1126,33 +1203,60 @@ def update_comparison_table(n):
     )
 
 
+# Update industry benchmark chart
 @app.callback(
     Output('industry-benchmark-chart', 'figure'),
-    Input('interval-component', 'n_intervals')
+    [Input('competitor-selector', 'value'),
+     Input('ratios-data-store', 'data')]
 )
-def update_industry_benchmark(n):
+def update_industry_benchmark(selected_competitors, data):
     """Create industry benchmark chart"""
-    import json
-    try:
-        with open('data/competitor_data.json', 'r') as f:
-            data = json.load(f)
-    except:
-        return go.Figure()
+    if not data or len(data) == 0:
+        return go.Figure().add_annotation(
+            text="No data available",
+            xref="paper", yref="paper", x=0.5, y=0.5,
+            showarrow=False, font=dict(size=14, color="gray")
+        )
 
-    metrics = ['PE_Ratio', 'EBITDA_Margin', 'ROE', 'Current_Ratio', 'Gross_Margin', 'Revenue_Growth']
-    metric_labels = ['P/E Ratio', 'EBITDA Margin', 'ROE', 'Current Ratio', 'Gross Margin', 'Revenue Growth']
+    df = pd.DataFrame(data)
 
-    katbotz_values = [data['your_company']['metrics'][m] for m in metrics]
-    median_values = [data['industry_median'][m] for m in metrics]
+    # Your company
+    your_company = df[df['TICKER'] == 'KATB'] if 'KATB' in df['TICKER'].values else df.head(1)
+
+    if your_company.empty:
+        return go.Figure().add_annotation(
+            text="Your company data not found",
+            xref="paper", yref="paper", x=0.5, y=0.5,
+            showarrow=False, font=dict(size=14, color="gray")
+        )
+
+    # Calculate industry median from all companies in database
+    metrics = ['EBITDA_MARGIN', 'CUR_RATIO', 'QUICK_RATIO', 'GROSS_MARGIN', 'INTEREST_COVERAGE_RATIO']
+    metric_labels = ['EBITDA Margin', 'Current Ratio', 'Quick Ratio', 'Gross Margin', 'Interest Coverage']
+
+    your_values = []
+    median_values = []
+
+    for metric in metrics:
+        if metric in your_company.columns:
+            your_val = your_company[metric].iloc[0]
+            your_values.append(your_val if pd.notna(your_val) else 0)
+
+            # Calculate median from all companies
+            median_val = df[metric].median()
+            median_values.append(median_val if pd.notna(median_val) else 0)
+        else:
+            your_values.append(0)
+            median_values.append(0)
 
     fig = go.Figure()
 
     fig.add_trace(go.Bar(
-        name='KatBotz',
+        name='Your Company',
         x=metric_labels,
-        y=katbotz_values,
+        y=your_values,
         marker_color='#0ea5e9',
-        text=[f"{v:.1f}" for v in katbotz_values],
+        text=[f"{v:.1f}" for v in your_values],
         textposition='auto',
     ))
 
@@ -1166,7 +1270,7 @@ def update_industry_benchmark(n):
     ))
 
     fig.update_layout(
-        title="KatBotz vs Industry Median - All Key Metrics",
+        title="Your Company vs Industry Median",
         xaxis_title="Metric",
         yaxis_title="Value",
         height=400,
