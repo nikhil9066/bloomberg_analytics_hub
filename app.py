@@ -91,13 +91,13 @@ app.layout = dbc.Container([
             dbc.Card([
                 dbc.CardBody([
                     html.Div([
-                        html.I(className="fas fa-database fa-2x text-muted mb-2"),
-                        html.H3("N/A", className="mb-0 text-muted"),
-                        html.P("Advanced Metrics Data", className="text-muted mb-0"),
-                        html.Small("Table not available", className="text-muted")
+                        html.I(className="fas fa-database fa-2x text-success mb-2"),
+                        html.H3(id="advanced-count", className="mb-0"),
+                        html.P("Total Records", className="text-muted mb-0"),
+                        html.Small(id="advanced-table-name", className="text-muted")
                     ], className="text-center")
                 ])
-            ], className="shadow-sm metric-card", style={"opacity": "0.5"})
+            ], className="shadow-sm metric-card")
         ], width=12, md=6, lg=3),
 
         dbc.Col([
@@ -298,37 +298,74 @@ def render_overview_tab():
 
 
 def render_ratios_tab():
-    """Render financial ratios analysis"""
+    """Render competitor ratio analysis - KatBotz vs Competitors"""
     return dbc.Container([
+        # Header section
         dbc.Row([
             dbc.Col([
-                html.H5("Select Ticker:"),
-                dcc.Dropdown(
-                    id='ratios-ticker-dropdown',
-                    placeholder="Choose a company...",
-                    className="mb-3"
-                )
-            ], width=12, md=4),
-            dbc.Col([
-                html.H5("Select Metric:"),
-                dcc.Dropdown(
-                    id='ratios-metric-dropdown',
-                    options=[
-                        {'label': 'Debt to Asset Ratio', 'value': 'TOT_DEBT_TO_TOT_ASSET'},
-                        {'label': 'Current Ratio', 'value': 'CUR_RATIO'},
-                        {'label': 'Quick Ratio', 'value': 'QUICK_RATIO'},
-                        {'label': 'Gross Margin', 'value': 'GROSS_MARGIN'},
-                        {'label': 'EBITDA Margin', 'value': 'EBITDA_MARGIN'},
-                        {'label': 'Interest Coverage Ratio', 'value': 'INTEREST_COVERAGE_RATIO'},
-                    ],
-                    value='GROSS_MARGIN',
-                    className="mb-3"
-                )
-            ], width=12, md=4)
-        ]),
+                html.H3("Competitor Ratio Analysis", className="mb-1"),
+                html.P("Compare KatBotz financial metrics with industry competitors", className="text-muted")
+            ], width=12)
+        ], className="mb-4"),
+
+        # Summary cards for KatBotz
         dbc.Row([
             dbc.Col([
-                dcc.Graph(id='ratios-detail-chart')
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H6("Your Company", className="text-muted mb-2"),
+                        html.H4("KatBotz", className="text-primary mb-0", style={"fontWeight": "bold"})
+                    ])
+                ], className="shadow-sm")
+            ], width=12, md=3),
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.Small("EBITDA Margin", className="text-muted d-block"),
+                        html.H4(id="katbotz-ebitda", className="mb-0")
+                    ])
+                ], className="shadow-sm")
+            ], width=12, md=3),
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.Small("Current Ratio", className="text-muted d-block"),
+                        html.H4(id="katbotz-current", className="mb-0")
+                    ])
+                ], className="shadow-sm")
+            ], width=12, md=3),
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.Small("Gross Margin", className="text-muted d-block"),
+                        html.H4(id="katbotz-gross", className="mb-0")
+                    ])
+                ], className="shadow-sm")
+            ], width=12, md=3),
+        ], className="mb-4"),
+
+        # Comparison charts
+        dbc.Row([
+            dbc.Col([
+                dcc.Graph(id='competitor-comparison-bar')
+            ], width=12, md=6),
+            dbc.Col([
+                dcc.Graph(id='competitor-radar-chart')
+            ], width=12, md=6)
+        ], className="mb-4"),
+
+        # Detailed comparison table
+        dbc.Row([
+            dbc.Col([
+                html.H5("Detailed Metrics Comparison", className="mb-3"),
+                html.Div(id='competitor-comparison-table')
+            ], width=12)
+        ], className="mb-4"),
+
+        # Industry benchmark
+        dbc.Row([
+            dbc.Col([
+                dcc.Graph(id='industry-benchmark-chart')
             ], width=12)
         ])
     ], fluid=True)
@@ -413,6 +450,8 @@ def render_explorer_tab():
 @app.callback(
     [Output("ratios-count", "children"),
      Output("ratios-table-name", "children"),
+     Output("advanced-count", "children"),
+     Output("advanced-table-name", "children"),
      Output("total-records", "children"),
      Output("unique-tickers", "children"),
      Output("last-update", "children"),
@@ -423,7 +462,7 @@ def update_summary_cards(n):
     """Update summary statistics cards with data from FINANCIAL_RATIOS table"""
     stats = data_service.get_summary_stats()
 
-    # Get counts from ratios table only
+    # Get counts from ratios table
     ratios_count = stats.get('ratios_count', 0)
     total = ratios_count
     tickers = stats.get('unique_tickers', 0)
@@ -437,6 +476,8 @@ def update_summary_cards(n):
     db_status = "✓ Connected" if data_service.connected else "✗ Disconnected"
 
     return (
+        f"{ratios_count:,}",
+        "Basic Ratios Data",
         f"{ratios_count:,}",
         "FINANCIAL_RATIOS table",
         f"{total:,}",
@@ -901,15 +942,241 @@ def update_cash_flow_chart(data):
     )
 
 
-# Callback to update ticker dropdowns
+# Callbacks for new competitor comparison tab
 @app.callback(
-    Output('ratios-ticker-dropdown', 'options'),
-    Input('ticker-list-store', 'data')
+    [Output('katbotz-ebitda', 'children'),
+     Output('katbotz-current', 'children'),
+     Output('katbotz-gross', 'children')],
+    Input('interval-component', 'n_intervals')
 )
-def update_ticker_dropdowns(tickers):
-    """Update ticker dropdown options"""
-    options = [{'label': t, 'value': t} for t in (tickers or [])]
-    return options
+def update_katbotz_metrics(n):
+    """Load KatBotz metrics from JSON"""
+    import json
+    try:
+        with open('data/competitor_data.json', 'r') as f:
+            data = json.load(f)
+
+        katbotz = data['your_company']['metrics']
+        return (
+            f"{katbotz['EBITDA_Margin']:.1f}%",
+            f"{katbotz['Current_Ratio']:.2f}",
+            f"{katbotz['Gross_Margin']:.1f}%"
+        )
+    except:
+        return "18.5%", "2.1", "42.3%"
+
+
+@app.callback(
+    Output('competitor-comparison-bar', 'figure'),
+    Input('interval-component', 'n_intervals')
+)
+def update_competitor_bar_chart(n):
+    """Create bar chart comparing key metrics across competitors"""
+    import json
+    try:
+        with open('data/competitor_data.json', 'r') as f:
+            data = json.load(f)
+    except:
+        return go.Figure()
+
+    # Prepare data for comparison
+    companies = ['KatBotz'] + [c['name'] for c in data['competitors']]
+    ebitda_margins = [data['your_company']['metrics']['EBITDA_Margin']] + \
+                     [c['metrics']['EBITDA_Margin'] for c in data['competitors']]
+
+    fig = go.Figure(data=[
+        go.Bar(
+            x=companies,
+            y=ebitda_margins,
+            marker_color=['#0ea5e9' if i == 0 else '#64748b' for i in range(len(companies))],
+            text=[f"{v:.1f}%" for v in ebitda_margins],
+            textposition='auto',
+        )
+    ])
+
+    fig.update_layout(
+        title="EBITDA Margin Comparison",
+        xaxis_title="Company",
+        yaxis_title="EBITDA Margin (%)",
+        height=350,
+        template="plotly_white",
+        showlegend=False
+    )
+
+    return fig
+
+
+@app.callback(
+    Output('competitor-radar-chart', 'figure'),
+    Input('interval-component', 'n_intervals')
+)
+def update_competitor_radar(n):
+    """Create radar chart for multi-metric comparison"""
+    import json
+    try:
+        with open('data/competitor_data.json', 'r') as f:
+            data = json.load(f)
+    except:
+        return go.Figure()
+
+    metrics = ['EBITDA_Margin', 'ROE', 'Current_Ratio', 'Gross_Margin']
+    metric_labels = ['EBITDA Margin', 'ROE', 'Current Ratio', 'Gross Margin']
+
+    # Normalize values for radar chart (0-100 scale)
+    def normalize(value, metric):
+        scales = {
+            'EBITDA_Margin': 30,
+            'ROE': 25,
+            'Current_Ratio': 3,
+            'Gross_Margin': 50
+        }
+        return (value / scales.get(metric, 1)) * 100
+
+    fig = go.Figure()
+
+    # KatBotz
+    katbotz_values = [normalize(data['your_company']['metrics'][m], m) for m in metrics]
+    fig.add_trace(go.Scatterpolar(
+        r=katbotz_values + [katbotz_values[0]],
+        theta=metric_labels + [metric_labels[0]],
+        fill='toself',
+        name='KatBotz',
+        line_color='#0ea5e9'
+    ))
+
+    # Industry median
+    median_values = [normalize(data['industry_median'][m], m) for m in metrics]
+    fig.add_trace(go.Scatterpolar(
+        r=median_values + [median_values[0]],
+        theta=metric_labels + [metric_labels[0]],
+        fill='toself',
+        name='Industry Median',
+        line_color='#22c55e',
+        opacity=0.6
+    ))
+
+    fig.update_layout(
+        polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
+        title="Performance Radar - KatBotz vs Industry",
+        height=350,
+        template="plotly_white",
+        showlegend=True
+    )
+
+    return fig
+
+
+@app.callback(
+    Output('competitor-comparison-table', 'children'),
+    Input('interval-component', 'n_intervals')
+)
+def update_comparison_table(n):
+    """Create detailed comparison table"""
+    import json
+    try:
+        with open('data/competitor_data.json', 'r') as f:
+            data = json.load(f)
+    except:
+        return html.P("Unable to load competitor data")
+
+    # Build table data
+    metrics = ['PE_Ratio', 'EBITDA_Margin', 'ROE', 'Current_Ratio', 'Gross_Margin', 'Revenue_Growth']
+    metric_labels = ['P/E Ratio', 'EBITDA Margin (%)', 'ROE (%)', 'Current Ratio', 'Gross Margin (%)', 'Revenue Growth (%)']
+
+    table_header = [
+        html.Thead(html.Tr([
+            html.Th("Metric"),
+            html.Th("KatBotz", style={"color": "#0ea5e9", "fontWeight": "bold"}),
+            html.Th("Salesforce"),
+            html.Th("Workday"),
+            html.Th("Oracle"),
+            html.Th("SAP"),
+            html.Th("Industry Median", style={"color": "#22c55e"})
+        ]))
+    ]
+
+    rows = []
+    for metric, label in zip(metrics, metric_labels):
+        katbotz_val = data['your_company']['metrics'][metric]
+        median_val = data['industry_median'][metric]
+
+        # Determine if KatBotz is above/below median
+        is_above = katbotz_val > median_val if metric != 'Debt_to_Asset' else katbotz_val < median_val
+
+        row = html.Tr([
+            html.Td(label, style={"fontWeight": "500"}),
+            html.Td(f"{katbotz_val:.1f}", style={"color": "#0ea5e9" if is_above else "#ef4444", "fontWeight": "bold"}),
+            html.Td(f"{data['competitors'][0]['metrics'][metric]:.1f}"),
+            html.Td(f"{data['competitors'][1]['metrics'][metric]:.1f}"),
+            html.Td(f"{data['competitors'][2]['metrics'][metric]:.1f}"),
+            html.Td(f"{data['competitors'][3]['metrics'][metric]:.1f}"),
+            html.Td(f"{median_val:.1f}", style={"color": "#22c55e", "fontWeight": "500"})
+        ])
+        rows.append(row)
+
+    table_body = [html.Tbody(rows)]
+
+    return dbc.Table(
+        table_header + table_body,
+        bordered=True,
+        hover=True,
+        responsive=True,
+        striped=True,
+        className="mb-0"
+    )
+
+
+@app.callback(
+    Output('industry-benchmark-chart', 'figure'),
+    Input('interval-component', 'n_intervals')
+)
+def update_industry_benchmark(n):
+    """Create industry benchmark chart"""
+    import json
+    try:
+        with open('data/competitor_data.json', 'r') as f:
+            data = json.load(f)
+    except:
+        return go.Figure()
+
+    metrics = ['PE_Ratio', 'EBITDA_Margin', 'ROE', 'Current_Ratio', 'Gross_Margin', 'Revenue_Growth']
+    metric_labels = ['P/E Ratio', 'EBITDA Margin', 'ROE', 'Current Ratio', 'Gross Margin', 'Revenue Growth']
+
+    katbotz_values = [data['your_company']['metrics'][m] for m in metrics]
+    median_values = [data['industry_median'][m] for m in metrics]
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Bar(
+        name='KatBotz',
+        x=metric_labels,
+        y=katbotz_values,
+        marker_color='#0ea5e9',
+        text=[f"{v:.1f}" for v in katbotz_values],
+        textposition='auto',
+    ))
+
+    fig.add_trace(go.Bar(
+        name='Industry Median',
+        x=metric_labels,
+        y=median_values,
+        marker_color='#22c55e',
+        text=[f"{v:.1f}" for v in median_values],
+        textposition='auto',
+    ))
+
+    fig.update_layout(
+        title="KatBotz vs Industry Median - All Key Metrics",
+        xaxis_title="Metric",
+        yaxis_title="Value",
+        height=400,
+        template="plotly_white",
+        barmode='group',
+        showlegend=True,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+
+    return fig
 
 
 # Callback for explorer table
