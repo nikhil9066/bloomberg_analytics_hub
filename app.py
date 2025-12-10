@@ -50,9 +50,9 @@ app = dash.Dash(
 server = app.server
 app.title = "Financial Analytics Dashboard"
 
-# Custom CSS
+# Custom CSS - ChatGPT-like theme
 custom_style = {
-    'backgroundColor': 'transparent',
+    'backgroundColor': '#ffffff',
     'fontFamily': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial',
 }
 
@@ -63,123 +63,151 @@ app.layout = dbc.Container([
         dbc.Col([
             html.Div([
                 html.H1([
-                    html.I(className="fas fa-chart-line me-3"),
+                    html.I(className="fas fa-chart-line me-3", style={"color": "#000000"}),
                     "Financial Analytics Dashboard"
-                ], className="text-primary mb-2"),
+                ], style={"color": "#000000", "fontWeight": "600"}, className="mb-2"),
                 html.P("Real-time Bloomberg financial data from SAP HANA",
-                       className="text-muted")
-            ], className="hero-panel text-center my-4")
+                       style={"color": "#6b7280"})
+            ], className="text-center my-4")
         ])
     ]),
 
-    # Summary Cards - Row 1
+    # Collapsible Metrics Section
     dbc.Row([
         dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.Div([
-                        html.I(className="fas fa-chart-bar fa-2x text-primary mb-2"),
-                        html.H3(id="ratios-count", className="mb-0"),
-                        html.P("Basic Ratios Data", className="text-muted mb-0"),
-                        html.Small(id="ratios-table-name", className="text-muted")
-                    ], className="text-center")
-                ])
-            ], className="shadow-sm metric-card")
-        ], width=12, md=6, lg=3),
+            dbc.Button(
+                [
+                    html.I(className="fas fa-chart-bar me-2"),
+                    "System Metrics",
+                    html.I(id="metrics-toggle-icon", className="fas fa-chevron-down ms-2")
+                ],
+                id="collapse-metrics-button",
+                className="mb-3",
+                color="light",
+                style={
+                    "width": "100%",
+                    "textAlign": "left",
+                    "border": "1px solid #e5e7eb",
+                    "color": "#1f2937",
+                    "fontWeight": "500"
+                },
+            ),
+            dbc.Collapse(
+                [
+                    # Row 1
+                    dbc.Row([
+                        dbc.Col([
+                            dbc.Card([
+                                dbc.CardBody([
+                                    html.Div([
+                                        html.I(className="fas fa-chart-bar fa-2x mb-2", style={"color": "#3b82f6"}),
+                                        html.H3(id="ratios-count", className="mb-0", style={"color": "#1f2937"}),
+                                        html.P("Basic Ratios Data", className="mb-0", style={"color": "#6b7280", "fontSize": "14px"}),
+                                        html.Small(id="ratios-table-name", style={"color": "#9ca3af", "fontSize": "12px"})
+                                    ], className="text-center")
+                                ])
+                            ], style={"border": "1px solid #e5e7eb"})
+                        ], width=12, md=6, lg=3),
 
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.Div([
-                        html.I(className="fas fa-database fa-2x text-success mb-2"),
-                        html.H3(id="advanced-count", className="mb-0"),
-                        html.P("Total Records", className="text-muted mb-0"),
-                        html.Small(id="advanced-table-name", className="text-muted")
-                    ], className="text-center")
-                ])
-            ], className="shadow-sm metric-card")
-        ], width=12, md=6, lg=3),
+                        dbc.Col([
+                            dbc.Card([
+                                dbc.CardBody([
+                                    html.Div([
+                                        html.I(className="fas fa-database fa-2x mb-2", style={"color": "#10b981"}),
+                                        html.H3(id="advanced-count", className="mb-0", style={"color": "#1f2937"}),
+                                        html.P("Total Records", className="mb-0", style={"color": "#6b7280", "fontSize": "14px"}),
+                                        html.Small(id="advanced-table-name", style={"color": "#9ca3af", "fontSize": "12px"})
+                                    ], className="text-center")
+                                ])
+                            ], style={"border": "1px solid #e5e7eb"})
+                        ], width=12, md=6, lg=3),
 
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.Div([
-                        html.I(className="fas fa-layer-group fa-2x text-info mb-2"),
-                        html.H3(id="total-records", className="mb-0"),
-                        html.P("Total Data Points", className="text-muted mb-0"),
-                        html.Small("All tables combined", className="text-muted")
-                    ], className="text-center")
-                ])
-            ], className="shadow-sm metric-card")
-        ], width=12, md=6, lg=3),
+                        dbc.Col([
+                            dbc.Card([
+                                dbc.CardBody([
+                                    html.Div([
+                                        html.I(className="fas fa-layer-group fa-2x mb-2", style={"color": "#06b6d4"}),
+                                        html.H3(id="total-records", className="mb-0", style={"color": "#1f2937"}),
+                                        html.P("Total Data Points", className="mb-0", style={"color": "#6b7280", "fontSize": "14px"}),
+                                        html.Small("All tables combined", style={"color": "#9ca3af", "fontSize": "12px"})
+                                    ], className="text-center")
+                                ])
+                            ], style={"border": "1px solid #e5e7eb"})
+                        ], width=12, md=6, lg=3),
 
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.Div([
-                        html.I(className="fas fa-building fa-2x text-warning mb-2"),
-                        html.H3(id="unique-tickers", className="mb-0"),
-                        html.P("Unique Companies", className="text-muted mb-0"),
-                        html.Small("Tracked in database", className="text-muted")
-                    ], className="text-center")
-                ])
-            ], className="shadow-sm metric-card")
-        ], width=12, md=6, lg=3),
-    ], className="mb-3"),
+                        dbc.Col([
+                            dbc.Card([
+                                dbc.CardBody([
+                                    html.Div([
+                                        html.I(className="fas fa-building fa-2x mb-2", style={"color": "#f59e0b"}),
+                                        html.H3(id="unique-tickers", className="mb-0", style={"color": "#1f2937"}),
+                                        html.P("Unique Companies", className="mb-0", style={"color": "#6b7280", "fontSize": "14px"}),
+                                        html.Small("Tracked in database", style={"color": "#9ca3af", "fontSize": "12px"})
+                                    ], className="text-center")
+                                ])
+                            ], style={"border": "1px solid #e5e7eb"})
+                        ], width=12, md=6, lg=3),
+                    ], className="mb-3"),
 
-    # Summary Cards - Row 2
-    dbc.Row([
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.Div([
-                        html.I(className="fas fa-clock fa-2x text-secondary mb-2"),
-                        html.H6(id="last-update", className="mb-0"),
-                        html.P("Last Updated", className="text-muted mb-0"),
-                        html.Small("Most recent data", className="text-muted")
-                    ], className="text-center")
-                ])
-            ], className="shadow-sm metric-card")
-        ], width=12, md=6, lg=3),
+                    # Row 2
+                    dbc.Row([
+                        dbc.Col([
+                            dbc.Card([
+                                dbc.CardBody([
+                                    html.Div([
+                                        html.I(className="fas fa-clock fa-2x mb-2", style={"color": "#6b7280"}),
+                                        html.H6(id="last-update", className="mb-0", style={"color": "#1f2937"}),
+                                        html.P("Last Updated", className="mb-0", style={"color": "#6b7280", "fontSize": "14px"}),
+                                        html.Small("Most recent data", style={"color": "#9ca3af", "fontSize": "12px"})
+                                    ], className="text-center")
+                                ])
+                            ], style={"border": "1px solid #e5e7eb"})
+                        ], width=12, md=6, lg=3),
 
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.Div([
-                        html.I(className="fas fa-server fa-2x text-primary mb-2"),
-                        html.H6("SAP HANA Cloud", className="mb-0"),
-                        html.P("Database Status", className="text-muted mb-0"),
-                        html.Small(id="db-status", className="text-success")
-                    ], className="text-center")
-                ])
-            ], className="shadow-sm metric-card")
-        ], width=12, md=6, lg=3),
+                        dbc.Col([
+                            dbc.Card([
+                                dbc.CardBody([
+                                    html.Div([
+                                        html.I(className="fas fa-server fa-2x mb-2", style={"color": "#3b82f6"}),
+                                        html.H6("SAP HANA Cloud", className="mb-0", style={"color": "#1f2937"}),
+                                        html.P("Database Status", className="mb-0", style={"color": "#6b7280", "fontSize": "14px"}),
+                                        html.Small(id="db-status", style={"color": "#10b981", "fontSize": "12px"})
+                                    ], className="text-center")
+                                ])
+                            ], style={"border": "1px solid #e5e7eb"})
+                        ], width=12, md=6, lg=3),
 
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.Div([
-                        html.I(className="fas fa-sync fa-2x text-info mb-2"),
-                        html.H6("Auto-Refresh", className="mb-0"),
-                        html.P("Update Interval", className="text-muted mb-0"),
-                        html.Small("Every 5 minutes", className="text-muted")
-                    ], className="text-center")
-                ])
-            ], className="shadow-sm metric-card")
-        ], width=12, md=6, lg=3),
+                        dbc.Col([
+                            dbc.Card([
+                                dbc.CardBody([
+                                    html.Div([
+                                        html.I(className="fas fa-sync fa-2x mb-2", style={"color": "#06b6d4"}),
+                                        html.H6("Auto-Refresh", className="mb-0", style={"color": "#1f2937"}),
+                                        html.P("Update Interval", className="mb-0", style={"color": "#6b7280", "fontSize": "14px"}),
+                                        html.Small("Every 5 minutes", style={"color": "#9ca3af", "fontSize": "12px"})
+                                    ], className="text-center")
+                                ])
+                            ], style={"border": "1px solid #e5e7eb"})
+                        ], width=12, md=6, lg=3),
 
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.Div([
-                        html.I(className="fas fa-cloud fa-2x text-success mb-2"),
-                        html.H6("Cloud Foundry", className="mb-0"),
-                        html.P("Deployment", className="text-muted mb-0"),
-                        html.Small("Production Ready", className="text-success")
-                    ], className="text-center")
-                ])
-            ], className="shadow-sm metric-card")
-        ], width=12, md=6, lg=3),
+                        dbc.Col([
+                            dbc.Card([
+                                dbc.CardBody([
+                                    html.Div([
+                                        html.I(className="fas fa-cloud fa-2x mb-2", style={"color": "#10b981"}),
+                                        html.H6("Cloud Foundry", className="mb-0", style={"color": "#1f2937"}),
+                                        html.P("Deployment", className="mb-0", style={"color": "#6b7280", "fontSize": "14px"}),
+                                        html.Small("Production Ready", style={"color": "#10b981", "fontSize": "12px"})
+                                    ], className="text-center")
+                                ])
+                            ], style={"border": "1px solid #e5e7eb"})
+                        ], width=12, md=6, lg=3),
+                    ], className="mb-3"),
+                ],
+                id="collapse-metrics",
+                is_open=False,
+            ),
+        ], width=12)
     ], className="mb-4"),
 
     # Main Content Tabs
@@ -1997,6 +2025,22 @@ def update_comparison_chart(tickers, metric, data):
         showlegend=False
     )
     return fig
+
+
+# Callback for collapsible metrics section
+@app.callback(
+    [Output("collapse-metrics", "is_open"),
+     Output("metrics-toggle-icon", "className")],
+    [Input("collapse-metrics-button", "n_clicks")],
+    [State("collapse-metrics", "is_open")],
+)
+def toggle_metrics(n, is_open):
+    if n:
+        if is_open:
+            return False, "fas fa-chevron-down ms-2"
+        else:
+            return True, "fas fa-chevron-up ms-2"
+    return is_open, "fas fa-chevron-down ms-2"
 
 
 if __name__ == '__main__':
