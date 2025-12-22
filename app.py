@@ -5,7 +5,7 @@ Modern KPI dashboard with AI insights and advanced analytics
 
 import os
 import dash
-from dash import dcc, html, Input, Output, State, ALL
+from dash import dcc, html, Input, Output, State
 import dash_bootstrap_components as dbc
 import plotly.graph_objs as go
 import plotly.express as px
@@ -88,173 +88,6 @@ COLORS = {
         '900': '#111827'
     }
 }
-
-#==============================================================================
-# SIDEBAR COMPONENT
-#==============================================================================
-
-def create_sidebar(collapsed=False, dark_mode=False):
-    """Create the collapsible sidebar with navigation"""
-    sidebar_class = "sidebar " + ("collapsed" if collapsed else "expanded")
-    if dark_mode:
-        sidebar_class += " dark-mode"
-
-    nav_items = [
-        {"id": "nav-overview", "icon": "fas fa-home", "text": "Overview", "active": True, "target": "kpi-grid-container"},
-        {"id": "nav-insights", "icon": "fas fa-lightbulb", "text": "AI Insights", "target": "ai-insights-container"},
-        {"id": "nav-competitor", "icon": "fas fa-users", "text": "Competitor Analysis", "target": "competitor-analysis-container"},
-        {"id": "nav-comparative", "icon": "fas fa-balance-scale", "text": "Comparative Analysis", "target": "comparative-analysis-container"},
-        {"id": "nav-margin", "icon": "fas fa-chart-waterfall", "text": "Margin Bridge", "target": "margin-bridge-container"},
-        {"id": "nav-analytics", "icon": "fas fa-chart-bar", "text": "Analytics", "target": "tabbed-analytics-container"},
-    ]
-
-    return html.Div([
-        # Header with logo and toggle
-        html.Div([
-            html.Div([
-                html.Div([
-                    html.I(className="fas fa-chart-pie")
-                ], className="sidebar-logo-icon"),
-                html.Span("CFO Pulse", className="sidebar-logo-text")
-            ], className="sidebar-logo"),
-            html.Button([
-                html.I(id="sidebar-toggle-icon", className="fas fa-chevron-left")
-            ], id="sidebar-toggle-btn", className="sidebar-toggle")
-        ], className="sidebar-header"),
-
-        # Navigation items
-        html.Div([
-            html.Div([
-                html.A([
-                    html.I(className=item["icon"] + " sidebar-nav-item-icon"),
-                    html.Span(item["text"], className="sidebar-nav-item-text")
-                ],
-                id=item["id"],
-                href=f"#{item['target']}",
-                className="sidebar-nav-item" + (" active" if item.get("active") else ""))
-                for item in nav_items
-            ])
-        ], className="sidebar-nav"),
-
-        # System Status Section (Collapsible)
-        html.Div([
-            # Toggle button
-            html.Div([
-                html.Div([
-                    html.I(className="fas fa-server sidebar-footer-item-icon"),
-                    html.Span("System Status", className="sidebar-footer-item-text")
-                ], style={"flex": "1"}),
-                html.I(id="system-status-toggle-icon", className="fas fa-chevron-down", style={
-                    "fontSize": "12px",
-                    "transition": "transform 0.3s ease",
-                    "color": COLORS['gray']['400']
-                })
-            ], id="system-status-toggle", className="sidebar-footer-item", style={
-                "display": "flex",
-                "alignItems": "center",
-                "justifyContent": "space-between",
-                "cursor": "pointer"
-            }),
-
-            # Collapsible content
-            html.Div([
-                html.Div([
-                    # Data Quality
-                    html.Div([
-                        html.Div([
-                            html.I(className="fas fa-check-circle", style={
-                                "fontSize": "10px",
-                                "color": COLORS['success'],
-                                "marginRight": "6px"
-                            }),
-                            html.Span("Data Quality", className="sidebar-footer-item-text", style={"fontSize": "11px"})
-                        ], style={"marginBottom": "4px"}),
-                        html.Div("99.8%", style={
-                            "fontSize": "16px",
-                            "fontWeight": "700",
-                            "color": COLORS['success'],
-                            "marginLeft": "16px"
-                        })
-                    ], style={"marginBottom": "12px"}),
-
-                    # Last Sync
-                    html.Div([
-                        html.Div([
-                            html.I(className="fas fa-sync-alt", style={
-                                "fontSize": "10px",
-                                "color": COLORS['info'],
-                                "marginRight": "6px"
-                            }),
-                            html.Span("Last Sync", className="sidebar-footer-item-text", style={"fontSize": "11px"})
-                        ], style={"marginBottom": "4px"}),
-                        html.Div(id="sidebar-sync-time", children="Just now", style={
-                            "fontSize": "12px",
-                            "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600'],
-                            "marginLeft": "16px"
-                        })
-                    ], style={"marginBottom": "12px"}),
-
-                    # SAP HANA Connection
-                    html.Div([
-                        html.Div([
-                            html.I(className="fas fa-database", style={
-                                "fontSize": "10px",
-                                "color": COLORS['primary'],
-                                "marginRight": "6px"
-                            }),
-                            html.Span("SAP HANA Cloud", className="sidebar-footer-item-text", style={"fontSize": "11px"})
-                        ], style={"marginBottom": "4px"}),
-                        html.Div([
-                            html.Div(style={
-                                "width": "6px",
-                                "height": "6px",
-                                "borderRadius": "50%",
-                                "backgroundColor": COLORS['success'],
-                                "marginRight": "6px",
-                                "marginLeft": "16px"
-                            }),
-                            html.Span("Connected", style={
-                                "fontSize": "11px",
-                                "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600']
-                            })
-                        ], style={"display": "flex", "alignItems": "center"})
-                    ], style={"marginBottom": "12px"}),
-
-                    # Records Count
-                    html.Div([
-                        html.Div([
-                            html.I(className="fas fa-file-alt", style={
-                                "fontSize": "10px",
-                                "color": COLORS['warning'],
-                                "marginRight": "6px"
-                            }),
-                            html.Span("Records", className="sidebar-footer-item-text", style={"fontSize": "11px"})
-                        ], style={"marginBottom": "4px"}),
-                        html.Div("850 active", style={
-                            "fontSize": "11px",
-                            "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600'],
-                            "marginLeft": "16px"
-                        })
-                    ])
-                ], style={
-                    "padding": "12px 16px",
-                    "backgroundColor": COLORS['gray']['700'] if dark_mode else COLORS['gray']['50'],
-                    "borderRadius": "8px",
-                    "border": f"1px solid {COLORS['gray']['600'] if dark_mode else COLORS['gray']['200']}"
-                })
-            ], id="system-status-content", style={"padding": "8px 8px 0 8px", "display": "block"}),
-
-            # Help and Settings
-            html.Div([
-                html.I(className="fas fa-question-circle sidebar-footer-item-icon"),
-                html.Span("Help Center", className="sidebar-footer-item-text")
-            ], id="sidebar-help", className="sidebar-footer-item"),
-            html.Div([
-                html.I(className="fas fa-cog sidebar-footer-item-icon"),
-                html.Span("Settings", className="sidebar-footer-item-text")
-            ], id="sidebar-settings", className="sidebar-footer-item")
-        ], className="sidebar-footer")
-    ], id="sidebar", className=sidebar_class)
 
 #==============================================================================
 # DASHBOARD HEADER COMPONENT
@@ -361,20 +194,6 @@ def create_dashboard_header():
                 ], width="auto"),
 
                 dbc.Col([
-                    html.Div([
-                        html.Span("Compare:", style={"fontSize": "14px", "color": COLORS['gray']['600'], "marginRight": "8px"}),
-                        dcc.Dropdown(
-                            id='company-filter',
-                            options=[],  # Will be populated dynamically
-                            value=None,  # Will be set dynamically
-                            multi=True,
-                            placeholder="Select companies...",
-                            style={"width": "280px", "display": "inline-block"}
-                        )
-                    ], style={"display": "inline-flex", "alignItems": "center", "marginRight": "16px"})
-                ], width="auto"),
-
-                dbc.Col([
                     dbc.Button("Reset Filters", id="reset-filters", color="link", size="sm")
                 ], width="auto"),
 
@@ -397,7 +216,7 @@ def create_dashboard_header():
             ], align="center")
         ])
     ], style={"border": "none", "borderBottom": f"1px solid {COLORS['gray']['200']}",
-             "borderRadius": "0", "position": "sticky", "top": "0", "zIndex": "900", "backgroundColor": "#ffffff"})
+             "borderRadius": "0", "position": "sticky", "top": "0", "zIndex": "1000"})
 
 #==============================================================================
 # DATA TRUST BAR
@@ -443,82 +262,48 @@ def create_data_trust_bar():
 # MAIN LAYOUT
 #==============================================================================
 
-app.layout = html.Div([
+app.layout = dbc.Container([
     # Store for dark mode state
     dcc.Store(id='dark-mode-store', data=False),
-
-    # Store for sidebar collapse state (False = expanded by default)
-    dcc.Store(id='sidebar-collapsed-store', data=False),
 
     # Store for updated timestamp
     dcc.Store(id='update-timestamp', data=datetime.now().isoformat()),
 
-    # Sidebar
-    html.Div(id='sidebar-container'),
+    # Dashboard Header
+    create_dashboard_header(),
+
+    # Data Trust Bar
+    create_data_trust_bar(),
 
     # Main Content
-    dbc.Container([
-        # Dashboard Header
-        create_dashboard_header(),
+    html.Div([
+        # KPI Grid Section
+        html.Div(id='kpi-grid-container', className="mb-4", style={"padding": "24px"}),
 
-        # Data Trust Bar
-        create_data_trust_bar(),
+        # AI Insights Section
+        html.Div(id='ai-insights-container', className="mb-4", style={"padding": "0 24px"}),
 
-        # Main Content Sections
-        html.Div([
-            # KPI Grid Section
-            html.Div(id='kpi-grid-container', className="mb-4", style={"padding": "24px"}),
+        # Competitor Analysis Module
+        html.Div(id='competitor-analysis-container', className="mb-4", style={"padding": "0 24px"}),
 
-            # AI Insights Section
-            html.Div(id='ai-insights-container', className="mb-4", style={"padding": "0 24px"}),
+        # Comparative Analysis
+        html.Div(id='comparative-analysis-container', className="mb-4", style={"padding": "0 24px"}),
 
-            # Competitor Analysis Module
-            html.Div(id='competitor-analysis-container', className="mb-4", style={"padding": "0 24px"}),
+        # Margin Bridge
+        html.Div(id='margin-bridge-container', className="mb-4", style={"padding": "0 24px"}),
 
-            # Comparative Analysis
-            html.Div(id='comparative-analysis-container', className="mb-4", style={"padding": "0 24px"}),
+        # Alert Feed
+        html.Div(id='alert-feed-container', className="mb-4", style={"padding": "0 24px"}),
 
-            # Margin Bridge
-            html.Div(id='margin-bridge-container', className="mb-4", style={"padding": "0 24px"}),
+        # Tabbed Analytics Section
+        html.Div(id='tabbed-analytics-container', className="mb-4", style={"padding": "0 24px"})
+    ])
 
-            # Alert Feed
-            html.Div(id='alert-feed-container', className="mb-4", style={"padding": "0 24px"}),
-
-            # Tabbed Analytics Section
-            html.Div(id='tabbed-analytics-container', className="mb-4", style={"padding": "0 24px"})
-        ])
-    ], id='main-content', fluid=True, style=custom_style, className='main-content sidebar-expanded')
-
-], style={'position': 'relative'})
+], fluid=True, style=custom_style)
 
 #==============================================================================
 # CALLBACKS
 #==============================================================================
-
-# Sidebar render callback
-@app.callback(
-    Output('sidebar-container', 'children'),
-    [Input('sidebar-collapsed-store', 'data'),
-     Input('dark-mode-store', 'data')]
-)
-def render_sidebar(collapsed, dark_mode):
-    return create_sidebar(collapsed=collapsed, dark_mode=dark_mode)
-
-# Sidebar toggle callback
-@app.callback(
-    [Output('sidebar-collapsed-store', 'data'),
-     Output('sidebar-toggle-icon', 'className'),
-     Output('main-content', 'className')],
-    [Input('sidebar-toggle-btn', 'n_clicks')],
-    [State('sidebar-collapsed-store', 'data')]
-)
-def toggle_sidebar(n, collapsed):
-    if n:
-        new_collapsed = not collapsed
-        icon = "fas fa-chevron-right" if new_collapsed else "fas fa-chevron-left"
-        main_class = "main-content sidebar-collapsed" if new_collapsed else "main-content sidebar-expanded"
-        return new_collapsed, icon, main_class
-    return collapsed, "fas fa-chevron-left", "main-content sidebar-expanded"
 
 # Theme toggle callback
 @app.callback(
@@ -533,29 +318,6 @@ def toggle_theme(n, dark_mode):
         icon = "fas fa-sun" if new_mode else "fas fa-moon"
         return new_mode, icon
     return dark_mode, "fas fa-moon"
-
-# Populate company dropdown
-@app.callback(
-    [Output('company-filter', 'options'),
-     Output('company-filter', 'value')],
-    [Input('update-timestamp', 'data')]
-)
-def populate_company_filter(timestamp):
-    """Populate company dropdown with available companies from data"""
-    try:
-        if csv_data and 'basic' in csv_data:
-            df = csv_data['basic']
-            if 'TICKER' in df.columns:
-                companies = sorted(df['TICKER'].unique().tolist())
-                options = [{'label': ticker, 'value': ticker} for ticker in companies]
-                # Default to first 3 companies
-                default_value = companies[:3] if len(companies) >= 3 else companies
-                return options, default_value
-    except Exception as e:
-        logger.error(f"Error populating company filter: {e}")
-
-    # Fallback
-    return [], []
 
 # Reset filters callback
 @app.callback(
@@ -601,29 +363,23 @@ def update_sync_time(timestamp):
      Input('region-filter', 'value'),
      Input('view-mode-filter', 'value'),
      Input('update-timestamp', 'data'),
-     Input('dark-mode-store', 'data'),
-     Input('company-filter', 'value')]
+     Input('dark-mode-store', 'data')]
 )
-def update_kpi_grid(year, region, view_mode, timestamp, dark_mode, selected_companies):
+def update_kpi_grid(year, region, view_mode, timestamp, dark_mode):
     """Create KPI grid with real HANA data"""
 
     # Fetch data from HANA or CSV
     try:
         if data_service:
             data = data_service.get_financial_ratios()
-            df = pd.DataFrame(data) if data is not None and len(data) > 0 else None
+            df = pd.DataFrame(data) if data else None
         elif csv_data:
             # Use CSV data for local testing
             df = csv_data['basic']
         else:
             df = None
 
-        if df is not None and not df.empty:
-            # Filter by selected companies if specified
-            if selected_companies and len(selected_companies) > 0 and 'TICKER' in df.columns:
-                df = df[df['TICKER'].isin(selected_companies)]
-                logger.info(f"Filtering KPIs for companies: {selected_companies}")
-
+        if df is not None and len(df) > 0:
             # Calculate KPIs from real data
             ebitda_margin = df['EBITDA_MARGIN'].mean() if 'EBITDA_MARGIN' in df.columns else 60.45
             gross_margin = df['GROSS_MARGIN'].mean() if 'GROSS_MARGIN' in df.columns else 68.82
@@ -1040,38 +796,71 @@ def update_ai_insights(timestamp, dark_mode):
 @app.callback(
     Output('competitor-analysis-container', 'children'),
     [Input('update-timestamp', 'data'),
-     Input('dark-mode-store', 'data'),
-     Input('company-filter', 'value')]
+     Input('dark-mode-store', 'data')]
 )
-def update_competitor_analysis(timestamp, dark_mode, selected_companies):
-    """Create enhanced competitor analysis module with controls"""
+def update_competitor_analysis(timestamp, dark_mode):
+    """Create competitor analysis module with HANA data"""
 
     # Fetch competitor data from HANA or CSV
     try:
         if data_service:
             data = data_service.get_financial_ratios()
-            df = pd.DataFrame(data) if data is not None and len(data) > 0 else None
+            df = pd.DataFrame(data) if data else None
         elif csv_data:
             df = csv_data['basic']
         else:
             df = None
 
-        if df is not None and not df.empty and 'TICKER' in df.columns:
-            # Use selected companies from filter, or default to first 5
-            if selected_companies and len(selected_companies) > 0:
-                companies = selected_companies
-            else:
-                companies = df['TICKER'].unique()[:5].tolist()
-
-            # Get all available companies for "Add Competitor" dropdown
-            all_companies = sorted(df['TICKER'].unique().tolist())
+        if df is not None and 'TICKER' in df.columns:
+            companies = df['TICKER'].unique()[:5].tolist()  # Top 5 companies
+            # Get actual metric values
+            ebitda_values = [df[df['TICKER'] == c]['EBITDA_MARGIN'].iloc[0] if len(df[df['TICKER'] == c]) > 0 else 0 for c in companies]
+            current_ratio_values = [df[df['TICKER'] == c]['CUR_RATIO'].iloc[0] if len(df[df['TICKER'] == c]) > 0 else 0 for c in companies]
+            gross_margin_values = [df[df['TICKER'] == c]['GROSS_MARGIN'].iloc[0] if len(df[df['TICKER'] == c]) > 0 else 0 for c in companies]
         else:
-            companies = ['AAPL', 'MSFT', 'GOOGL', 'AMZN']
-            all_companies = companies + ['META', 'TSLA', 'NVDA', 'AMD']
+            companies = ['Your Company', 'Competitor A', 'Competitor B', 'Competitor C', 'Competitor D']
+            ebitda_values = np.random.uniform(15, 25, len(companies))
+            current_ratio_values = np.random.uniform(15, 25, len(companies))
+            gross_margin_values = np.random.uniform(15, 25, len(companies))
     except Exception as e:
         logger.error(f"Error fetching competitor data: {e}")
-        companies = ['AAPL', 'MSFT', 'GOOGL', 'AMZN']
-        all_companies = companies + ['META', 'TSLA', 'NVDA', 'AMD']
+        companies = ['Your Company', 'Competitor A', 'Competitor B', 'Competitor C', 'Competitor D']
+        ebitda_values = np.random.uniform(15, 25, len(companies))
+        current_ratio_values = np.random.uniform(15, 25, len(companies))
+        gross_margin_values = np.random.uniform(15, 25, len(companies))
+
+    # Create comparison chart
+    fig = go.Figure()
+
+    fig.add_trace(go.Bar(
+        name='EBITDA Margin',
+        x=companies,
+        y=ebitda_values,
+        marker_color=COLORS['primary']
+    ))
+    fig.add_trace(go.Bar(
+        name='Current Ratio',
+        x=companies,
+        y=current_ratio_values,
+        marker_color=COLORS['success']
+    ))
+    fig.add_trace(go.Bar(
+        name='Gross Margin',
+        x=companies,
+        y=gross_margin_values,
+        marker_color=COLORS['warning']
+    ))
+
+    fig.update_layout(
+        title="Competitor Benchmarking - Key Metrics",
+        barmode='group',
+        height=350,
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        font=dict(color=COLORS['gray']['600']),
+        xaxis=dict(showgrid=False),
+        yaxis=dict(showgrid=True, gridcolor=COLORS['gray']['200'])
+    )
 
     card_style = {
         "backgroundColor": COLORS['gray']['800'] if dark_mode else "#ffffff",
@@ -1080,307 +869,17 @@ def update_competitor_analysis(timestamp, dark_mode, selected_companies):
         "padding": "24px"
     }
 
-    # Create control panel with metric selector, chart type, and add competitor
-    control_panel = html.Div([
-        dbc.Row([
-            dbc.Col([
-                html.Label("Select Metric:", style={
-                    "fontSize": "13px",
-                    "fontWeight": "500",
-                    "marginBottom": "8px",
-                    "color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700']
-                }),
-                dcc.Dropdown(
-                    id='competitor-metric-selector',
-                    options=[
-                        {'label': 'EBITDA Margin', 'value': 'EBITDA_MARGIN'},
-                        {'label': 'Current Ratio', 'value': 'CUR_RATIO'},
-                        {'label': 'Gross Margin', 'value': 'GROSS_MARGIN'},
-                        {'label': 'ROE', 'value': 'ROE'},
-                        {'label': 'Debt-to-Equity', 'value': 'DEBT_TO_EQUITY'},
-                        {'label': 'P/E Ratio', 'value': 'PE_RATIO'},
-                        {'label': 'Profit Margin', 'value': 'PROFIT_MARGIN'},
-                        {'label': 'Asset Turnover', 'value': 'ASSET_TURNOVER'}
-                    ],
-                    value='EBITDA_MARGIN',
-                    clearable=False,
-                    style={"backgroundColor": COLORS['gray']['700'] if dark_mode else "#ffffff"}
-                )
-            ], md=3),
-            dbc.Col([
-                html.Label("Chart Type:", style={
-                    "fontSize": "13px",
-                    "fontWeight": "500",
-                    "marginBottom": "8px",
-                    "color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700']
-                }),
-                dbc.ButtonGroup([
-                    dbc.Button("Bar", id={'type': 'chart-type-btn', 'index': 'bar'},
-                              color="primary", size="sm", outline=False, style={"fontSize": "12px"}),
-                    dbc.Button("Line", id={'type': 'chart-type-btn', 'index': 'line'},
-                              color="primary", size="sm", outline=True, style={"fontSize": "12px"}),
-                    dbc.Button("Pie", id={'type': 'chart-type-btn', 'index': 'pie'},
-                              color="primary", size="sm", outline=True, style={"fontSize": "12px"}),
-                ], style={"width": "100%"})
-            ], md=3),
-            dbc.Col([
-                html.Label("Add Competitor:", style={
-                    "fontSize": "13px",
-                    "fontWeight": "500",
-                    "marginBottom": "8px",
-                    "color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700']
-                }),
-                dcc.Dropdown(
-                    id='add-competitor-dropdown',
-                    options=[{'label': c, 'value': c} for c in all_companies if c not in companies],
-                    placeholder="Select to add...",
-                    style={"backgroundColor": COLORS['gray']['700'] if dark_mode else "#ffffff"}
-                )
-            ], md=3),
-            dbc.Col([
-                html.Label("View Mode:", style={
-                    "fontSize": "13px",
-                    "fontWeight": "500",
-                    "marginBottom": "8px",
-                    "color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700']
-                }),
-                dbc.ButtonGroup([
-                    dbc.Button([html.I(className="fas fa-chart-bar me-1"), "Chart"],
-                              id={'type': 'view-mode-btn', 'index': 'chart'},
-                              color="primary", size="sm", outline=False, style={"fontSize": "12px"}),
-                    dbc.Button([html.I(className="fas fa-table me-1"), "Table"],
-                              id={'type': 'view-mode-btn', 'index': 'table'},
-                              color="primary", size="sm", outline=True, style={"fontSize": "12px"}),
-                ], style={"width": "100%"})
-            ], md=3)
-        ], className="g-3", style={"marginBottom": "24px"})
-    ])
-
-    # Store for selected chart type and view mode
-    stores = html.Div([
-        dcc.Store(id='competitor-chart-type', data='bar'),
-        dcc.Store(id='competitor-view-mode', data='chart')
-    ])
-
-    # Chart container (will be populated by callback)
-    chart_container = html.Div(id='competitor-chart-display')
-
     return dbc.Card([
         dbc.CardBody([
-            html.Div([
-                html.H2("Competitor Analysis", style={
-                    "fontSize": "20px",
-                    "fontWeight": "600",
-                    "marginBottom": "4px",
-                    "color": COLORS['gray']['100'] if dark_mode else COLORS['gray']['900']
-                }),
-                html.P("Compare key financial metrics across competitors", style={
-                    "fontSize": "14px",
-                    "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600'],
-                    "marginBottom": "20px"
-                })
-            ]),
-            stores,
-            control_panel,
-            chart_container
+            html.H2("Competitor Analysis", style={
+                "fontSize": "20px",
+                "fontWeight": "600",
+                "marginBottom": "20px",
+                "color": COLORS['gray']['100'] if dark_mode else COLORS['gray']['900']
+            }),
+            dcc.Graph(figure=fig, config={'displayModeBar': False})
         ])
     ], style=card_style)
-
-# Callbacks for chart type and view mode button toggles
-@app.callback(
-    [Output('competitor-chart-type', 'data'),
-     Output({'type': 'chart-type-btn', 'index': 'bar'}, 'outline'),
-     Output({'type': 'chart-type-btn', 'index': 'line'}, 'outline'),
-     Output({'type': 'chart-type-btn', 'index': 'pie'}, 'outline')],
-    [Input({'type': 'chart-type-btn', 'index': ALL}, 'n_clicks')],
-    [State('competitor-chart-type', 'data')]
-)
-def update_chart_type_buttons(n_clicks, current_type):
-    """Handle chart type button clicks"""
-    if not any(n_clicks):
-        return current_type, False, True, True
-
-    ctx = dash.callback_context
-    if not ctx.triggered:
-        return current_type, False, True, True
-
-    button_id = ctx.triggered[0]['prop_id'].split('.')[0]
-    if button_id:
-        import json
-        button_data = json.loads(button_id)
-        selected_type = button_data['index']
-
-        return selected_type, selected_type != 'bar', selected_type != 'line', selected_type != 'pie'
-
-    return current_type, False, True, True
-
-@app.callback(
-    [Output('competitor-view-mode', 'data'),
-     Output({'type': 'view-mode-btn', 'index': 'chart'}, 'outline'),
-     Output({'type': 'view-mode-btn', 'index': 'table'}, 'outline')],
-    [Input({'type': 'view-mode-btn', 'index': ALL}, 'n_clicks')],
-    [State('competitor-view-mode', 'data')]
-)
-def update_view_mode_buttons(n_clicks, current_mode):
-    """Handle view mode button clicks"""
-    if not any(n_clicks):
-        return current_mode, False, True
-
-    ctx = dash.callback_context
-    if not ctx.triggered:
-        return current_mode, False, True
-
-    button_id = ctx.triggered[0]['prop_id'].split('.')[0]
-    if button_id:
-        import json
-        button_data = json.loads(button_id)
-        selected_mode = button_data['index']
-
-        return selected_mode, selected_mode != 'chart', selected_mode != 'table'
-
-    return current_mode, False, True
-
-# Main callback to render chart or table based on selections
-@app.callback(
-    Output('competitor-chart-display', 'children'),
-    [Input('competitor-metric-selector', 'value'),
-     Input('competitor-chart-type', 'data'),
-     Input('competitor-view-mode', 'data'),
-     Input('company-filter', 'value'),
-     Input('dark-mode-store', 'data')]
-)
-def render_competitor_chart(metric, chart_type, view_mode, selected_companies, dark_mode):
-    """Render competitor chart or table based on selections"""
-
-    # Fetch data
-    try:
-        if data_service:
-            data = data_service.get_financial_ratios()
-            df = pd.DataFrame(data) if data is not None and len(data) > 0 else None
-        elif csv_data:
-            df = csv_data['basic']
-        else:
-            df = None
-
-        if df is not None and not df.empty and 'TICKER' in df.columns:
-            if selected_companies and len(selected_companies) > 0:
-                companies = selected_companies
-            else:
-                companies = df['TICKER'].unique()[:5].tolist()
-
-            # Check if metric exists in dataframe
-            if metric not in df.columns:
-                # Use fallback data if metric not available
-                metric_values = np.random.uniform(10, 30, len(companies))
-                metric_label = metric.replace('_', ' ').title()
-            else:
-                metric_values = [df[df['TICKER'] == c][metric].iloc[0] if len(df[df['TICKER'] == c]) > 0 else 0 for c in companies]
-                metric_label = metric.replace('_', ' ').title()
-        else:
-            companies = ['AAPL', 'MSFT', 'GOOGL', 'AMZN']
-            metric_values = np.random.uniform(10, 30, len(companies))
-            metric_label = metric.replace('_', ' ').title() if metric else 'Metric'
-    except Exception as e:
-        logger.error(f"Error rendering competitor chart: {e}")
-        companies = ['AAPL', 'MSFT', 'GOOGL', 'AMZN']
-        metric_values = np.random.uniform(10, 30, len(companies))
-        metric_label = metric.replace('_', ' ').title() if metric else 'Metric'
-
-    # TABLE VIEW
-    if view_mode == 'table':
-        # Create comprehensive ratio table with all metrics
-        try:
-            if df is not None and not df.empty:
-                # Filter for selected companies
-                table_df = df[df['TICKER'].isin(companies)].copy()
-
-                # Select available columns
-                available_metrics = ['TICKER', 'EBITDA_MARGIN', 'CUR_RATIO', 'GROSS_MARGIN']
-                if 'ROE' in table_df.columns:
-                    available_metrics.append('ROE')
-                if 'DEBT_TO_EQUITY' in table_df.columns:
-                    available_metrics.append('DEBT_TO_EQUITY')
-                if 'PE_RATIO' in table_df.columns:
-                    available_metrics.append('PE_RATIO')
-                if 'PROFIT_MARGIN' in table_df.columns:
-                    available_metrics.append('PROFIT_MARGIN')
-                if 'ASSET_TURNOVER' in table_df.columns:
-                    available_metrics.append('ASSET_TURNOVER')
-
-                table_df = table_df[available_metrics]
-
-                # Create table header
-                header = [html.Thead(html.Tr([
-                    html.Th("Company", style={"fontWeight": "600", "color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700']}),
-                    html.Th("EBITDA Margin", style={"fontWeight": "600", "textAlign": "center", "color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700']}),
-                    html.Th("Current Ratio", style={"fontWeight": "600", "textAlign": "center", "color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700']}),
-                    html.Th("Gross Margin", style={"fontWeight": "600", "textAlign": "center", "color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700']}),
-                ]))]
-
-                # Create table rows
-                rows = []
-                for idx, row in table_df.iterrows():
-                    rows.append(html.Tr([
-                        html.Td([
-                            html.Span(row['TICKER'], style={"fontWeight": "600", "color": COLORS['gray']['100'] if dark_mode else COLORS['gray']['900']}),
-                        ], style={"padding": "12px"}),
-                        html.Td(f"{row['EBITDA_MARGIN']:.2f}%" if 'EBITDA_MARGIN' in row else "N/A",
-                               style={"textAlign": "center", "color": COLORS['gray']['200'] if dark_mode else COLORS['gray']['800']}),
-                        html.Td(f"{row['CUR_RATIO']:.2f}" if 'CUR_RATIO' in row else "N/A",
-                               style={"textAlign": "center", "color": COLORS['gray']['200'] if dark_mode else COLORS['gray']['800']}),
-                        html.Td(f"{row['GROSS_MARGIN']:.2f}%" if 'GROSS_MARGIN' in row else "N/A",
-                               style={"textAlign": "center", "color": COLORS['gray']['200'] if dark_mode else COLORS['gray']['800']}),
-                    ], style={
-                        "borderBottom": f"1px solid {COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']}"
-                    }))
-
-                return dbc.Table(header + [html.Tbody(rows)], bordered=False, hover=True,
-                               style={"marginTop": "16px", "backgroundColor": "transparent"})
-            else:
-                return html.Div("No data available for table view", style={"padding": "20px", "textAlign": "center"})
-        except Exception as e:
-            logger.error(f"Error creating table view: {e}")
-            return html.Div("Error loading table view", style={"padding": "20px", "textAlign": "center"})
-
-    # CHART VIEW
-    fig = go.Figure()
-
-    if chart_type == 'bar':
-        fig.add_trace(go.Bar(
-            x=companies,
-            y=metric_values,
-            marker_color=COLORS['primary'],
-            text=[f"{v:.2f}" for v in metric_values],
-            textposition='outside'
-        ))
-    elif chart_type == 'line':
-        fig.add_trace(go.Scatter(
-            x=companies,
-            y=metric_values,
-            mode='lines+markers',
-            line=dict(color=COLORS['primary'], width=3),
-            marker=dict(size=10, color=COLORS['primary'])
-        ))
-    elif chart_type == 'pie':
-        fig = go.Figure(data=[go.Pie(
-            labels=companies,
-            values=metric_values,
-            hole=0.4,
-            marker=dict(colors=[COLORS['primary'], COLORS['success'], COLORS['warning'], COLORS['danger'], COLORS['purple']])
-        )])
-
-    fig.update_layout(
-        title=f"{metric_label} Comparison",
-        height=400,
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
-        font=dict(color=COLORS['gray']['300'] if dark_mode else COLORS['gray']['600']),
-        xaxis=dict(showgrid=False),
-        yaxis=dict(showgrid=True, gridcolor=COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']),
-        showlegend=chart_type == 'pie'
-    )
-
-    return dcc.Graph(figure=fig, config={'displayModeBar': False})
 
 #==============================================================================
 # COMPARATIVE ANALYSIS & MARGIN BRIDGE & ALERT FEED
@@ -1389,235 +888,11 @@ def render_competitor_chart(metric, chart_type, view_mode, selected_companies, d
 @app.callback(
     Output('comparative-analysis-container', 'children'),
     [Input('update-timestamp', 'data'),
-     Input('dark-mode-store', 'data'),
-     Input('company-filter', 'value')]
+     Input('dark-mode-store', 'data')]
 )
-def update_comparative_analysis(timestamp, dark_mode, selected_companies):
-    """Comprehensive comparative analysis with peer comparison, benchmarking, and Z-Score"""
-
-    # Fetch data
-    try:
-        if data_service:
-            data = data_service.get_financial_ratios()
-            df = pd.DataFrame(data) if data is not None and len(data) > 0 else None
-        elif csv_data:
-            df = csv_data['basic']
-        else:
-            df = None
-
-        if df is not None and not df.empty and 'TICKER' in df.columns:
-            if selected_companies and len(selected_companies) > 0:
-                companies = selected_companies[:4]  # Limit to 4 for comparison
-            else:
-                companies = df['TICKER'].unique()[:4].tolist()
-
-            # Calculate metrics for peer comparison
-            peer_data = []
-            for company in companies:
-                company_df = df[df['TICKER'] == company]
-                if len(company_df) > 0:
-                    row = company_df.iloc[0]
-                    peer_data.append({
-                        'Company': company,
-                        'EBITDA Margin': row.get('EBITDA_MARGIN', np.random.uniform(15, 25)),
-                        'Current Ratio': row.get('CUR_RATIO', np.random.uniform(1.5, 3.0)),
-                        'Gross Margin': row.get('GROSS_MARGIN', np.random.uniform(30, 50)),
-                        'ROE': np.random.uniform(10, 25),
-                        'Debt/Equity': np.random.uniform(0.5, 2.0),
-                        'P/E Ratio': np.random.uniform(15, 30),
-                        'Z-Score': np.random.uniform(1.5, 4.5)
-                    })
-        else:
-            companies = ['Your Co.', 'Peer A', 'Peer B', 'Peer C']
-            peer_data = [
-                {'Company': 'Your Co.', 'EBITDA Margin': 22.5, 'Current Ratio': 2.1, 'Gross Margin': 45.2, 'ROE': 18.5, 'Debt/Equity': 1.2, 'P/E Ratio': 24.3, 'Z-Score': 3.2},
-                {'Company': 'Peer A', 'EBITDA Margin': 19.8, 'Current Ratio': 1.8, 'Gross Margin': 42.1, 'ROE': 16.2, 'Debt/Equity': 1.5, 'P/E Ratio': 21.5, 'Z-Score': 2.8},
-                {'Company': 'Peer B', 'EBITDA Margin': 24.1, 'Current Ratio': 2.3, 'Gross Margin': 47.8, 'ROE': 20.1, 'Debt/Equity': 0.9, 'P/E Ratio': 26.7, 'Z-Score': 3.8},
-                {'Company': 'Peer C', 'EBITDA Margin': 20.5, 'Current Ratio': 1.9, 'Gross Margin': 43.5, 'ROE': 17.3, 'Debt/Equity': 1.3, 'P/E Ratio': 22.9, 'Z-Score': 3.0}
-            ]
-    except Exception as e:
-        logger.error(f"Error in comparative analysis: {e}")
-        companies = ['Your Co.', 'Peer A', 'Peer B', 'Peer C']
-        peer_data = [
-            {'Company': 'Your Co.', 'EBITDA Margin': 22.5, 'Current Ratio': 2.1, 'Gross Margin': 45.2, 'ROE': 18.5, 'Debt/Equity': 1.2, 'P/E Ratio': 24.3, 'Z-Score': 3.2},
-            {'Company': 'Peer A', 'EBITDA Margin': 19.8, 'Current Ratio': 1.8, 'Gross Margin': 42.1, 'ROE': 16.2, 'Debt/Equity': 1.5, 'P/E Ratio': 21.5, 'Z-Score': 2.8},
-            {'Company': 'Peer B', 'EBITDA Margin': 24.1, 'Current Ratio': 2.3, 'Gross Margin': 47.8, 'ROE': 20.1, 'Debt/Equity': 0.9, 'P/E Ratio': 26.7, 'Z-Score': 3.8},
-            {'Company': 'Peer C', 'EBITDA Margin': 20.5, 'Current Ratio': 1.9, 'Gross Margin': 43.5, 'ROE': 17.3, 'Debt/Equity': 1.3, 'P/E Ratio': 22.9, 'Z-Score': 3.0}
-        ]
-
-    card_style = {
-        "backgroundColor": COLORS['gray']['800'] if dark_mode else "#ffffff",
-        "border": f"1px solid {COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']}",
-        "borderRadius": "12px",
-        "padding": "24px",
-        "marginBottom": "20px"
-    }
-
-    # 1. Peer Comparison Benchmarking Table
-    peer_table_header = html.Thead(html.Tr([
-        html.Th("Company", style={"fontWeight": "600", "color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700'], "padding": "12px"}),
-        html.Th("EBITDA Margin", style={"fontWeight": "600", "textAlign": "center", "color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700']}),
-        html.Th("Current Ratio", style={"fontWeight": "600", "textAlign": "center", "color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700']}),
-        html.Th("Gross Margin", style={"fontWeight": "600", "textAlign": "center", "color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700']}),
-        html.Th("ROE", style={"fontWeight": "600", "textAlign": "center", "color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700']}),
-        html.Th("Debt/Equity", style={"fontWeight": "600", "textAlign": "center", "color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700']}),
-        html.Th("P/E Ratio", style={"fontWeight": "600", "textAlign": "center", "color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700']}),
-    ]))
-
-    peer_table_rows = []
-    for idx, row in enumerate(peer_data):
-        is_your_co = idx == 0
-        peer_table_rows.append(html.Tr([
-            html.Td([
-                html.Span(row['Company'], style={"fontWeight": "600", "color": COLORS['primary'] if is_your_co else (COLORS['gray']['100'] if dark_mode else COLORS['gray']['900'])}),
-                html.Span(" (You)", style={"fontSize": "11px", "marginLeft": "6px", "color": COLORS['primary']}) if is_your_co else None
-            ], style={"padding": "12px"}),
-            html.Td(f"{row['EBITDA Margin']:.1f}%", style={"textAlign": "center", "color": COLORS['gray']['200'] if dark_mode else COLORS['gray']['800']}),
-            html.Td(f"{row['Current Ratio']:.2f}", style={"textAlign": "center", "color": COLORS['gray']['200'] if dark_mode else COLORS['gray']['800']}),
-            html.Td(f"{row['Gross Margin']:.1f}%", style={"textAlign": "center", "color": COLORS['gray']['200'] if dark_mode else COLORS['gray']['800']}),
-            html.Td(f"{row['ROE']:.1f}%", style={"textAlign": "center", "color": COLORS['gray']['200'] if dark_mode else COLORS['gray']['800']}),
-            html.Td(f"{row['Debt/Equity']:.2f}", style={"textAlign": "center", "color": COLORS['gray']['200'] if dark_mode else COLORS['gray']['800']}),
-            html.Td(f"{row['P/E Ratio']:.1f}", style={"textAlign": "center", "color": COLORS['gray']['200'] if dark_mode else COLORS['gray']['800']}),
-        ], style={
-            "borderBottom": f"1px solid {COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']}",
-            "backgroundColor": f"rgba(59, 130, 246, 0.1)" if is_your_co else "transparent"
-        }))
-
-    peer_comparison_table = dbc.Card([
-        dbc.CardBody([
-            html.H3("Peer Comparison Benchmarking", style={
-                "fontSize": "18px",
-                "fontWeight": "600",
-                "marginBottom": "16px",
-                "color": COLORS['gray']['100'] if dark_mode else COLORS['gray']['900']
-            }),
-            dbc.Table([peer_table_header, html.Tbody(peer_table_rows)], bordered=False, hover=True,
-                     style={"backgroundColor": "transparent"})
-        ])
-    ], style=card_style)
-
-    # 2. Industry Median Benchmarking
-    industry_medians = [
-        {'Metric': 'EBITDA Margin', 'Your Company': 22.5, 'Industry Median': 20.8, 'Difference': '+1.7%'},
-        {'Metric': 'Current Ratio', 'Your Company': 2.1, 'Industry Median': 1.9, 'Difference': '+0.2'},
-        {'Metric': 'Gross Margin', 'Your Company': 45.2, 'Industry Median': 43.5, 'Difference': '+1.7%'},
-        {'Metric': 'ROE', 'Your Company': 18.5, 'Industry Median': 17.2, 'Difference': '+1.3%'},
-        {'Metric': 'Debt/Equity', 'Your Company': 1.2, 'Industry Median': 1.3, 'Difference': '-0.1'},
-    ]
-
-    industry_table_rows = []
-    for metric in industry_medians:
-        is_positive = '+' in metric['Difference']
-        industry_table_rows.append(html.Tr([
-            html.Td(metric['Metric'], style={"fontWeight": "600", "color": COLORS['gray']['100'] if dark_mode else COLORS['gray']['900'], "padding": "12px"}),
-            html.Td(f"{metric['Your Company']:.1f}" if isinstance(metric['Your Company'], float) else metric['Your Company'],
-                   style={"textAlign": "center", "color": COLORS['primary']}),
-            html.Td(f"{metric['Industry Median']:.1f}" if isinstance(metric['Industry Median'], float) else metric['Industry Median'],
-                   style={"textAlign": "center", "color": COLORS['gray']['200'] if dark_mode else COLORS['gray']['800']}),
-            html.Td([
-                html.Span(metric['Difference'], style={
-                    "color": COLORS['success'] if is_positive else COLORS['danger'],
-                    "fontWeight": "600"
-                })
-            ], style={"textAlign": "center"}),
-        ], style={"borderBottom": f"1px solid {COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']}"}))
-
-    industry_benchmarking = dbc.Card([
-        dbc.CardBody([
-            html.H3("Industry Median Benchmarking", style={
-                "fontSize": "18px",
-                "fontWeight": "600",
-                "marginBottom": "16px",
-                "color": COLORS['gray']['100'] if dark_mode else COLORS['gray']['900']
-            }),
-            dbc.Table([
-                html.Thead(html.Tr([
-                    html.Th("Metric", style={"fontWeight": "600", "color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700'], "padding": "12px"}),
-                    html.Th("Your Company", style={"fontWeight": "600", "textAlign": "center", "color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700']}),
-                    html.Th("Industry Median", style={"fontWeight": "600", "textAlign": "center", "color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700']}),
-                    html.Th("Difference", style={"fontWeight": "600", "textAlign": "center", "color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700']}),
-                ])),
-                html.Tbody(industry_table_rows)
-            ], bordered=False, hover=True, style={"backgroundColor": "transparent"})
-        ])
-    ], style=card_style)
-
-    # 3. Z-Score Credit Risk Analysis
-    z_score_data = []
-    for row in peer_data:
-        z_score = row['Z-Score']
-        if z_score > 3.0:
-            risk = "Safe Zone"
-            color = COLORS['success']
-        elif z_score > 1.8:
-            risk = "Grey Zone"
-            color = COLORS['warning']
-        else:
-            risk = "Distress Zone"
-            color = COLORS['danger']
-
-        z_score_data.append({
-            'Company': row['Company'],
-            'Z-Score': z_score,
-            'Risk': risk,
-            'Color': color
-        })
-
-    z_score_rows = []
-    for idx, item in enumerate(z_score_data):
-        is_your_co = idx == 0
-        z_score_rows.append(html.Tr([
-            html.Td([
-                html.Span(item['Company'], style={"fontWeight": "600", "color": COLORS['primary'] if is_your_co else (COLORS['gray']['100'] if dark_mode else COLORS['gray']['900'])}),
-            ], style={"padding": "12px"}),
-            html.Td(f"{item['Z-Score']:.2f}", style={"textAlign": "center", "fontWeight": "600", "color": COLORS['gray']['200'] if dark_mode else COLORS['gray']['800']}),
-            html.Td([
-                html.Span(item['Risk'], style={
-                    "padding": "4px 12px",
-                    "borderRadius": "12px",
-                    "fontSize": "12px",
-                    "fontWeight": "600",
-                    "backgroundColor": f"rgba({int(item['Color'][1:3], 16)}, {int(item['Color'][3:5], 16)}, {int(item['Color'][5:7], 16)}, 0.2)",
-                    "color": item['Color']
-                })
-            ], style={"textAlign": "center"}),
-        ], style={
-            "borderBottom": f"1px solid {COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']}",
-            "backgroundColor": f"rgba(59, 130, 246, 0.1)" if is_your_co else "transparent"
-        }))
-
-    z_score_analysis = dbc.Card([
-        dbc.CardBody([
-            html.H3("Z-Score Credit Risk Analysis", style={
-                "fontSize": "18px",
-                "fontWeight": "600",
-                "marginBottom": "16px",
-                "color": COLORS['gray']['100'] if dark_mode else COLORS['gray']['900']
-            }),
-            dbc.Table([
-                html.Thead(html.Tr([
-                    html.Th("Company", style={"fontWeight": "600", "color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700'], "padding": "12px"}),
-                    html.Th("Z-Score", style={"fontWeight": "600", "textAlign": "center", "color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700']}),
-                    html.Th("Risk Category", style={"fontWeight": "600", "textAlign": "center", "color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700']}),
-                ])),
-                html.Tbody(z_score_rows)
-            ], bordered=False, hover=True, style={"backgroundColor": "transparent"})
-        ])
-    ], style=card_style)
-
-    return html.Div([
-        html.H2("Comparative Analysis", style={
-            "fontSize": "24px",
-            "fontWeight": "600",
-            "marginBottom": "20px",
-            "color": COLORS['gray']['100'] if dark_mode else COLORS['gray']['900']
-        }),
-        peer_comparison_table,
-        dbc.Row([
-            dbc.Col(industry_benchmarking, md=6),
-            dbc.Col(z_score_analysis, md=6)
-        ])
-    ])
+def update_comparative_analysis(timestamp, dark_mode):
+    """Comparative analysis / benchmarking"""
+    return html.Div()  # Placeholder for now
 
 @app.callback(
     Output('margin-bridge-container', 'children'),
@@ -1625,188 +900,8 @@ def update_comparative_analysis(timestamp, dark_mode, selected_companies):
      Input('dark-mode-store', 'data')]
 )
 def update_margin_bridge(timestamp, dark_mode):
-    """Margin bridge waterfall chart showing revenue to net income breakdown"""
-
-    card_style = {
-        "backgroundColor": COLORS['gray']['800'] if dark_mode else "#ffffff",
-        "border": f"1px solid {COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']}",
-        "borderRadius": "12px",
-        "padding": "24px",
-        "marginBottom": "20px"
-    }
-
-    # Margin bridge data (in millions)
-    bridge_data = [
-        {'step': 'Revenue', 'value': 500.0, 'type': 'total'},
-        {'step': 'COGS', 'value': -280.0, 'type': 'relative'},
-        {'step': 'Gross Profit', 'value': 220.0, 'type': 'total'},
-        {'step': 'R&D', 'value': -45.0, 'type': 'relative'},
-        {'step': 'Sales & Marketing', 'value': -60.0, 'type': 'relative'},
-        {'step': 'G&A', 'value': -25.0, 'type': 'relative'},
-        {'step': 'EBITDA', 'value': 90.0, 'type': 'total'},
-        {'step': 'Depreciation', 'value': -12.0, 'type': 'relative'},
-        {'step': 'Amortization', 'value': -8.0, 'type': 'relative'},
-        {'step': 'EBIT', 'value': 70.0, 'type': 'total'},
-        {'step': 'Interest', 'value': -5.0, 'type': 'relative'},
-        {'step': 'Taxes', 'value': -13.0, 'type': 'relative'},
-        {'step': 'Net Income', 'value': 52.0, 'type': 'total'},
-    ]
-
-    # Create waterfall chart
-    fig = go.Figure()
-
-    x_labels = [item['step'] for item in bridge_data]
-    y_values = [item['value'] for item in bridge_data]
-    measure_types = [item['type'] for item in bridge_data]
-
-    # Convert 'total' to 'absolute' for waterfall chart
-    measures = []
-    for m_type in measure_types:
-        if m_type == 'total':
-            measures.append('total')
-        else:
-            measures.append('relative')
-
-    # Create waterfall chart
-    fig.add_trace(go.Waterfall(
-        name="Margin Bridge",
-        orientation="v",
-        measure=measures,
-        x=x_labels,
-        y=y_values,
-        text=[f"${abs(v):.1f}M" for v in y_values],
-        textposition="outside",
-        connector={"line": {"color": COLORS['gray']['400']}},
-        increasing={"marker": {"color": COLORS['success']}},
-        decreasing={"marker": {"color": COLORS['danger']}},
-        totals={"marker": {"color": COLORS['primary']}}
-    ))
-
-    fig.update_layout(
-        title="Margin Bridge: Revenue to Net Income ($M)",
-        height=450,
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
-        font=dict(color=COLORS['gray']['300'] if dark_mode else COLORS['gray']['600']),
-        xaxis=dict(showgrid=False, tickangle=-45),
-        yaxis=dict(showgrid=True, gridcolor=COLORS['gray']['700'] if dark_mode else COLORS['gray']['200'], title="Amount ($M)"),
-        showlegend=False
-    )
-
-    waterfall_chart = dcc.Graph(figure=fig, config={'displayModeBar': False})
-
-    # Margin metrics cards
-    margin_metrics = [
-        {'label': 'Gross Margin', 'value': 44.0, 'target': 45.0, 'icon': 'fa-chart-line'},
-        {'label': 'EBITDA Margin', 'value': 18.0, 'target': 20.0, 'icon': 'fa-coins'},
-        {'label': 'EBIT Margin', 'value': 14.0, 'target': 15.0, 'icon': 'fa-percentage'},
-        {'label': 'Net Margin', 'value': 10.4, 'target': 12.0, 'icon': 'fa-trophy'}
-    ]
-
-    metric_cards = []
-    for metric in margin_metrics:
-        is_above_target = metric['value'] >= metric['target']
-        metric_cards.append(
-            dbc.Col([
-                html.Div([
-                    html.Div([
-                        html.I(className=f"fas {metric['icon']}", style={
-                            "fontSize": "24px",
-                            "color": COLORS['success'] if is_above_target else COLORS['warning']
-                        })
-                    ], style={
-                        "width": "48px",
-                        "height": "48px",
-                        "borderRadius": "12px",
-                        "backgroundColor": f"rgba({int((COLORS['success'] if is_above_target else COLORS['warning'])[1:3], 16)}, {int((COLORS['success'] if is_above_target else COLORS['warning'])[3:5], 16)}, {int((COLORS['success'] if is_above_target else COLORS['warning'])[5:7], 16)}, 0.1)",
-                        "display": "flex",
-                        "alignItems": "center",
-                        "justifyContent": "center",
-                        "marginBottom": "12px"
-                    }),
-                    html.Div(metric['label'], style={
-                        "fontSize": "13px",
-                        "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600'],
-                        "marginBottom": "4px"
-                    }),
-                    html.Div(f"{metric['value']:.1f}%", style={
-                        "fontSize": "24px",
-                        "fontWeight": "700",
-                        "color": COLORS['gray']['100'] if dark_mode else COLORS['gray']['900'],
-                        "marginBottom": "4px"
-                    }),
-                    html.Div(f"Target: {metric['target']:.1f}%", style={
-                        "fontSize": "12px",
-                        "color": COLORS['gray']['500']
-                    })
-                ], style={
-                    "backgroundColor": COLORS['gray']['750'] if dark_mode else COLORS['gray']['50'],
-                    "border": f"1px solid {COLORS['gray']['600'] if dark_mode else COLORS['gray']['200']}",
-                    "borderRadius": "12px",
-                    "padding": "20px",
-                    "textAlign": "center"
-                })
-            ], md=3)
-        )
-
-    # Detailed breakdown table
-    breakdown_rows = []
-    cumulative = 0
-    for item in bridge_data:
-        if item['type'] == 'relative':
-            cumulative += item['value']
-            running_total = cumulative
-        else:
-            cumulative = item['value']
-            running_total = item['value']
-
-        breakdown_rows.append(html.Tr([
-            html.Td(item['step'], style={"fontWeight": "600" if item['type'] == 'total' else "400",
-                                        "color": COLORS['gray']['100'] if dark_mode else COLORS['gray']['900'],
-                                        "padding": "12px"}),
-            html.Td(f"${item['value']:.1f}M", style={
-                "textAlign": "right",
-                "color": COLORS['success'] if item['value'] > 0 else COLORS['danger'],
-                "fontWeight": "600" if item['type'] == 'total' else "400"
-            }),
-            html.Td(f"${running_total:.1f}M" if item['type'] == 'total' else "-",
-                   style={"textAlign": "right", "color": COLORS['gray']['200'] if dark_mode else COLORS['gray']['800']}),
-        ], style={
-            "borderBottom": f"1px solid {COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']}",
-            "backgroundColor": f"rgba(59, 130, 246, 0.1)" if item['type'] == 'total' else "transparent"
-        }))
-
-    breakdown_table = dbc.Table([
-        html.Thead(html.Tr([
-            html.Th("Category", style={"fontWeight": "600", "color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700'], "padding": "12px"}),
-            html.Th("Amount", style={"fontWeight": "600", "textAlign": "right", "color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700']}),
-            html.Th("Cumulative", style={"fontWeight": "600", "textAlign": "right", "color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700']}),
-        ])),
-        html.Tbody(breakdown_rows)
-    ], bordered=False, hover=True, style={"backgroundColor": "transparent", "marginTop": "20px"})
-
-    return html.Div([
-        html.H2("Margin Bridge Analysis", style={
-            "fontSize": "24px",
-            "fontWeight": "600",
-            "marginBottom": "20px",
-            "color": COLORS['gray']['100'] if dark_mode else COLORS['gray']['900']
-        }),
-        dbc.Card([
-            dbc.CardBody([
-                dbc.Row(metric_cards, className="g-3", style={"marginBottom": "24px"}),
-                waterfall_chart,
-                html.H3("Detailed Breakdown", style={
-                    "fontSize": "18px",
-                    "fontWeight": "600",
-                    "marginTop": "24px",
-                    "marginBottom": "12px",
-                    "color": COLORS['gray']['100'] if dark_mode else COLORS['gray']['900']
-                }),
-                breakdown_table
-            ])
-        ], style=card_style)
-    ])
+    """Margin bridge waterfall chart"""
+    return html.Div()  # Placeholder for now
 
 @app.callback(
     Output('alert-feed-container', 'children'),
@@ -1950,66 +1045,6 @@ def render_tab_content(active_tab, dark_mode):
                 "color": COLORS['gray']['500']
             })
         ])
-
-# Navigation callbacks - Update active state
-@app.callback(
-    [Output('nav-overview', 'className'),
-     Output('nav-insights', 'className'),
-     Output('nav-competitor', 'className'),
-     Output('nav-comparative', 'className'),
-     Output('nav-margin', 'className'),
-     Output('nav-analytics', 'className')],
-    [Input('nav-overview', 'n_clicks'),
-     Input('nav-insights', 'n_clicks'),
-     Input('nav-competitor', 'n_clicks'),
-     Input('nav-comparative', 'n_clicks'),
-     Input('nav-margin', 'n_clicks'),
-     Input('nav-analytics', 'n_clicks')]
-)
-def update_nav_active(n1, n2, n3, n4, n5, n6):
-    """Update active state of navigation items"""
-    ctx = dash.callback_context
-    if not ctx.triggered:
-        return "sidebar-nav-item active", "sidebar-nav-item", "sidebar-nav-item", "sidebar-nav-item", "sidebar-nav-item", "sidebar-nav-item"
-
-    button_id = ctx.triggered[0]['prop_id'].split('.')[0]
-
-    classes = ["sidebar-nav-item"] * 6
-    nav_ids = ['nav-overview', 'nav-insights', 'nav-competitor', 'nav-comparative', 'nav-margin', 'nav-analytics']
-
-    if button_id in nav_ids:
-        idx = nav_ids.index(button_id)
-        classes[idx] = "sidebar-nav-item active"
-
-    return tuple(classes)
-
-# System status toggle callback
-@app.callback(
-    [Output('system-status-content', 'style'),
-     Output('system-status-toggle-icon', 'className')],
-    [Input('system-status-toggle', 'n_clicks')],
-    [State('system-status-content', 'style')]
-)
-def toggle_system_status(n, current_style):
-    """Toggle system status section visibility"""
-    if n:
-        if current_style and current_style.get('display') == 'none':
-            return {"padding": "8px 8px 0 8px", "display": "block"}, "fas fa-chevron-down"
-        else:
-            return {"padding": "8px 8px 0 8px", "display": "none"}, "fas fa-chevron-right"
-    return {"padding": "8px 8px 0 8px", "display": "block"}, "fas fa-chevron-down"
-
-# Update sidebar sync time
-@app.callback(
-    Output('sidebar-sync-time', 'children'),
-    [Input('update-timestamp', 'data')]
-)
-def update_sidebar_sync_time(timestamp):
-    """Update sync time in sidebar"""
-    if timestamp:
-        dt = datetime.fromisoformat(timestamp)
-        return dt.strftime("%H:%M:%S")
-    return "Just now"
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
