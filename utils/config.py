@@ -82,8 +82,8 @@ def load_config():
     if not config['hana']['schema']:
         missing_hana.append('HANA_SCHEMA')
 
-    # Only raise error for missing HANA configuration
+    # Only warn for missing HANA configuration (not required for dashboard-only mode)
     if missing_hana:
-        raise ValueError(f"Missing required HANA database configuration: {', '.join(missing_hana)}")
+        print(f"WARNING: HANA configuration incomplete: {', '.join(missing_hana)}. Dashboard will use CSV data for local testing.")
 
     return config
