@@ -460,6 +460,18 @@ table tr:hover {
     padding: 12px;
 }
 
+/* Hide system status content when sidebar is collapsed */
+.sidebar.collapsed #system-status-content {
+    display: none !important;
+    opacity: 0;
+    overflow: hidden;
+}
+
+/* Hide system status toggle icon when sidebar is collapsed */
+.sidebar.collapsed #system-status-toggle-icon {
+    display: none;
+}
+
 /* Main content adjustment */
 .main-content {
     transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);

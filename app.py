@@ -5,7 +5,7 @@ Modern KPI dashboard with AI insights and advanced analytics
 
 import os
 import dash
-from dash import dcc, html, Input, Output, State
+from dash import dcc, html, Input, Output, State, callback_context
 import dash_bootstrap_components as dbc
 import plotly.graph_objs as go
 import plotly.express as px
@@ -602,21 +602,50 @@ def toggle_sidebar(n, collapsed):
         return new_collapsed, icon, main_class
     return collapsed, "fas fa-chevron-left", "main-content sidebar-expanded"
 
-# System status toggle callback
+# System status toggle callback with state store
 @app.callback(
     [Output('system-status-content', 'style'),
-     Output('system-status-toggle-icon', 'className')],
-    [Input('system-status-toggle', 'n_clicks')],
-    [State('system-status-content', 'style')]
+     Output('system-status-toggle-icon', 'style')],
+    [Input('system-status-toggle', 'n_clicks'),
+     Input('sidebar-collapsed-store', 'data')],
+    [State('system-status-content', 'style'),
+     State('system-status-toggle-icon', 'style')]
 )
-def toggle_system_status(n, current_style):
-    if n:
-        is_visible = current_style.get('display', 'block') == 'block'
-        new_style = current_style.copy()
-        new_style['display'] = 'none' if is_visible else 'block'
-        icon = "fas fa-chevron-right" if is_visible else "fas fa-chevron-down"
-        return new_style, icon
-    return current_style, "fas fa-chevron-down"
+def toggle_system_status(n_clicks, sidebar_collapsed, content_style, icon_style):
+    ctx = callback_context
+
+    # If sidebar is collapsed, hide everything
+    if sidebar_collapsed:
+        return {'display': 'none'}, {'display': 'none'}
+
+    # Default style for icon
+    if icon_style is None:
+        icon_style = {
+            'fontSize': '12px',
+            'transition': 'transform 0.3s ease',
+            'color': COLORS['gray']['400']
+        }
+
+    # Default style for content
+    if content_style is None:
+        content_style = {'padding': '8px 8px 0 8px', 'display': 'block'}
+
+    # If system status toggle was clicked
+    if ctx.triggered and ctx.triggered[0]['prop_id'] == 'system-status-toggle.n_clicks' and n_clicks:
+        is_visible = content_style.get('display', 'block') == 'block'
+
+        # Toggle visibility
+        new_content_style = content_style.copy()
+        new_content_style['display'] = 'none' if is_visible else 'block'
+
+        # Rotate icon
+        new_icon_style = icon_style.copy()
+        new_icon_style['transform'] = 'rotate(-90deg)' if is_visible else 'rotate(0deg)'
+
+        return new_content_style, new_icon_style
+
+    # Default: show when expanded
+    return content_style, icon_style
 
 # Update sidebar sync time
 @app.callback(
