@@ -51,14 +51,18 @@ server.secret_key = secrets.token_hex(32)
 
 # Initialize authentication service
 auth_service = None
+hana_client = None
 try:
     from db.hana_client import HanaClient
     hana_client = HanaClient(config)
     if hana_client.connect():
         auth_service = AuthService(hana_client, config['hana']['schema'])
-        logger.info("Authentication service initialized")
+        logger.info("Authentication service initialized successfully")
+    else:
+        logger.warning("HANA connection failed - authentication will not be available")
 except Exception as e:
     logger.error(f"Failed to initialize authentication service: {e}")
+    logger.warning("Continuing without authentication service")
 
 # Add redirect from root to login
 @server.route('/')
@@ -1321,6 +1325,12 @@ def render_tab_content(active_tab, dark_mode):
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
     debug = os.getenv('DASH_DEBUG', 'false').lower() == 'true'
+
+    logger.info(f"Starting CFO Pulse Dashboard on port {port}")
+    logger.info(f"Debug mode: {debug}")
+    logger.info(f"Authentication service available: {auth_service is not None}")
+    logger.info(f"Data service available: {data_service is not None}")
+
     app.run_server(
         host='0.0.0.0',
         port=port,
