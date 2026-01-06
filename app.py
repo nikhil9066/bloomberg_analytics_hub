@@ -192,6 +192,84 @@ COLORS = {
 # SIDEBAR COMPONENT
 #==============================================================================
 
+def create_footer(dark_mode=False):
+    """Create the dashboard footer with info and logout"""
+    return html.Footer([
+        html.Div([
+            # Top border line
+            html.Hr(style={
+                "margin": "0 0 16px 0",
+                "border": "none",
+                "borderTop": f"1px solid {COLORS['gray']['600'] if dark_mode else COLORS['gray']['200']}"
+            }),
+
+            # Title
+            html.Div([
+                html.I(className="fas fa-chart-pie", style={"marginRight": "8px", "color": COLORS['primary']}),
+                html.Span("CFO Pulse Dashboard", style={"fontWeight": "600", "fontSize": "14px"})
+            ], style={"marginBottom": "12px"}),
+
+            # Separator
+            html.Div(style={
+                "borderBottom": f"1px solid {COLORS['gray']['600'] if dark_mode else COLORS['gray']['200']}",
+                "margin": "8px 0 12px 0"
+            }),
+
+            # Auto-refresh info
+            html.Div([
+                html.I(className="fas fa-sync-alt", style={"marginRight": "6px", "fontSize": "12px"}),
+                html.Span("Auto-refresh: Every 5 min | Next: ", style={"fontSize": "12px"}),
+                html.Span(id="footer-next-refresh", children="09:00 AM EST", style={"fontSize": "12px", "fontWeight": "600"})
+            ], style={"marginBottom": "8px"}),
+
+            # Data source
+            html.Div([
+                html.I(className="fas fa-database", style={"marginRight": "6px", "fontSize": "12px"}),
+                html.Span("Data Source: SAP HANA Cloud", style={"fontSize": "12px"})
+            ], style={"marginBottom": "8px"}),
+
+            # Logged in user with logout
+            html.Div([
+                html.I(className="fas fa-user", style={"marginRight": "6px", "fontSize": "12px"}),
+                html.Span("Logged in as: ", style={"fontSize": "12px"}),
+                html.Span(id="footer-user-email", children="admin@g.com", style={"fontSize": "12px", "fontWeight": "600"}),
+                html.Span(" | ", style={"fontSize": "12px", "margin": "0 4px"}),
+                html.A("Logout", href="/logout", style={
+                    "fontSize": "12px",
+                    "color": COLORS['danger'],
+                    "textDecoration": "none",
+                    "fontWeight": "500"
+                })
+            ], style={"marginBottom": "8px"}),
+
+            # Help & Privacy
+            html.Div([
+                html.A([
+                    html.I(className="fas fa-question-circle", style={"marginRight": "4px"}),
+                    html.Span("Help & Support")
+                ], href="#", style={
+                    "fontSize": "12px",
+                    "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600'],
+                    "textDecoration": "none",
+                    "marginRight": "16px"
+                }),
+                html.A([
+                    html.I(className="fas fa-shield-alt", style={"marginRight": "4px"}),
+                    html.Span("Privacy Policy")
+                ], href="#", style={
+                    "fontSize": "12px",
+                    "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600'],
+                    "textDecoration": "none"
+                })
+            ])
+        ], style={
+            "padding": "16px 24px",
+            "backgroundColor": COLORS['gray']['800'] if dark_mode else COLORS['gray']['50'],
+            "color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700'],
+            "borderTop": f"1px solid {COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']}"
+        })
+    ])
+
 def create_sidebar(collapsed=False, dark_mode=False):
     """Create the collapsible sidebar with navigation"""
     sidebar_class = "sidebar " + ("collapsed" if collapsed else "expanded")
@@ -234,6 +312,105 @@ def create_sidebar(collapsed=False, dark_mode=False):
                 for item in nav_items
             ])
         ], className="sidebar-nav"),
+
+        # Data Refresh Status Section (Collapsible)
+        html.Div([
+            # Toggle button
+            html.Div([
+                html.Div([
+                    html.I(className="fas fa-sync-alt sidebar-footer-item-icon"),
+                    html.Span("Data Refresh Status", className="sidebar-footer-item-text")
+                ], style={"flex": "1"}),
+                html.I(id="data-refresh-toggle-icon", className="fas fa-chevron-down", style={
+                    "fontSize": "12px",
+                    "transition": "transform 0.3s ease",
+                    "color": COLORS['gray']['400']
+                })
+            ], id="data-refresh-toggle", className="sidebar-footer-item", style={
+                "display": "flex",
+                "alignItems": "center",
+                "justifyContent": "space-between",
+                "cursor": "pointer"
+            }),
+
+            # Collapsible content
+            html.Div([
+                html.Div([
+                    # Last Run
+                    html.Div([
+                        html.Div([
+                            html.I(className="fas fa-check-circle", style={
+                                "fontSize": "10px",
+                                "color": COLORS['success'],
+                                "marginRight": "6px"
+                            }),
+                            html.Span("Last Run", className="sidebar-footer-item-text", style={"fontSize": "11px"})
+                        ], style={"marginBottom": "4px"}),
+                        html.Div(id="last-run-time", children="Jan 6, 2026 09:00 AM EST", style={
+                            "fontSize": "11px",
+                            "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600'],
+                            "marginLeft": "16px"
+                        })
+                    ], style={"marginBottom": "12px"}),
+
+                    # Duration
+                    html.Div([
+                        html.Div([
+                            html.I(className="fas fa-clock", style={
+                                "fontSize": "10px",
+                                "color": COLORS['info'],
+                                "marginRight": "6px"
+                            }),
+                            html.Span("Duration", className="sidebar-footer-item-text", style={"fontSize": "11px"})
+                        ], style={"marginBottom": "4px"}),
+                        html.Div("45 seconds", style={
+                            "fontSize": "11px",
+                            "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600'],
+                            "marginLeft": "16px"
+                        })
+                    ], style={"marginBottom": "12px"}),
+
+                    # Records Updated
+                    html.Div([
+                        html.Div([
+                            html.I(className="fas fa-database", style={
+                                "fontSize": "10px",
+                                "color": COLORS['primary'],
+                                "marginRight": "6px"
+                            }),
+                            html.Span("Records Updated", className="sidebar-footer-item-text", style={"fontSize": "11px"})
+                        ], style={"marginBottom": "4px"}),
+                        html.Div("850", style={
+                            "fontSize": "11px",
+                            "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600'],
+                            "marginLeft": "16px"
+                        })
+                    ], style={"marginBottom": "12px"}),
+
+                    # Next Run
+                    html.Div([
+                        html.Div([
+                            html.I(className="fas fa-calendar-alt", style={
+                                "fontSize": "10px",
+                                "color": COLORS['warning'],
+                                "marginRight": "6px"
+                            }),
+                            html.Span("Next Run", className="sidebar-footer-item-text", style={"fontSize": "11px"})
+                        ], style={"marginBottom": "4px"}),
+                        html.Div("Jan 7, 2026 09:00 AM EST", style={
+                            "fontSize": "11px",
+                            "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600'],
+                            "marginLeft": "16px"
+                        })
+                    ])
+                ], style={
+                    "padding": "12px 16px",
+                    "backgroundColor": COLORS['gray']['700'] if dark_mode else COLORS['gray']['50'],
+                    "borderRadius": "8px",
+                    "border": f"1px solid {COLORS['gray']['600'] if dark_mode else COLORS['gray']['200']}"
+                })
+            ], id="data-refresh-content", style={"padding": "8px 8px 0 8px", "display": "block"}),
+        ], style={"marginBottom": "8px"}),
 
         # System Status Section (Collapsible)
         html.Div([
@@ -570,7 +747,10 @@ app.layout = html.Div([
             html.Div(id='alert-feed-container', className="mb-4", style={"padding": "0 24px"}),
 
             # Tabbed Analytics Section
-            html.Div(id='tabbed-analytics-container', className="mb-4", style={"padding": "0 24px"})
+            html.Div(id='tabbed-analytics-container', className="mb-4", style={"padding": "0 24px"}),
+
+            # Footer
+            html.Div(id='footer-container')
         ])
     ], id='main-content', fluid=True, style=custom_style, className='main-content sidebar-expanded')
 
@@ -649,6 +829,59 @@ def toggle_system_status(n_clicks, sidebar_collapsed, content_style, icon_style)
 
     # Default: show when expanded
     return content_style, icon_style
+
+# Data refresh status toggle callback
+@app.callback(
+    [Output('data-refresh-content', 'style'),
+     Output('data-refresh-toggle-icon', 'style')],
+    [Input('data-refresh-toggle', 'n_clicks'),
+     Input('sidebar-collapsed-store', 'data')],
+    [State('data-refresh-content', 'style'),
+     State('data-refresh-toggle-icon', 'style')]
+)
+def toggle_data_refresh_status(n_clicks, sidebar_collapsed, content_style, icon_style):
+    ctx = callback_context
+
+    # If sidebar is collapsed, hide everything
+    if sidebar_collapsed:
+        return {'display': 'none'}, {'display': 'none'}
+
+    # Default style for icon
+    if icon_style is None:
+        icon_style = {
+            'fontSize': '12px',
+            'transition': 'transform 0.3s ease',
+            'color': COLORS['gray']['400']
+        }
+
+    # Default style for content
+    if content_style is None:
+        content_style = {'padding': '8px 8px 0 8px', 'display': 'block'}
+
+    # If data refresh toggle was clicked
+    if ctx.triggered and ctx.triggered[0]['prop_id'] == 'data-refresh-toggle.n_clicks' and n_clicks:
+        is_visible = content_style.get('display', 'block') == 'block'
+
+        # Toggle visibility
+        new_content_style = content_style.copy()
+        new_content_style['display'] = 'none' if is_visible else 'block'
+
+        # Rotate icon
+        new_icon_style = icon_style.copy()
+        new_icon_style['transform'] = 'rotate(-90deg)' if is_visible else 'rotate(0deg)'
+
+        return new_content_style, new_icon_style
+
+    # Default: show when expanded
+    return content_style, icon_style
+
+# Footer render callback
+@app.callback(
+    Output('footer-container', 'children'),
+    [Input('dark-mode-store', 'data')]
+)
+def render_footer(dark_mode):
+    return create_footer(dark_mode=dark_mode)
 
 # Update sidebar sync time
 @app.callback(

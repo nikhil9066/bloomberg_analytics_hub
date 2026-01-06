@@ -472,6 +472,18 @@ table tr:hover {
     display: none;
 }
 
+/* Hide data refresh content when sidebar is collapsed */
+.sidebar.collapsed #data-refresh-content {
+    display: none !important;
+    opacity: 0;
+    overflow: hidden;
+}
+
+/* Hide data refresh toggle icon when sidebar is collapsed */
+.sidebar.collapsed #data-refresh-toggle-icon {
+    display: none;
+}
+
 /* Main content adjustment */
 .main-content {
     transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
