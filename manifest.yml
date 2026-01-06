@@ -13,7 +13,6 @@ applications:
     # Dashboard Configuration
     FLASK_ENV: production
     DASH_DEBUG: false
-    PORT: 8080
 
     # HANA Credentials (TESTING ONLY - REMOVE BEFORE PRODUCTION)
     HANA_ADDRESS: a0b0b370-2621-4f9c-95c3-2063833ac9ef.hana.prod-us10.hanacloud.ondemand.com
