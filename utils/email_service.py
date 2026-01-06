@@ -1,35 +1,45 @@
 """
 Email notification service for security alerts
-Sends emails for failed login attempts and security events
+Sends emails for failed login attempts and security events using SendGrid API
 """
 
-import smtplib
 import logging
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from datetime import datetime
 import os
+from datetime import datetime
+try:
+    from sendgrid import SendGridAPIClient
+    from sendgrid.helpers.mail import Mail, Email, To, Content
+    SENDGRID_AVAILABLE = True
+except ImportError:
+    SENDGRID_AVAILABLE = False
 
 
 class EmailService:
-    """Service for sending security notification emails"""
+    """Service for sending security notification emails via SendGrid"""
 
     def __init__(self):
-        """Initialize email service with SMTP configuration"""
+        """Initialize email service with SendGrid configuration"""
         self.logger = logging.getLogger(__name__)
 
-        # Email configuration from environment variables
-        self.smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
-        self.smtp_port = int(os.getenv('SMTP_PORT', '587'))
-        self.sender_email = os.getenv('SENDER_EMAIL', '')
-        self.sender_password = os.getenv('SENDER_PASSWORD', '')
-        self.admin_email = os.getenv('ADMIN_EMAIL', '')
+        # SendGrid configuration from environment variables
+        self.sendgrid_api_key = os.getenv('SENDGRID_API_KEY', '')
+        self.sender_email = os.getenv('SENDGRID_FROM_EMAIL', '')
+        self.notification_email = os.getenv('NOTIFICATION_EMAIL', '')
 
         # Check if email is configured
-        self.is_configured = bool(self.sender_email and self.sender_password and self.admin_email)
+        self.is_configured = bool(
+            SENDGRID_AVAILABLE and
+            self.sendgrid_api_key and
+            self.sender_email and
+            self.notification_email
+        )
 
-        if not self.is_configured:
+        if not SENDGRID_AVAILABLE:
+            self.logger.warning("SendGrid library not installed. Run: pip install sendgrid")
+        elif not self.is_configured:
             self.logger.warning("Email service not fully configured. Notifications will be logged only.")
+        else:
+            self.logger.info(f"Email service initialized. Notifications will be sent to: {self.notification_email}")
 
     def send_failed_login_alert(self, attempted_email, ip_address=None, timestamp=None):
         """
@@ -99,7 +109,7 @@ class EmailService:
         </html>
         """
 
-        return self._send_email(self.admin_email, subject, body, is_html=True)
+        return self._send_email(self.notification_email, subject, body)
 
     def send_new_user_attempt_alert(self, attempted_email, ip_address=None, timestamp=None):
         """
@@ -177,7 +187,7 @@ class EmailService:
                 <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
                     <p style="font-size: 12px; color: #6b7280;">
                         This is an automated security notification from Bloomberg Analytics Hub.<br>
-                        System Administrator: {self.admin_email}
+                        System Administrator: {self.notification_email}
                     </p>
                 </div>
             </div>
@@ -185,50 +195,41 @@ class EmailService:
         </html>
         """
 
-        return self._send_email(self.admin_email, subject, body, is_html=True)
+        return self._send_email(self.notification_email, subject, body)
 
-    def _send_email(self, to_email, subject, body, is_html=False):
+    def _send_email(self, to_email, subject, html_content):
         """
-        Internal method to send email via SMTP
+        Internal method to send email via SendGrid API
 
         Args:
             to_email (str): Recipient email address
             subject (str): Email subject
-            body (str): Email body
-            is_html (bool): Whether body is HTML
+            html_content (str): HTML email body
 
         Returns:
             bool: True if sent successfully, False otherwise
         """
         if not self.is_configured:
             self.logger.warning(f"Email not configured. Would send: {subject} to {to_email}")
-            self.logger.info(f"Email content: {body[:200]}...")
+            self.logger.info(f"Email content preview: {html_content[:200]}...")
             return False
 
         try:
-            # Create message
-            msg = MIMEMultipart('alternative')
-            msg['From'] = self.sender_email
-            msg['To'] = to_email
-            msg['Subject'] = subject
+            message = Mail(
+                from_email=self.sender_email,
+                to_emails=to_email,
+                subject=subject,
+                html_content=html_content
+            )
 
-            # Attach body
-            if is_html:
-                msg.attach(MIMEText(body, 'html'))
-            else:
-                msg.attach(MIMEText(body, 'plain'))
+            sg = SendGridAPIClient(self.sendgrid_api_key)
+            response = sg.send(message)
 
-            # Send email
-            with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
-                server.starttls()
-                server.login(self.sender_email, self.sender_password)
-                server.send_message(msg)
-
-            self.logger.info(f"Email sent successfully to {to_email}: {subject}")
+            self.logger.info(f"Email sent successfully to {to_email}: {subject} (Status: {response.status_code})")
             return True
 
         except Exception as e:
-            self.logger.error(f"Failed to send email: {str(e)}")
+            self.logger.error(f"Failed to send email via SendGrid: {str(e)}")
             return False
 
     def test_email_configuration(self):
@@ -245,12 +246,22 @@ class EmailService:
         subject = "Test Email - Bloomberg Analytics Hub"
         body = """
         <html>
-        <body>
-            <h2>Email Configuration Test</h2>
-            <p>This is a test email from Bloomberg Analytics Hub.</p>
-            <p>If you received this, your email configuration is working correctly!</p>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 2px solid #10b981; border-radius: 10px;">
+                <h2 style="color: #10b981;">✅ Email Configuration Test</h2>
+                <p>This is a test email from Bloomberg Analytics Hub.</p>
+                <p><strong>If you received this, your SendGrid email configuration is working correctly!</strong></p>
+                <div style="background-color: #d1fae5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                    <h3 style="margin-top: 0; color: #065f46;">Configuration Details:</h3>
+                    <ul>
+                        <li>From Email: {self.sender_email}</li>
+                        <li>Notification Email: {self.notification_email}</li>
+                        <li>Service: SendGrid API</li>
+                    </ul>
+                </div>
+            </div>
         </body>
         </html>
         """
 
-        return self._send_email(self.admin_email, subject, body, is_html=True)
+        return self._send_email(self.notification_email, subject, body)

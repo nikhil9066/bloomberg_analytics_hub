@@ -23,6 +23,11 @@ applications:
     HANA_SCHEMA: BLOOMBERG_DATA
     HANA_TABLE: FINANCIAL_RATIOS
 
+    # Email Notification Configuration
+    SENDGRID_API_KEY: SG.xyz
+    SENDGRID_FROM_EMAIL: nikhilpr16+alerts@katbotz.com
+    NOTIFICATION_EMAIL: nikhilpr16@katbotz.com
+
   # IMPORTANT: Set HANA credentials using Cloud Foundry services or environment variables
   # Do NOT hardcode credentials in this file
   #
