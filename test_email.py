@@ -4,8 +4,13 @@ Test email configuration and send a test alert
 """
 
 import os
-from utils.email_service import EmailService
+from dotenv import load_dotenv
 from datetime import datetime
+
+# Load .env file
+load_dotenv()
+
+from utils.email_service import EmailService
 
 # Check environment variables
 print("=" * 70)

@@ -22,8 +22,8 @@ applications:
     HANA_SCHEMA: BLOOMBERG_DATA
     HANA_TABLE: FINANCIAL_RATIOS
 
-    # Email Notification Configuration
-    SENDGRID_API_KEY: SG.xyz
+    # Email Notification Configuration (DO NOT COMMIT REAL API KEY)
+    # Set via: cf set-env financial-dashboard SENDGRID_API_KEY "your_key"
     SENDGRID_FROM_EMAIL: nikhilpr16+alerts@katbotz.com
     NOTIFICATION_EMAIL: nikhilpr16@katbotz.com
 
