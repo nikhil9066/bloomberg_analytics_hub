@@ -39,7 +39,10 @@ app = dash.Dash(
 
 # For Cloud Foundry deployment
 server = app.server
-app.title = "CFO Pulse Dashboard"
+app.title = "CFO Pulse - Financial Intelligence Dashboard"
+
+# Add favicon
+app._favicon = "favicon.svg"
 
 # Import authentication service
 from db.auth_service import AuthService
