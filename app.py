@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 # Load configuration
 config = load_config()
 
-# Initialize Dash app
+# Initialize Dash app with custom URL base pathname
 app = dash.Dash(
     __name__,
     external_stylesheets=[
@@ -33,12 +33,20 @@ app = dash.Dash(
     suppress_callback_exceptions=True,
     meta_tags=[
         {"name": "viewport", "content": "width=device-width, initial-scale=1"}
-    ]
+    ],
+    url_base_pathname='/dashboard/'
 )
 
 # For Cloud Foundry deployment
 server = app.server
 app.title = "CFO Pulse Dashboard"
+
+# Add redirect from root to login
+@server.route('/')
+def redirect_to_login():
+    """Redirect root path to login page"""
+    from flask import redirect
+    return redirect('/login')
 
 # Add login route
 @server.route('/login')
