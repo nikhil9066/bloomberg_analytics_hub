@@ -156,14 +156,13 @@ class AuthService:
 
                 self.logger.warning(f"Failed login attempt for user: {email} (attempt {new_attempts})")
 
-                # Send email alert on FIRST failed attempt
-                if login_attempts == 0:  # This is the first failure (was 0, now will be 1)
-                    self.logger.info(f"First failed login attempt for {email} - sending email alert")
-                    self.email_service.send_failed_login_alert(
-                        attempted_email=email,
-                        ip_address=ip_address,
-                        timestamp=datetime.now()
-                    )
+                # Send email alert on EVERY failed attempt
+                self.logger.info(f"Failed login attempt #{new_attempts} for {email} - sending email alert")
+                self.email_service.send_failed_login_alert(
+                    attempted_email=email,
+                    ip_address=ip_address,
+                    timestamp=datetime.now()
+                )
 
                 return None
 

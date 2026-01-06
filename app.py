@@ -186,6 +186,173 @@ COLORS = {
 }
 
 #==============================================================================
+# SIDEBAR COMPONENT
+#==============================================================================
+
+def create_sidebar(collapsed=False, dark_mode=False):
+    """Create the collapsible sidebar with navigation"""
+    sidebar_class = "sidebar " + ("collapsed" if collapsed else "expanded")
+    if dark_mode:
+        sidebar_class += " dark-mode"
+
+    nav_items = [
+        {"id": "nav-overview", "icon": "fas fa-home", "text": "Overview", "active": True, "target": "kpi-grid-container"},
+        {"id": "nav-insights", "icon": "fas fa-lightbulb", "text": "AI Insights", "target": "ai-insights-container"},
+        {"id": "nav-competitor", "icon": "fas fa-users", "text": "Competitor Analysis", "target": "competitor-analysis-container"},
+        {"id": "nav-comparative", "icon": "fas fa-balance-scale", "text": "Comparative Analysis", "target": "comparative-analysis-container"},
+        {"id": "nav-margin", "icon": "fas fa-chart-waterfall", "text": "Margin Bridge", "target": "margin-bridge-container"},
+        {"id": "nav-analytics", "icon": "fas fa-chart-bar", "text": "Analytics", "target": "tabbed-analytics-container"},
+    ]
+
+    return html.Div([
+        # Header with logo and toggle
+        html.Div([
+            html.Div([
+                html.Div([
+                    html.I(className="fas fa-chart-pie")
+                ], className="sidebar-logo-icon"),
+                html.Span("CFO Pulse", className="sidebar-logo-text")
+            ], className="sidebar-logo"),
+            html.Button([
+                html.I(id="sidebar-toggle-icon", className="fas fa-chevron-left")
+            ], id="sidebar-toggle-btn", className="sidebar-toggle")
+        ], className="sidebar-header"),
+
+        # Navigation items
+        html.Div([
+            html.Div([
+                html.A([
+                    html.I(className=item["icon"] + " sidebar-nav-item-icon"),
+                    html.Span(item["text"], className="sidebar-nav-item-text")
+                ],
+                id=item["id"],
+                href=f"#{item['target']}",
+                className="sidebar-nav-item" + (" active" if item.get("active") else ""))
+                for item in nav_items
+            ])
+        ], className="sidebar-nav"),
+
+        # System Status Section (Collapsible)
+        html.Div([
+            # Toggle button
+            html.Div([
+                html.Div([
+                    html.I(className="fas fa-server sidebar-footer-item-icon"),
+                    html.Span("System Status", className="sidebar-footer-item-text")
+                ], style={"flex": "1"}),
+                html.I(id="system-status-toggle-icon", className="fas fa-chevron-down", style={
+                    "fontSize": "12px",
+                    "transition": "transform 0.3s ease",
+                    "color": COLORS['gray']['400']
+                })
+            ], id="system-status-toggle", className="sidebar-footer-item", style={
+                "display": "flex",
+                "alignItems": "center",
+                "justifyContent": "space-between",
+                "cursor": "pointer"
+            }),
+
+            # Collapsible content
+            html.Div([
+                html.Div([
+                    # Data Quality
+                    html.Div([
+                        html.Div([
+                            html.I(className="fas fa-check-circle", style={
+                                "fontSize": "10px",
+                                "color": COLORS['success'],
+                                "marginRight": "6px"
+                            }),
+                            html.Span("Data Quality", className="sidebar-footer-item-text", style={"fontSize": "11px"})
+                        ], style={"marginBottom": "4px"}),
+                        html.Div("99.8%", style={
+                            "fontSize": "16px",
+                            "fontWeight": "700",
+                            "color": COLORS['success'],
+                            "marginLeft": "16px"
+                        })
+                    ], style={"marginBottom": "12px"}),
+
+                    # Last Sync
+                    html.Div([
+                        html.Div([
+                            html.I(className="fas fa-sync-alt", style={
+                                "fontSize": "10px",
+                                "color": COLORS['info'],
+                                "marginRight": "6px"
+                            }),
+                            html.Span("Last Sync", className="sidebar-footer-item-text", style={"fontSize": "11px"})
+                        ], style={"marginBottom": "4px"}),
+                        html.Div(id="sidebar-sync-time", children="Just now", style={
+                            "fontSize": "12px",
+                            "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600'],
+                            "marginLeft": "16px"
+                        })
+                    ], style={"marginBottom": "12px"}),
+
+                    # SAP HANA Connection
+                    html.Div([
+                        html.Div([
+                            html.I(className="fas fa-database", style={
+                                "fontSize": "10px",
+                                "color": COLORS['primary'],
+                                "marginRight": "6px"
+                            }),
+                            html.Span("SAP HANA Cloud", className="sidebar-footer-item-text", style={"fontSize": "11px"})
+                        ], style={"marginBottom": "4px"}),
+                        html.Div([
+                            html.Div(style={
+                                "width": "6px",
+                                "height": "6px",
+                                "borderRadius": "50%",
+                                "backgroundColor": COLORS['success'],
+                                "marginRight": "6px",
+                                "marginLeft": "16px"
+                            }),
+                            html.Span("Connected", style={
+                                "fontSize": "11px",
+                                "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600']
+                            })
+                        ], style={"display": "flex", "alignItems": "center"})
+                    ], style={"marginBottom": "12px"}),
+
+                    # Records Count
+                    html.Div([
+                        html.Div([
+                            html.I(className="fas fa-file-alt", style={
+                                "fontSize": "10px",
+                                "color": COLORS['warning'],
+                                "marginRight": "6px"
+                            }),
+                            html.Span("Records", className="sidebar-footer-item-text", style={"fontSize": "11px"})
+                        ], style={"marginBottom": "4px"}),
+                        html.Div("850 active", style={
+                            "fontSize": "11px",
+                            "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600'],
+                            "marginLeft": "16px"
+                        })
+                    ])
+                ], style={
+                    "padding": "12px 16px",
+                    "backgroundColor": COLORS['gray']['700'] if dark_mode else COLORS['gray']['50'],
+                    "borderRadius": "8px",
+                    "border": f"1px solid {COLORS['gray']['600'] if dark_mode else COLORS['gray']['200']}"
+                })
+            ], id="system-status-content", style={"padding": "8px 8px 0 8px", "display": "block"}),
+
+            # Help and Settings
+            html.Div([
+                html.I(className="fas fa-question-circle sidebar-footer-item-icon"),
+                html.Span("Help Center", className="sidebar-footer-item-text")
+            ], id="sidebar-help", className="sidebar-footer-item"),
+            html.Div([
+                html.I(className="fas fa-cog sidebar-footer-item-icon"),
+                html.Span("Settings", className="sidebar-footer-item-text")
+            ], id="sidebar-settings", className="sidebar-footer-item")
+        ], className="sidebar-footer")
+    ], id="sidebar", className=sidebar_class)
+
+#==============================================================================
 # DASHBOARD HEADER COMPONENT
 #==============================================================================
 
@@ -358,48 +525,109 @@ def create_data_trust_bar():
 # MAIN LAYOUT
 #==============================================================================
 
-app.layout = dbc.Container([
+app.layout = html.Div([
     # Store for dark mode state
     dcc.Store(id='dark-mode-store', data=False),
+
+    # Store for sidebar collapse state (False = expanded by default)
+    dcc.Store(id='sidebar-collapsed-store', data=False),
 
     # Store for updated timestamp
     dcc.Store(id='update-timestamp', data=datetime.now().isoformat()),
 
-    # Dashboard Header
-    create_dashboard_header(),
-
-    # Data Trust Bar
-    create_data_trust_bar(),
+    # Sidebar
+    html.Div(id='sidebar-container'),
 
     # Main Content
-    html.Div([
-        # KPI Grid Section
-        html.Div(id='kpi-grid-container', className="mb-4", style={"padding": "24px"}),
+    dbc.Container([
+        # Dashboard Header
+        create_dashboard_header(),
 
-        # AI Insights Section
-        html.Div(id='ai-insights-container', className="mb-4", style={"padding": "0 24px"}),
+        # Data Trust Bar
+        create_data_trust_bar(),
 
-        # Competitor Analysis Module
-        html.Div(id='competitor-analysis-container', className="mb-4", style={"padding": "0 24px"}),
+        # Main Content Sections
+        html.Div([
+            # KPI Grid Section
+            html.Div(id='kpi-grid-container', className="mb-4", style={"padding": "24px"}),
 
-        # Comparative Analysis
-        html.Div(id='comparative-analysis-container', className="mb-4", style={"padding": "0 24px"}),
+            # AI Insights Section
+            html.Div(id='ai-insights-container', className="mb-4", style={"padding": "0 24px"}),
 
-        # Margin Bridge
-        html.Div(id='margin-bridge-container', className="mb-4", style={"padding": "0 24px"}),
+            # Competitor Analysis Module
+            html.Div(id='competitor-analysis-container', className="mb-4", style={"padding": "0 24px"}),
 
-        # Alert Feed
-        html.Div(id='alert-feed-container', className="mb-4", style={"padding": "0 24px"}),
+            # Comparative Analysis
+            html.Div(id='comparative-analysis-container', className="mb-4", style={"padding": "0 24px"}),
 
-        # Tabbed Analytics Section
-        html.Div(id='tabbed-analytics-container', className="mb-4", style={"padding": "0 24px"})
-    ])
+            # Margin Bridge
+            html.Div(id='margin-bridge-container', className="mb-4", style={"padding": "0 24px"}),
 
-], fluid=True, style=custom_style)
+            # Alert Feed
+            html.Div(id='alert-feed-container', className="mb-4", style={"padding": "0 24px"}),
+
+            # Tabbed Analytics Section
+            html.Div(id='tabbed-analytics-container', className="mb-4", style={"padding": "0 24px"})
+        ])
+    ], id='main-content', fluid=True, style=custom_style, className='main-content sidebar-expanded')
+
+], style={'position': 'relative'})
 
 #==============================================================================
 # CALLBACKS
 #==============================================================================
+
+# Sidebar render callback
+@app.callback(
+    Output('sidebar-container', 'children'),
+    [Input('sidebar-collapsed-store', 'data'),
+     Input('dark-mode-store', 'data')]
+)
+def render_sidebar(collapsed, dark_mode):
+    return create_sidebar(collapsed=collapsed, dark_mode=dark_mode)
+
+# Sidebar toggle callback
+@app.callback(
+    [Output('sidebar-collapsed-store', 'data'),
+     Output('sidebar-toggle-icon', 'className'),
+     Output('main-content', 'className')],
+    [Input('sidebar-toggle-btn', 'n_clicks')],
+    [State('sidebar-collapsed-store', 'data')]
+)
+def toggle_sidebar(n, collapsed):
+    if n:
+        new_collapsed = not collapsed
+        icon = "fas fa-chevron-right" if new_collapsed else "fas fa-chevron-left"
+        main_class = "main-content sidebar-collapsed" if new_collapsed else "main-content sidebar-expanded"
+        return new_collapsed, icon, main_class
+    return collapsed, "fas fa-chevron-left", "main-content sidebar-expanded"
+
+# System status toggle callback
+@app.callback(
+    [Output('system-status-content', 'style'),
+     Output('system-status-toggle-icon', 'className')],
+    [Input('system-status-toggle', 'n_clicks')],
+    [State('system-status-content', 'style')]
+)
+def toggle_system_status(n, current_style):
+    if n:
+        is_visible = current_style.get('display', 'block') == 'block'
+        new_style = current_style.copy()
+        new_style['display'] = 'none' if is_visible else 'block'
+        icon = "fas fa-chevron-right" if is_visible else "fas fa-chevron-down"
+        return new_style, icon
+    return current_style, "fas fa-chevron-down"
+
+# Update sidebar sync time
+@app.callback(
+    Output('sidebar-sync-time', 'children'),
+    [Input('update-timestamp', 'data')]
+)
+def update_sidebar_sync_time(timestamp):
+    if timestamp:
+        dt = datetime.fromisoformat(timestamp)
+        return dt.strftime("%H:%M:%S")
+    return "Just now"
 
 # Theme toggle callback
 @app.callback(
