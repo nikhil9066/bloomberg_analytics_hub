@@ -6,7 +6,7 @@ applications:
   instances: 1
   buildpacks:
   - python_buildpack
-  command: gunicorn app:server --bind 0.0.0.0:$PORT --workers 4 --timeout 120 --access-logfile - --error-logfile -
+  command: python app.py
   routes:
   - route: financial-dashboard.cfapps.us10-001.hana.ondemand.com
   env:
