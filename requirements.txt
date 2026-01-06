@@ -13,5 +13,8 @@ plotly==5.24.1
 # Web Server
 gunicorn==23.0.0
 
+# Security & Authentication
+cryptography==43.0.3
+
 # Utilities
 python-dotenv==1.0.1
