@@ -41,39 +41,113 @@ app = dash.Dash(
 server = app.server
 app.title = "CFO Pulse Dashboard"
 
+# Import authentication service
+from db.auth_service import AuthService
+from flask import request, jsonify, redirect, session
+import secrets
+
+# Set secret key for sessions
+server.secret_key = secrets.token_hex(32)
+
+# Initialize authentication service
+auth_service = None
+try:
+    from db.hana_client import HanaClient
+    hana_client = HanaClient(config)
+    if hana_client.connect():
+        auth_service = AuthService(hana_client, config['hana']['schema'])
+        logger.info("Authentication service initialized")
+except Exception as e:
+    logger.error(f"Failed to initialize authentication service: {e}")
+
 # Add redirect from root to login
 @server.route('/')
 def redirect_to_login():
     """Redirect root path to login page"""
-    from flask import redirect
     return redirect('/login')
 
-# Add login route
-@server.route('/login')
+# Add login route (GET - serve page, POST - authenticate)
+@server.route('/login', methods=['GET', 'POST'])
 def login():
-    """Serve the login page"""
-    with open('login.html', 'r') as f:
-        return f.read()
+    """Serve login page or authenticate user"""
+    if request.method == 'GET':
+        with open('login.html', 'r') as f:
+            return f.read()
+
+    # POST request - authenticate
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        password = data.get('password')
+
+        if not email or not password:
+            return jsonify({'success': False, 'message': 'Email and password required'}), 400
+
+        if not auth_service:
+            return jsonify({'success': False, 'message': 'Authentication service unavailable'}), 503
+
+        # Authenticate user
+        user = auth_service.authenticate(email, password)
+
+        if user:
+            # Store user info in session
+            session['user_id'] = user['id']
+            session['user_email'] = user['email']
+            session['user_role'] = user['role']
+
+            return jsonify({
+                'success': True,
+                'message': 'Login successful',
+                'redirect': '/dashboard/'
+            })
+        else:
+            # Check if user exists but wrong password
+            if auth_service.user_exists(email):
+                return jsonify({
+                    'success': False,
+                    'message': 'Invalid credentials. Please check your password.'
+                }), 401
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': f'User account not found. If you believe this is an error, please contact the administrator. Attempted email: {email}'
+                }), 404
+
+    except Exception as e:
+        logger.error(f"Login error: {str(e)}")
+        return jsonify({'success': False, 'message': 'An error occurred during login'}), 500
+
+# Add logout route
+@server.route('/logout')
+def logout():
+    """Logout user and clear session"""
+    session.clear()
+    return redirect('/login')
 
 # Initialize data service
-# For local testing, use CSV files if HANA is not configured
+# Connect to HANA database for production data
 try:
     data_service = FinancialDataService(config)
-    logger.info("Data service initialized successfully")
+    if data_service.connect():
+        logger.info("Data service initialized and connected to HANA")
+    else:
+        logger.warning("Data service initialized but not connected to HANA")
+        data_service = None
 except Exception as e:
-    logger.warning(f"HANA data service not available: {e}. Using CSV files for local testing.")
+    logger.warning(f"HANA data service not available: {e}. Will use CSV files for local testing.")
     data_service = None
 
-# Load CSV data for local testing
+# Load CSV data for local testing (commented out for production, uncomment if needed)
 csv_data = None
-try:
-    basic_df = pd.read_csv('basic.csv')
-    advance_df = pd.read_csv('advance.csv')
-    logger.info(f"Loaded CSV data: {len(basic_df)} basic records, {len(advance_df)} advance records")
-    csv_data = {'basic': basic_df, 'advance': advance_df}
-except Exception as e:
-    logger.error(f"Failed to load CSV files: {e}")
-    csv_data = None
+# Uncomment below lines for local testing without HANA
+# try:
+#     basic_df = pd.read_csv('basic.csv')
+#     advance_df = pd.read_csv('advance.csv')
+#     logger.info(f"Loaded CSV data: {len(basic_df)} basic records, {len(advance_df)} advance records")
+#     csv_data = {'basic': basic_df, 'advance': advance_df}
+# except Exception as e:
+#     logger.error(f"Failed to load CSV files: {e}")
+#     csv_data = None
 
 # Modern custom CSS
 custom_style = {

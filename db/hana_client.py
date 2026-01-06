@@ -171,6 +171,19 @@ class HanaClient:
                     "DATA_SOURCE" NVARCHAR(100),
                     "EXECUTION_DETAILS" NCLOB
                 )
+            """,
+            'USERS': """
+                CREATE TABLE "{schema}"."{table}" (
+                    "ID" INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                    "EMAIL" NVARCHAR(255) UNIQUE NOT NULL,
+                    "PASSWORD_ENCRYPTED" NVARCHAR(500) NOT NULL,
+                    "FULL_NAME" NVARCHAR(255),
+                    "ROLE" NVARCHAR(50) DEFAULT 'USER',
+                    "IS_ACTIVE" BOOLEAN DEFAULT TRUE,
+                    "CREATED_AT" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    "LAST_LOGIN" TIMESTAMP,
+                    "LOGIN_ATTEMPTS" INTEGER DEFAULT 0
+                )
             """
         }
 
@@ -275,6 +288,9 @@ class HanaClient:
                         schema=schema_name, table=table_name)
                 elif table_name.upper() == 'INGESTION_LOGS':
                     create_table_sql = self.table_schemas['INGESTION_LOGS'].format(
+                        schema=schema_name, table=table_name)
+                elif table_name.upper() == 'USERS':
+                    create_table_sql = self.table_schemas['USERS'].format(
                         schema=schema_name, table=table_name)
                 else:
                     # Default to basic financial ratios schema

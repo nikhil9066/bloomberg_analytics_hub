@@ -622,11 +622,35 @@
             }
         });
 
-        // Sign In Form - Redirect to Dashboard
-        signInForm.addEventListener('submit', (e) => {
+        // Sign In Form - Authenticate and redirect
+        signInForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            // Redirect to dashboard
-            window.location.href = '/dashboard/';
+
+            const email = signInForm.querySelector('input[type="email"]').value;
+            const password = signInForm.querySelector('input[type="password"]').value;
+
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Login successful - redirect to dashboard
+                    window.location.href = data.redirect;
+                } else {
+                    // Login failed - show error message
+                    alert(data.message || 'Login failed. Please check your credentials.');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                alert('An error occurred during login. Please try again.');
+            }
         });
 
         // Sign Up Form - Validate email and show alert
