@@ -6,6 +6,7 @@ Handles encrypted password storage and validation
 import logging
 from datetime import datetime
 from utils.crypto_utils import encrypt_password, verify_password
+from utils.email_service import EmailService
 
 
 class AuthService:
@@ -23,6 +24,7 @@ class AuthService:
         self.hana_client = hana_client
         self.schema = schema
         self.table_name = 'USERS'
+        self.email_service = EmailService()
 
     def create_user(self, email, password, full_name=None, role='USER'):
         """
@@ -69,13 +71,14 @@ class AuthService:
             self.logger.error(f"Error creating user: {str(e)}")
             return False
 
-    def authenticate(self, email, password):
+    def authenticate(self, email, password, ip_address=None):
         """
         Authenticate a user with email and password
 
         Args:
             email (str): User email address
             password (str): Plain text password
+            ip_address (str): IP address of the login attempt
 
         Returns:
             dict: User information if authenticated, None otherwise
@@ -101,6 +104,15 @@ class AuthService:
             if not row:
                 self.logger.warning(f"Login attempt for non-existent user: {email}")
                 cursor.close()
+
+                # Send email alert for unregistered user attempt
+                self.logger.info(f"Sending email alert for unregistered user attempt: {email}")
+                self.email_service.send_new_user_attempt_alert(
+                    attempted_email=email,
+                    ip_address=ip_address,
+                    timestamp=datetime.now()
+                )
+
                 return None
 
             user_id, user_email, encrypted_password, full_name, role, is_active, login_attempts = row
@@ -143,6 +155,16 @@ class AuthService:
                 cursor.close()
 
                 self.logger.warning(f"Failed login attempt for user: {email} (attempt {new_attempts})")
+
+                # Send email alert on FIRST failed attempt
+                if login_attempts == 0:  # This is the first failure (was 0, now will be 1)
+                    self.logger.info(f"First failed login attempt for {email} - sending email alert")
+                    self.email_service.send_failed_login_alert(
+                        attempted_email=email,
+                        ip_address=ip_address,
+                        timestamp=datetime.now()
+                    )
+
                 return None
 
         except Exception as e:

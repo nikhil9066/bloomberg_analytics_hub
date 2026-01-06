@@ -86,8 +86,11 @@ def login():
         if not auth_service:
             return jsonify({'success': False, 'message': 'Authentication service unavailable'}), 503
 
-        # Authenticate user
-        user = auth_service.authenticate(email, password)
+        # Get client IP address
+        ip_address = request.remote_addr or request.environ.get('HTTP_X_FORWARDED_FOR', 'unknown')
+
+        # Authenticate user with IP address for email alerts
+        user = auth_service.authenticate(email, password, ip_address=ip_address)
 
         if user:
             # Store user info in session
