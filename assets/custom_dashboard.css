@@ -565,3 +565,51 @@ table tr:hover {
 .sidebar-nav::-webkit-scrollbar-thumb:hover {
     background: #9ca3af;
 }
+
+/* ========================================
+   FOOTER STYLES
+   ======================================== */
+
+footer {
+    margin-top: auto;
+}
+
+footer a {
+    transition: all 0.2s ease;
+}
+
+footer a:hover {
+    opacity: 0.8;
+    transform: translateX(2px);
+}
+
+.footer-logout-btn:hover {
+    background-color: rgba(239, 68, 68, 0.1) !important;
+    border-color: #dc2626 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2) !important;
+}
+
+/* Footer responsive adjustments */
+@media (max-width: 768px) {
+    footer .row > div {
+        margin-bottom: 24px !important;
+    }
+
+    footer .row > div:last-child {
+        margin-bottom: 0 !important;
+    }
+
+    footer h6 {
+        margin-top: 16px;
+    }
+}
+
+/* Footer dark mode */
+.dark-mode footer a:hover {
+    color: #60a5fa !important;
+}
+
+.dark-mode .footer-logout-btn:hover {
+    background-color: rgba(239, 68, 68, 0.15) !important;
+}

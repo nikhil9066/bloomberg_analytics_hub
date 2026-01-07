@@ -201,82 +201,231 @@ COLORS = {
 #==============================================================================
 
 def create_footer(dark_mode=False):
-    """Create the dashboard footer with info and logout"""
+    """Create production-level professional footer"""
+
+    bg_color = COLORS['gray']['900'] if dark_mode else COLORS['gray']['50']
+    text_color = COLORS['gray']['300'] if dark_mode else COLORS['gray']['600']
+    text_light = COLORS['gray']['400'] if dark_mode else COLORS['gray']['500']
+    border_color = COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']
+
     return html.Footer([
+        # Main footer content
         html.Div([
-            # Top border line
+            dbc.Row([
+                # Column 1: About & Branding
+                dbc.Col([
+                    html.Div([
+                        html.I(className="fas fa-chart-pie", style={
+                            "fontSize": "24px",
+                            "color": COLORS['primary'],
+                            "marginBottom": "12px"
+                        }),
+                        html.H5("CFO Pulse", style={
+                            "fontWeight": "700",
+                            "marginBottom": "8px",
+                            "color": COLORS['gray']['100'] if dark_mode else COLORS['gray']['900']
+                        }),
+                        html.P("Financial Intelligence Dashboard", style={
+                            "fontSize": "13px",
+                            "color": text_light,
+                            "marginBottom": "12px"
+                        }),
+                        html.P("Real-time analytics powered by SAP HANA Cloud", style={
+                            "fontSize": "12px",
+                            "color": text_light,
+                            "marginBottom": "0"
+                        })
+                    ])
+                ], md=3, sm=6, xs=12, className="mb-3"),
+
+                # Column 2: System Status
+                dbc.Col([
+                    html.H6("System Status", style={
+                        "fontWeight": "600",
+                        "marginBottom": "12px",
+                        "fontSize": "14px",
+                        "color": COLORS['gray']['100'] if dark_mode else COLORS['gray']['900']
+                    }),
+                    html.Div([
+                        html.Div([
+                            html.I(className="fas fa-circle", style={
+                                "fontSize": "8px",
+                                "color": COLORS['success'],
+                                "marginRight": "8px"
+                            }),
+                            html.Span("Data Connection Active", style={"fontSize": "12px"})
+                        ], style={"marginBottom": "6px"}),
+                        html.Div([
+                            html.I(className="fas fa-sync-alt", style={
+                                "fontSize": "10px",
+                                "marginRight": "8px",
+                                "color": COLORS['info']
+                            }),
+                            html.Span([
+                                "Auto-refresh: Every 5 min | Next: ",
+                                html.Span(id="footer-next-refresh", children="09:00 AM EST", style={
+                                    "fontWeight": "600",
+                                    "color": COLORS['primary']
+                                })
+                            ], style={"fontSize": "12px"})
+                        ], style={"marginBottom": "6px"}),
+                        html.Div([
+                            html.I(className="fas fa-database", style={
+                                "fontSize": "10px",
+                                "marginRight": "8px",
+                                "color": COLORS['warning']
+                            }),
+                            html.Span("SAP HANA Cloud", style={"fontSize": "12px"})
+                        ])
+                    ], style={"color": text_color})
+                ], md=3, sm=6, xs=12, className="mb-3"),
+
+                # Column 3: Account & Quick Links
+                dbc.Col([
+                    html.H6("Account", style={
+                        "fontWeight": "600",
+                        "marginBottom": "12px",
+                        "fontSize": "14px",
+                        "color": COLORS['gray']['100'] if dark_mode else COLORS['gray']['900']
+                    }),
+                    html.Div([
+                        html.Div([
+                            html.I(className="fas fa-user", style={
+                                "fontSize": "10px",
+                                "marginRight": "8px"
+                            }),
+                            html.Span("Logged in as: ", style={"fontSize": "12px"}),
+                            html.Span(id="footer-user-email", children="admin@g.com", style={
+                                "fontSize": "12px",
+                                "fontWeight": "600",
+                                "color": COLORS['primary']
+                            })
+                        ], style={"marginBottom": "8px"}),
+                        html.Div([
+                            html.A([
+                                html.I(className="fas fa-sign-out-alt", style={"marginRight": "6px"}),
+                                "Logout"
+                            ], href="/logout", style={
+                                "fontSize": "12px",
+                                "color": COLORS['danger'],
+                                "textDecoration": "none",
+                                "fontWeight": "500",
+                                "display": "inline-block",
+                                "padding": "4px 12px",
+                                "border": f"1px solid {COLORS['danger']}",
+                                "borderRadius": "4px",
+                                "transition": "all 0.2s"
+                            }, className="footer-logout-btn")
+                        ])
+                    ], style={"color": text_color})
+                ], md=3, sm=6, xs=12, className="mb-3"),
+
+                # Column 4: Support & Legal
+                dbc.Col([
+                    html.H6("Support & Legal", style={
+                        "fontWeight": "600",
+                        "marginBottom": "12px",
+                        "fontSize": "14px",
+                        "color": COLORS['gray']['100'] if dark_mode else COLORS['gray']['900']
+                    }),
+                    html.Div([
+                        html.Div([
+                            html.A([
+                                html.I(className="fas fa-question-circle", style={"marginRight": "6px"}),
+                                "Help & Support"
+                            ], href="#", style={
+                                "fontSize": "12px",
+                                "color": text_color,
+                                "textDecoration": "none",
+                                "display": "block",
+                                "marginBottom": "6px"
+                            })
+                        ]),
+                        html.Div([
+                            html.A([
+                                html.I(className="fas fa-file-contract", style={"marginRight": "6px"}),
+                                "Terms of Service"
+                            ], href="#", style={
+                                "fontSize": "12px",
+                                "color": text_color,
+                                "textDecoration": "none",
+                                "display": "block",
+                                "marginBottom": "6px"
+                            })
+                        ]),
+                        html.Div([
+                            html.A([
+                                html.I(className="fas fa-shield-alt", style={"marginRight": "6px"}),
+                                "Privacy Policy"
+                            ], href="#", style={
+                                "fontSize": "12px",
+                                "color": text_color,
+                                "textDecoration": "none",
+                                "display": "block"
+                            })
+                        ])
+                    ])
+                ], md=3, sm=6, xs=12, className="mb-3"),
+            ], className="g-4"),
+
+            # Bottom bar with copyright
             html.Hr(style={
-                "margin": "0 0 16px 0",
+                "margin": "24px 0 16px 0",
                 "border": "none",
-                "borderTop": f"1px solid {COLORS['gray']['600'] if dark_mode else COLORS['gray']['200']}"
+                "borderTop": f"1px solid {border_color}",
+                "opacity": "0.5"
             }),
 
-            # Title
-            html.Div([
-                html.I(className="fas fa-chart-pie", style={"marginRight": "8px", "color": COLORS['primary']}),
-                html.Span("CFO Pulse Dashboard", style={"fontWeight": "600", "fontSize": "14px"})
-            ], style={"marginBottom": "12px"}),
+            dbc.Row([
+                dbc.Col([
+                    html.Div([
+                        html.Span("© 2026 CFO Pulse Dashboard", style={
+                            "fontSize": "12px",
+                            "color": text_light
+                        }),
+                        html.Span(" | ", style={
+                            "margin": "0 8px",
+                            "color": text_light
+                        }),
+                        html.Span("All rights reserved", style={
+                            "fontSize": "12px",
+                            "color": text_light
+                        })
+                    ], style={"textAlign": "left"})
+                ], md=6, xs=12),
 
-            # Separator
-            html.Div(style={
-                "borderBottom": f"1px solid {COLORS['gray']['600'] if dark_mode else COLORS['gray']['200']}",
-                "margin": "8px 0 12px 0"
-            }),
-
-            # Auto-refresh info
-            html.Div([
-                html.I(className="fas fa-sync-alt", style={"marginRight": "6px", "fontSize": "12px"}),
-                html.Span("Auto-refresh: Every 5 min | Next: ", style={"fontSize": "12px"}),
-                html.Span(id="footer-next-refresh", children="09:00 AM EST", style={"fontSize": "12px", "fontWeight": "600"})
-            ], style={"marginBottom": "8px"}),
-
-            # Data source
-            html.Div([
-                html.I(className="fas fa-database", style={"marginRight": "6px", "fontSize": "12px"}),
-                html.Span("Data Source: SAP HANA Cloud", style={"fontSize": "12px"})
-            ], style={"marginBottom": "8px"}),
-
-            # Logged in user with logout
-            html.Div([
-                html.I(className="fas fa-user", style={"marginRight": "6px", "fontSize": "12px"}),
-                html.Span("Logged in as: ", style={"fontSize": "12px"}),
-                html.Span(id="footer-user-email", children="admin@g.com", style={"fontSize": "12px", "fontWeight": "600"}),
-                html.Span(" | ", style={"fontSize": "12px", "margin": "0 4px"}),
-                html.A("Logout", href="/logout", style={
-                    "fontSize": "12px",
-                    "color": COLORS['danger'],
-                    "textDecoration": "none",
-                    "fontWeight": "500"
-                })
-            ], style={"marginBottom": "8px"}),
-
-            # Help & Privacy
-            html.Div([
-                html.A([
-                    html.I(className="fas fa-question-circle", style={"marginRight": "4px"}),
-                    html.Span("Help & Support")
-                ], href="#", style={
-                    "fontSize": "12px",
-                    "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600'],
-                    "textDecoration": "none",
-                    "marginRight": "16px"
-                }),
-                html.A([
-                    html.I(className="fas fa-shield-alt", style={"marginRight": "4px"}),
-                    html.Span("Privacy Policy")
-                ], href="#", style={
-                    "fontSize": "12px",
-                    "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600'],
-                    "textDecoration": "none"
-                })
+                dbc.Col([
+                    html.Div([
+                        html.Span("Version 1.0.0", style={
+                            "fontSize": "11px",
+                            "color": text_light,
+                            "marginRight": "16px"
+                        }),
+                        html.Span(" | ", style={
+                            "margin": "0 8px",
+                            "color": text_light
+                        }),
+                        html.Span([
+                            html.I(className="fas fa-server", style={"marginRight": "4px"}),
+                            "Production"
+                        ], style={
+                            "fontSize": "11px",
+                            "color": COLORS['success'],
+                            "fontWeight": "500"
+                        })
+                    ], style={"textAlign": "right"})
+                ], md=6, xs=12)
             ])
         ], style={
-            "padding": "16px 24px",
-            "backgroundColor": COLORS['gray']['800'] if dark_mode else COLORS['gray']['50'],
-            "color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700'],
-            "borderTop": f"1px solid {COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']}"
+            "padding": "32px 48px 24px 48px",
+            "backgroundColor": bg_color,
+            "color": text_color,
+            "borderTop": f"2px solid {COLORS['primary']}"
         })
-    ])
+    ], style={
+        "marginTop": "48px",
+        "width": "100%"
+    })
 
 def create_sidebar(collapsed=False, dark_mode=False):
     """Create the collapsible sidebar with navigation"""
