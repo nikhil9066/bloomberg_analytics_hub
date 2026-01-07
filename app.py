@@ -15,6 +15,14 @@ import logging
 from datetime import datetime, timedelta
 from utils.config import load_config, setup_logging
 from db.data_service import FinancialDataService
+from utils.advanced_charts import (
+    AdvancedCharts,
+    example_waterfall,
+    example_sankey,
+    example_heatmap,
+    example_treemap,
+    example_funnel
+)
 
 # Initialize logging
 setup_logging()
@@ -283,6 +291,7 @@ def create_sidebar(collapsed=False, dark_mode=False):
         {"id": "nav-comparative", "icon": "fas fa-balance-scale", "text": "Comparative Analysis", "target": "comparative-analysis-container"},
         {"id": "nav-margin", "icon": "fas fa-chart-waterfall", "text": "Margin Bridge", "target": "margin-bridge-container"},
         {"id": "nav-analytics", "icon": "fas fa-chart-bar", "text": "Analytics", "target": "tabbed-analytics-container"},
+        {"id": "nav-advanced-charts", "icon": "fas fa-chart-line", "text": "Advanced Charts", "target": "advanced-charts-container"},
     ]
 
     return html.Div([
@@ -748,6 +757,9 @@ app.layout = html.Div([
 
             # Tabbed Analytics Section
             html.Div(id='tabbed-analytics-container', className="mb-4", style={"padding": "0 24px"}),
+
+            # Advanced Charts Section
+            html.Div(id='advanced-charts-container', className="mb-4", style={"padding": "0 24px"}),
 
             # Footer
             html.Div(id='footer-container')
@@ -1814,6 +1826,215 @@ def render_tab_content(active_tab, dark_mode):
                 "color": COLORS['gray']['500']
             })
         ])
+
+#==============================================================================
+# ADVANCED CHARTS SECTION
+#==============================================================================
+
+@app.callback(
+    Output('advanced-charts-container', 'children'),
+    [Input('update-timestamp', 'data'),
+     Input('dark-mode-store', 'data')]
+)
+def update_advanced_charts(timestamp, dark_mode):
+    """Create advanced charts visualization section"""
+
+    # Initialize advanced charts
+    advanced_charts = AdvancedCharts(colors=COLORS)
+    config = advanced_charts.create_responsive_config()
+
+    # Create example charts
+    waterfall = example_waterfall()
+    sankey = example_sankey()
+    heatmap = example_heatmap()
+    treemap = example_treemap()
+    funnel = example_funnel()
+
+    card_style = {
+        "backgroundColor": COLORS['gray']['800'] if dark_mode else "#ffffff",
+        "border": f"1px solid {COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']}",
+        "borderRadius": "12px",
+        "marginBottom": "24px"
+    }
+
+    header_style = {
+        "backgroundColor": COLORS['gray']['700'] if dark_mode else COLORS['gray']['50'],
+        "color": COLORS['gray']['100'] if dark_mode else COLORS['gray']['800'],
+        "padding": "16px 24px",
+        "borderBottom": f"1px solid {COLORS['gray']['600'] if dark_mode else COLORS['gray']['200']}",
+        "borderRadius": "12px 12px 0 0"
+    }
+
+    description_style = {
+        "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600'],
+        "marginBottom": "16px",
+        "fontSize": "14px"
+    }
+
+    return html.Div([
+        html.H2("Advanced Charts", style={
+            "marginBottom": "16px",
+            "color": COLORS['gray']['100'] if dark_mode else COLORS['gray']['900']
+        }),
+        html.P("Professional financial visualizations with responsive design", style={
+            "marginBottom": "32px",
+            "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600']
+        }),
+
+        # Waterfall Chart
+        dbc.Card([
+            html.Div([
+                html.H4([
+                    html.I(className="fas fa-chart-waterfall", style={"marginRight": "12px"}),
+                    "Waterfall Chart - Revenue Bridge Analysis"
+                ], style={"margin": 0})
+            ], style=header_style),
+            dbc.CardBody([
+                html.P("Perfect for showing how values change from one period to another. "
+                      "Great for variance analysis and explaining revenue/profit changes.",
+                      style=description_style),
+                dcc.Graph(figure=waterfall, config=config, style={'height': '450px'})
+            ])
+        ], style=card_style),
+
+        # Sankey Diagram
+        dbc.Card([
+            html.Div([
+                html.H4([
+                    html.I(className="fas fa-project-diagram", style={"marginRight": "12px"}),
+                    "Sankey Diagram - Flow Analysis"
+                ], style={"margin": 0})
+            ], style=header_style),
+            dbc.CardBody([
+                html.P("Shows flow of revenue/costs through different channels. "
+                      "Ideal for understanding distribution patterns.",
+                      style=description_style),
+                dcc.Graph(figure=sankey, config=config, style={'height': '550px'})
+            ])
+        ], style=card_style),
+
+        # Heatmap
+        dbc.Card([
+            html.Div([
+                html.H4([
+                    html.I(className="fas fa-th", style={"marginRight": "12px"}),
+                    "Heatmap - Performance Matrix"
+                ], style={"margin": 0})
+            ], style=header_style),
+            dbc.CardBody([
+                html.P("Visualizes performance scores across products and time periods. "
+                      "Quick way to spot high/low performers.",
+                      style=description_style),
+                dcc.Graph(figure=heatmap, config=config, style={'height': '450px'})
+            ])
+        ], style=card_style),
+
+        # Treemap
+        dbc.Card([
+            html.Div([
+                html.H4([
+                    html.I(className="fas fa-layer-group", style={"marginRight": "12px"}),
+                    "Treemap - Hierarchical Breakdown"
+                ], style={"margin": 0})
+            ], style=header_style),
+            dbc.CardBody([
+                html.P("Shows proportional distribution in a space-efficient way. "
+                      "Perfect for revenue/cost breakdowns.",
+                      style=description_style),
+                dcc.Graph(figure=treemap, config=config, style={'height': '550px'})
+            ])
+        ], style=card_style),
+
+        # Funnel Chart
+        dbc.Card([
+            html.Div([
+                html.H4([
+                    html.I(className="fas fa-filter", style={"marginRight": "12px"}),
+                    "Funnel Chart - Conversion Analysis"
+                ], style={"margin": 0})
+            ], style=header_style),
+            dbc.CardBody([
+                html.P("Tracks conversion rates through stages. "
+                      "Ideal for sales pipelines and customer journeys.",
+                      style=description_style),
+                dcc.Graph(figure=funnel, config=config, style={'height': '450px'})
+            ])
+        ], style=card_style),
+
+        # Info Card
+        dbc.Card([
+            html.Div([
+                html.H4([
+                    html.I(className="fas fa-info-circle", style={"marginRight": "12px"}),
+                    "Chart Features"
+                ], style={"margin": 0})
+            ], style=header_style),
+            dbc.CardBody([
+                dbc.Row([
+                    dbc.Col([
+                        html.Div([
+                            html.I(className="fas fa-mobile-alt", style={
+                                "fontSize": "24px",
+                                "color": COLORS['primary'],
+                                "marginBottom": "8px"
+                            }),
+                            html.H6("Responsive Design", style={"marginBottom": "4px"}),
+                            html.P("Auto-resize to fit any screen", style={
+                                "fontSize": "12px",
+                                "color": COLORS['gray']['500'],
+                                "margin": 0
+                            })
+                        ], style={"textAlign": "center"})
+                    ], width=3),
+                    dbc.Col([
+                        html.Div([
+                            html.I(className="fas fa-download", style={
+                                "fontSize": "24px",
+                                "color": COLORS['success'],
+                                "marginBottom": "8px"
+                            }),
+                            html.H6("Export Ready", style={"marginBottom": "4px"}),
+                            html.P("Download as high-res PNG", style={
+                                "fontSize": "12px",
+                                "color": COLORS['gray']['500'],
+                                "margin": 0
+                            })
+                        ], style={"textAlign": "center"})
+                    ], width=3),
+                    dbc.Col([
+                        html.Div([
+                            html.I(className="fas fa-moon", style={
+                                "fontSize": "24px",
+                                "color": COLORS['warning'],
+                                "marginBottom": "8px"
+                            }),
+                            html.H6("Dark Mode", style={"marginBottom": "4px"}),
+                            html.P("Compatible with theme toggle", style={
+                                "fontSize": "12px",
+                                "color": COLORS['gray']['500'],
+                                "margin": 0
+                            })
+                        ], style={"textAlign": "center"})
+                    ], width=3),
+                    dbc.Col([
+                        html.Div([
+                            html.I(className="fas fa-search-plus", style={
+                                "fontSize": "24px",
+                                "color": COLORS['info'],
+                                "marginBottom": "8px"
+                            }),
+                            html.H6("Interactive", style={"marginBottom": "4px"}),
+                            html.P("Zoom, pan, and hover details", style={
+                                "fontSize": "12px",
+                                "color": COLORS['gray']['500'],
+                                "margin": 0
+                            })
+                        ], style={"textAlign": "center"})
+                    ], width=3),
+                ])
+            ])
+        ], style=card_style)
+    ])
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
