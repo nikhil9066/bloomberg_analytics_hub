@@ -207,17 +207,21 @@ except Exception as e:
     logger.warning(f"HANA data service not available: {e}. Will use CSV files for local testing.")
     data_service = None
 
-# Load CSV data for local testing
+# Load CSV data (fallback for when HANA is unavailable)
 csv_data = None
+import os
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
 try:
-    financial_ratios_df = pd.read_csv('basic.csv')
-    logger.info(f"Loaded basic.csv: {len(financial_ratios_df)} records")
+    basic_csv_path = os.path.join(APP_DIR, 'basic.csv')
+    financial_ratios_df = pd.read_csv(basic_csv_path)
+    logger.info(f"Loaded basic.csv from {basic_csv_path}: {len(financial_ratios_df)} records")
     csv_data = {'financial_ratios': financial_ratios_df}
 
     # Load ANNUAL_FINANCIALS CSV (advance.csv)
     try:
-        annual_financials_df = pd.read_csv('advance.csv')
-        logger.info(f"Loaded advance.csv: {len(annual_financials_df)} records")
+        advance_csv_path = os.path.join(APP_DIR, 'advance.csv')
+        annual_financials_df = pd.read_csv(advance_csv_path)
+        logger.info(f"Loaded advance.csv from {advance_csv_path}: {len(annual_financials_df)} records")
         csv_data['annual_financials'] = annual_financials_df
     except Exception as e:
         logger.warning(f"advance.csv not found or failed to load: {e}")
@@ -2238,16 +2242,22 @@ def update_ai_insights(timestamp, dark_mode):
 def get_available_tickers():
     """Get list of available tickers from data source"""
     try:
-        if data_service:
-            data = data_service.get_financial_ratios()
-            df = pd.DataFrame(data) if data else None
-        elif csv_data:
-            df = csv_data['financial_ratios']
-        else:
-            df = None
+        df = None
+        # Try HANA first
+        if data_service and data_service.connected:
+            data = data_service.get_financial_ratios(limit=500)
+            if data is not None and isinstance(data, pd.DataFrame) and not data.empty:
+                df = data
 
-        if df is not None and 'TICKER' in df.columns:
-            return df['TICKER'].unique().tolist()
+        # Fallback to CSV
+        if df is None or df.empty:
+            if csv_data and csv_data.get('financial_ratios') is not None:
+                df = csv_data['financial_ratios']
+
+        if df is not None and not df.empty and 'TICKER' in df.columns:
+            tickers = df['TICKER'].unique().tolist()
+            logger.info(f"Available tickers: {len(tickers)}")
+            return tickers
     except Exception as e:
         logger.error(f"Error getting tickers: {e}")
     return []
@@ -2255,13 +2265,25 @@ def get_available_tickers():
 def get_competitor_data():
     """Get financial ratios dataframe"""
     try:
-        if data_service:
-            data = data_service.get_financial_ratios()
-            return pd.DataFrame(data) if data else None
-        elif csv_data:
-            return csv_data['financial_ratios']
+        # Try HANA first
+        if data_service and data_service.connected:
+            data = data_service.get_financial_ratios(limit=500)
+            if data is not None and isinstance(data, pd.DataFrame) and not data.empty:
+                logger.info(f"Got {len(data)} records from HANA FINANCIAL_RATIOS")
+                return data
+            else:
+                logger.warning("HANA FINANCIAL_RATIOS returned empty data, falling back to CSV")
+
+        # Fallback to CSV data
+        if csv_data and csv_data.get('financial_ratios') is not None:
+            df = csv_data['financial_ratios']
+            if df is not None and not df.empty:
+                logger.info(f"Using CSV data for financial ratios: {len(df)} records")
+                return df
     except Exception as e:
         logger.error(f"Error getting competitor data: {e}")
+
+    logger.error("No data available from HANA or CSV")
     return None
 
 @app.callback(
