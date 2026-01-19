@@ -1269,7 +1269,7 @@ app.layout = html.Div([
     dcc.Store(id='update-timestamp', data=datetime.now().isoformat()),
 
     # Store for selected competitors (used across the page)
-    dcc.Store(id='selected-competitors-store', data=['META']),
+    dcc.Store(id='selected-competitors-store', data=['NVDA', 'MSFT', 'GOOGL', 'META', 'AVGO']),
 
     # Store for user company data
     dcc.Store(id='user-company-store', data=None),
