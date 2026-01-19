@@ -156,6 +156,44 @@ def logout():
     session.clear()
     return redirect('/login')
 
+# Add access request route
+@server.route('/request-access', methods=['POST'])
+def request_access():
+    """Handle new user access requests and send email notification"""
+    try:
+        data = request.get_json()
+        name = data.get('name')
+        email = data.get('email')
+        company = data.get('company')
+        reason = data.get('reason')
+
+        if not all([name, email, company, reason]):
+            return jsonify({'success': False, 'message': 'All fields are required'}), 400
+
+        # Import email service and send notification
+        from utils.email_service import EmailService
+        email_service = EmailService()
+
+        # Log the request
+        logger.info(f"Access request received: {name} ({email}) from {company}")
+
+        # Send email notification
+        email_sent = email_service.send_access_request_alert(name, email, company, reason)
+
+        if email_sent:
+            logger.info(f"Access request email sent for {email}")
+        else:
+            logger.warning(f"Could not send access request email for {email} (email service may not be configured)")
+
+        return jsonify({
+            'success': True,
+            'message': 'Your access request has been submitted. We will review and get back to you soon!'
+        })
+
+    except Exception as e:
+        logger.error(f"Access request error: {str(e)}")
+        return jsonify({'success': False, 'message': 'An error occurred while submitting your request'}), 500
+
 # Initialize data service
 # Connect to HANA database for production data
 try:
@@ -175,6 +213,15 @@ try:
     financial_ratios_df = pd.read_csv('FINANCIAL_RATIOS.csv')
     logger.info(f"Loaded FINANCIAL_RATIOS.csv: {len(financial_ratios_df)} records")
     csv_data = {'financial_ratios': financial_ratios_df}
+
+    # Load ANNUAL_FINANCIALS CSV
+    try:
+        annual_financials_df = pd.read_csv('ANNUAL_FINANCIALS.csv')
+        logger.info(f"Loaded ANNUAL_FINANCIALS.csv: {len(annual_financials_df)} records")
+        csv_data['annual_financials'] = annual_financials_df
+    except Exception as e:
+        logger.warning(f"ANNUAL_FINANCIALS.csv not found or failed to load: {e}")
+        csv_data['annual_financials'] = None
 except Exception as e:
     logger.error(f"Failed to load CSV files: {e}")
     csv_data = None
@@ -1222,7 +1269,7 @@ app.layout = html.Div([
     dcc.Store(id='update-timestamp', data=datetime.now().isoformat()),
 
     # Store for selected competitors (used across the page)
-    dcc.Store(id='selected-competitors-store', data=['NVDA', 'MSFT', 'GOOGL', 'META', 'AVGO']),
+    dcc.Store(id='selected-competitors-store', data=['META']),
 
     # Store for user company data
     dcc.Store(id='user-company-store', data=None),
@@ -1340,6 +1387,8 @@ def handle_onboarding_submit(launch_clicks, test_clicks, company_name, industry,
         # Load test data from Kt.json
         test_data = load_test_data()
         if test_data:
+            # Get ANNUAL_FINANCIALS section from Kt.json for KPI cards
+            annual_financials = test_data.get('ANNUAL_FINANCIALS', {})
             user_data = {
                 'company_name': 'Test Company (Kt.json)',
                 'industry': 'tech',
@@ -1352,7 +1401,16 @@ def handle_onboarding_submit(launch_clicks, test_clicks, company_name, industry,
                 'TOT_DEBT_TO_EBITDA': 2.0,  # Default
                 'INTEREST_COVERAGE_RATIO': test_data.get('FINANCIAL_RATIOS', {}).get('INTEREST_COVERAGE_RATIO', 0),
                 'NET_DEBT_TO_SHRHLDR_EQTY': test_data.get('FINANCIAL_RATIOS', {}).get('NET_DEBT_TO_SHRHLDR_EQTY', 0),
-                'CASH_DVD_COVERAGE': test_data.get('FINANCIAL_RATIOS', {}).get('CASH_RATIO', 0)
+                'CASH_DVD_COVERAGE': test_data.get('FINANCIAL_RATIOS', {}).get('CASH_RATIO', 0),
+                # Add ANNUAL_FINANCIALS data for KPI cards
+                'annual_financials': {
+                    'SALES_REV_TURN': annual_financials.get('SALES_REV_TURN', 0),
+                    'EBITDA': test_data.get('FINANCIAL_ADVANCED', {}).get('EBITDA', 0),
+                    'OPER_EXPENSES': annual_financials.get('OPER_EXPENSES', 0),
+                    'CASH_FROM_OPER_ACTIV': annual_financials.get('CASH_FROM_OPER_ACTIV', 0),
+                    'WORKING_CAPITAL': annual_financials.get('WORKING_CAPITAL', 0),
+                    'NET_PROFIT_MARGIN': annual_financials.get('NET_PROFIT_MARGIN', 0)
+                }
             }
         else:
             user_data = {
@@ -1367,7 +1425,16 @@ def handle_onboarding_submit(launch_clicks, test_clicks, company_name, industry,
                 'TOT_DEBT_TO_EBITDA': 2.0,
                 'INTEREST_COVERAGE_RATIO': 8.0,
                 'NET_DEBT_TO_SHRHLDR_EQTY': 50.0,
-                'CASH_DVD_COVERAGE': 3.0
+                'CASH_DVD_COVERAGE': 3.0,
+                # Default annual financials
+                'annual_financials': {
+                    'SALES_REV_TURN': 15000,
+                    'EBITDA': 3000,
+                    'OPER_EXPENSES': 12000,
+                    'CASH_FROM_OPER_ACTIV': 1700,
+                    'WORKING_CAPITAL': 800,
+                    'NET_PROFIT_MARGIN': 5.0
+                }
             }
     else:
         # Use user-entered data
@@ -1383,7 +1450,17 @@ def handle_onboarding_submit(launch_clicks, test_clicks, company_name, industry,
             'TOT_DEBT_TO_EBITDA': debt_to_ebitda or 0,
             'INTEREST_COVERAGE_RATIO': interest_coverage or 0,
             'NET_DEBT_TO_SHRHLDR_EQTY': net_debt_equity or 0,
-            'CASH_DVD_COVERAGE': cash_dividend or 0
+            'CASH_DVD_COVERAGE': cash_dividend or 0,
+            # Default annual financials for user-entered companies
+            # These would ideally come from additional onboarding fields
+            'annual_financials': {
+                'SALES_REV_TURN': 0,
+                'EBITDA': 0,
+                'OPER_EXPENSES': 0,
+                'CASH_FROM_OPER_ACTIV': 0,
+                'WORKING_CAPITAL': 0,
+                'NET_PROFIT_MARGIN': 0
+            }
         }
 
     # Hide onboarding, show loading
@@ -1622,109 +1699,177 @@ def update_sync_time(timestamp):
      Input('region-filter', 'value'),
      Input('view-mode-filter', 'value'),
      Input('update-timestamp', 'data'),
-     Input('dark-mode-store', 'data')]
+     Input('dark-mode-store', 'data'),
+     Input('selected-competitors-store', 'data'),
+     Input('user-company-store', 'data')]
 )
-def update_kpi_grid(year, region, view_mode, timestamp, dark_mode):
-    """Create KPI grid with real HANA data"""
+def update_kpi_grid(year, region, view_mode, timestamp, dark_mode, selected_competitors, user_company):
+    """Create KPI grid with ANNUAL_FINANCIALS data from selected competitors"""
 
-    # Fetch data from HANA or CSV
+    # Default values
+    avg_revenue = 0
+    avg_ebitda = 0
+    avg_opex = 0
+    avg_cash_flow = 0
+    avg_working_capital = 0
+    avg_net_profit_margin = 0
+
+    # Get user company values from Kt.json (stored in user_company)
+    user_revenue = 0
+    user_ebitda = 0
+    user_opex = 0
+    user_cash_flow = 0
+    user_working_capital = 0
+    user_net_profit_margin = 0
+
+    if user_company:
+        # Extract user company data from ANNUAL_FINANCIALS section of Kt.json
+        annual_data = user_company.get('annual_financials', {})
+        if annual_data:
+            user_revenue = annual_data.get('SALES_REV_TURN', 0) or 0
+            user_ebitda = annual_data.get('EBITDA', 0) or 0
+            user_opex = annual_data.get('OPER_EXPENSES', 0) or 0
+            user_cash_flow = annual_data.get('CASH_FROM_OPER_ACTIV', 0) or 0
+            user_working_capital = annual_data.get('WORKING_CAPITAL', 0) or 0
+            user_net_profit_margin = annual_data.get('NET_PROFIT_MARGIN', 0) or 0
+
+    # Fetch ANNUAL_FINANCIALS data
     try:
-        if data_service:
-            data = data_service.get_financial_ratios()
-            df = pd.DataFrame(data) if data else None
-        elif csv_data:
+        df = None
+        if data_service and data_service.connected:
+            # Get data from HANA
+            df = data_service.get_annual_financials(selected_competitors)
+        elif csv_data and csv_data.get('annual_financials') is not None:
             # Use CSV data for local testing
-            df = csv_data['basic']
-        else:
-            df = None
+            df = csv_data['annual_financials'].copy()
+            if selected_competitors:
+                df = df[df['TICKER'].isin(selected_competitors)]
 
         if df is not None and len(df) > 0:
-            # Calculate KPIs from real data
-            ebitda_margin = df['EBITDA_MARGIN'].mean() if 'EBITDA_MARGIN' in df.columns else 60.45
-            gross_margin = df['GROSS_MARGIN'].mean() if 'GROSS_MARGIN' in df.columns else 68.82
-            current_ratio = df['CUR_RATIO'].mean() if 'CUR_RATIO' in df.columns else 1.84
+            # Calculate averages across all years for selected competitors
+            # Group by ticker first, then get mean across tickers
+            ticker_avgs = df.groupby('TICKER').agg({
+                'SALES_REV_TURN': 'mean',
+                'EBITDA': 'mean',
+                'IS_SGA_EXPENSE': 'mean',  # Operating expenses proxy
+                'CF_FREE_CASH_FLOW': 'mean',
+                'NET_INCOME': 'mean'
+            }).reset_index()
 
-            # Estimated revenue based on margins
-            revenue = 245600000
-            ebitda = revenue * (ebitda_margin / 100)
+            # Calculate overall averages
+            avg_revenue = ticker_avgs['SALES_REV_TURN'].mean() if 'SALES_REV_TURN' in ticker_avgs.columns else 0
+            avg_ebitda = ticker_avgs['EBITDA'].mean() if 'EBITDA' in ticker_avgs.columns else 0
+            avg_opex = ticker_avgs['IS_SGA_EXPENSE'].mean() if 'IS_SGA_EXPENSE' in ticker_avgs.columns else 0
+            avg_cash_flow = ticker_avgs['CF_FREE_CASH_FLOW'].mean() if 'CF_FREE_CASH_FLOW' in ticker_avgs.columns else 0
 
-            logger.info(f"Using real data: EBITDA Margin={ebitda_margin:.2f}%, Gross Margin={gross_margin:.2f}%")
-        else:
-            # Fallback to mock data
-            revenue = 245600000
-            ebitda = 45800000
-            ebitda_margin = 60.45
-            gross_margin = 68.82
-            current_ratio = 1.84
+            # Calculate working capital (Current Assets - Current Liabilities)
+            if 'CUR_RATIO' in df.columns and 'BS_CUR_LIAB' in df.columns:
+                # Working Capital = Current Assets - Current Liabilities
+                # CUR_RATIO = Current Assets / Current Liabilities
+                # Current Assets = CUR_RATIO * Current Liabilities
+                df['WORKING_CAPITAL'] = (df['CUR_RATIO'] * df['BS_CUR_LIAB']) - df['BS_CUR_LIAB']
+                avg_working_capital = df.groupby('TICKER')['WORKING_CAPITAL'].mean().mean()
+            else:
+                avg_working_capital = 0
+
+            # Calculate net profit margin
+            if 'NET_INCOME' in df.columns and 'SALES_REV_TURN' in df.columns:
+                df['NET_PROFIT_MARGIN'] = (df['NET_INCOME'] / df['SALES_REV_TURN'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
+                avg_net_profit_margin = df.groupby('TICKER')['NET_PROFIT_MARGIN'].mean().mean()
+            else:
+                avg_net_profit_margin = 0
+
+            logger.info(f"KPI Cards - Selected {len(selected_competitors) if selected_competitors else 0} competitors: Avg Revenue=${avg_revenue:.2f}M, Avg EBITDA=${avg_ebitda:.2f}M")
+
     except Exception as e:
         logger.error(f"Error fetching KPI data: {e}")
-        revenue = 245600000
-        ebitda = 45800000
-        ebitda_margin = 60.45
-        gross_margin = 68.82
-        current_ratio = 1.84
 
-    # Define KPIs (using mock data for demonstration, but structure is ready for real data)
+    # Calculate change percentage (your company vs avg of competitors)
+    def calc_change(user_val, avg_val, lower_is_better=False):
+        if avg_val == 0:
+            return 0
+        change = ((user_val - avg_val) / avg_val) * 100
+        return change if not lower_is_better else -change
+
+    # Determine trend direction based on comparison
+    def get_trend(user_val, avg_val, lower_is_better=False):
+        if lower_is_better:
+            return 'down' if user_val < avg_val else 'up'
+        return 'up' if user_val > avg_val else 'down'
+
+    # Define KPIs with competitor averages and user company comparison
     kpis = [
         {
             'name': 'Revenue',
-            'value': revenue,
-            'change': 12.5,
-            'target': 250000000,
+            'value': avg_revenue,  # Average of selected competitors
+            'user_value': user_revenue,  # Your company value
+            'change': calc_change(user_revenue, avg_revenue),
+            'target': avg_revenue * 1.1 if avg_revenue > 0 else 250000,
             'icon': 'fa-dollar-sign',
             'color': COLORS['primary'],
-            'trend': 'up',
-            'sparkline': [220, 225, 230, 235, 242, 245.6]
+            'trend': get_trend(user_revenue, avg_revenue),
+            'sparkline': [avg_revenue * 0.9, avg_revenue * 0.92, avg_revenue * 0.95, avg_revenue * 0.97, avg_revenue * 0.99, avg_revenue],
+            'is_millions': True
         },
         {
             'name': 'EBITDA',
-            'value': ebitda,
-            'change': 8.3,
-            'target': 48000000,
+            'value': avg_ebitda,
+            'user_value': user_ebitda,
+            'change': calc_change(user_ebitda, avg_ebitda),
+            'target': avg_ebitda * 1.1 if avg_ebitda > 0 else 48000,
             'icon': 'fa-chart-line',
             'color': COLORS['success'],
-            'trend': 'up',
-            'sparkline': [42, 43, 44, 44.5, 45, 45.8]
+            'trend': get_trend(user_ebitda, avg_ebitda),
+            'sparkline': [avg_ebitda * 0.9, avg_ebitda * 0.92, avg_ebitda * 0.95, avg_ebitda * 0.97, avg_ebitda * 0.99, avg_ebitda],
+            'is_millions': True
         },
         {
             'name': 'Operating Expenses',
-            'value': 156200000,
-            'change': -3.2,
-            'target': 155000000,
+            'value': avg_opex,
+            'user_value': user_opex,
+            'change': calc_change(user_opex, avg_opex, lower_is_better=True),  # Lower is better for expenses
+            'target': avg_opex * 0.95 if avg_opex > 0 else 155000,
             'icon': 'fa-receipt',
             'color': COLORS['info'],
-            'trend': 'down',
-            'sparkline': [165, 162, 160, 158, 157, 156.2]
+            'trend': get_trend(user_opex, avg_opex, lower_is_better=True),
+            'sparkline': [avg_opex * 1.05, avg_opex * 1.03, avg_opex * 1.01, avg_opex, avg_opex * 0.99, avg_opex * 0.98],
+            'is_millions': True,
+            'lower_is_better': True
         },
         {
             'name': 'Cash Flow',
-            'value': 38400000,
-            'change': 15.7,
-            'target': 40000000,
+            'value': avg_cash_flow,
+            'user_value': user_cash_flow,
+            'change': calc_change(user_cash_flow, avg_cash_flow),
+            'target': avg_cash_flow * 1.1 if avg_cash_flow > 0 else 40000,
             'icon': 'fa-wallet',
             'color': COLORS['purple'],
-            'trend': 'up',
-            'sparkline': [32, 33, 35, 36, 37, 38.4]
+            'trend': get_trend(user_cash_flow, avg_cash_flow),
+            'sparkline': [avg_cash_flow * 0.85, avg_cash_flow * 0.88, avg_cash_flow * 0.92, avg_cash_flow * 0.95, avg_cash_flow * 0.98, avg_cash_flow],
+            'is_millions': True
         },
         {
             'name': 'Working Capital',
-            'value': 52300000,
-            'change': 5.4,
-            'target': 55000000,
+            'value': avg_working_capital,
+            'user_value': user_working_capital,
+            'change': calc_change(user_working_capital, avg_working_capital),
+            'target': avg_working_capital * 1.1 if avg_working_capital > 0 else 55000,
             'icon': 'fa-piggy-bank',
             'color': COLORS['warning'],
-            'trend': 'up',
-            'sparkline': [48, 49, 50, 51, 51.5, 52.3]
+            'trend': get_trend(user_working_capital, avg_working_capital),
+            'sparkline': [avg_working_capital * 0.9, avg_working_capital * 0.92, avg_working_capital * 0.94, avg_working_capital * 0.96, avg_working_capital * 0.98, avg_working_capital],
+            'is_millions': True
         },
         {
             'name': 'Net Profit Margin',
-            'value': 18.6,
-            'change': 2.1,
-            'target': 20.0,
+            'value': avg_net_profit_margin,
+            'user_value': user_net_profit_margin,
+            'change': calc_change(user_net_profit_margin, avg_net_profit_margin),
+            'target': avg_net_profit_margin * 1.1 if avg_net_profit_margin > 0 else 20.0,
             'icon': 'fa-percent',
             'color': COLORS['success'],
-            'trend': 'up',
-            'sparkline': [17.0, 17.5, 18.0, 18.2, 18.4, 18.6],
+            'trend': get_trend(user_net_profit_margin, avg_net_profit_margin),
+            'sparkline': [avg_net_profit_margin * 0.9, avg_net_profit_margin * 0.92, avg_net_profit_margin * 0.95, avg_net_profit_margin * 0.97, avg_net_profit_margin * 0.99, avg_net_profit_margin],
             'is_percentage': True
         }
     ]
@@ -1740,17 +1885,42 @@ def update_kpi_grid(year, region, view_mode, timestamp, dark_mode):
 def create_kpi_card(kpi, view_mode, dark_mode):
     """Create individual KPI card"""
 
-    # Determine if change is good
-    is_good = (kpi['trend'] == 'up' and kpi['change'] > 0) or (kpi['trend'] == 'down' and kpi['change'] < 0)
-    has_alert = abs(kpi['change']) > 10
+    # Determine if change is good based on whether lower is better
+    lower_is_better = kpi.get('lower_is_better', False)
+    if lower_is_better:
+        is_good = kpi['change'] > 0  # For expenses, positive change means you're below avg (good)
+    else:
+        is_good = kpi['change'] > 0  # For revenue etc., positive change means you're above avg (good)
 
-    # Format value
+    has_alert = abs(kpi['change']) > 50
+
+    # Helper function to format large numbers nicely
+    def format_currency(val):
+        if val == 0:
+            return "$0"
+        abs_val = abs(val)
+        if abs_val >= 1000:
+            # Values in ANNUAL_FINANCIALS are in millions, so 1000 = 1 billion
+            return f"${val/1000:.1f}B"
+        elif abs_val >= 1:
+            return f"${val:.1f}M"
+        else:
+            return f"${val:.2f}M"
+
+    # Format value based on type
     if kpi.get('is_percentage'):
         value_display = f"{kpi['value']:.1f}%"
         target_display = f"{kpi['target']:.1f}%"
+        user_value_display = f"{kpi.get('user_value', 0):.1f}%"
+    elif kpi.get('is_millions'):
+        # Values are already in millions in ANNUAL_FINANCIALS (e.g., 130497 = $130.5B)
+        value_display = format_currency(kpi['value'])
+        target_display = format_currency(kpi['target'])
+        user_value_display = format_currency(kpi.get('user_value', 0))
     else:
         value_display = f"${kpi['value']/1000000:.1f}M"
         target_display = f"${kpi['target']/1000000:.1f}M"
+        user_value_display = f"${kpi.get('user_value', 0)/1000000:.1f}M"
 
     # Create sparkline chart
     sparkline_fig = go.Figure()
@@ -1825,10 +1995,11 @@ def create_kpi_card(kpi, view_mode, dark_mode):
                         "margin": "0",
                         "color": COLORS['gray']['200'] if dark_mode else COLORS['gray']['900']
                     }),
+                    # Comparison arrow: Your company vs Average
                     html.Div([
-                        html.I(className=f"fas fa-arrow-{'up' if kpi['trend'] == 'up' else 'down'}",
+                        html.I(className=f"fas fa-arrow-{'up' if is_good else 'down'}",
                               style={"fontSize": "12px", "marginRight": "4px"}),
-                        html.Span(f"{'+' if kpi['change'] > 0 else ''}{kpi['change']:.1f}%")
+                        html.Span(f"{'+' if kpi['change'] > 0 else ''}{kpi['change']:.1f}% vs avg")
                     ], style={
                         "fontSize": "14px",
                         "color": COLORS['success'] if is_good else COLORS['danger'],
@@ -1838,18 +2009,30 @@ def create_kpi_card(kpi, view_mode, dark_mode):
             ], style={"display": "flex", "alignItems": "center"})
         ], style={"marginBottom": "16px"}),
 
-        # Value display based on view mode
+        # Value display - Show Competitor Average
         html.Div([
-            html.Div(value_display, style={
-                "fontSize": "32px",
-                "fontWeight": "700",
-                "color": COLORS['gray']['100'] if dark_mode else COLORS['gray']['900'],
-                "marginBottom": "8px"
-            }),
-            html.Div(f"Target: {target_display}", style={
-                "fontSize": "13px",
-                "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['500']
-            })
+            html.Div([
+                html.Span("Competitor Avg: ", style={
+                    "fontSize": "14px",
+                    "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['500']
+                }),
+                html.Span(value_display, style={
+                    "fontSize": "28px",
+                    "fontWeight": "700",
+                    "color": COLORS['gray']['100'] if dark_mode else COLORS['gray']['900']
+                })
+            ], style={"marginBottom": "8px"}),
+            html.Div([
+                html.Span("Your Company: ", style={
+                    "fontSize": "13px",
+                    "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['500']
+                }),
+                html.Span(user_value_display, style={
+                    "fontSize": "16px",
+                    "fontWeight": "600",
+                    "color": COLORS['success'] if is_good else COLORS['danger']
+                })
+            ])
         ]),
 
         # Sparkline (for chart view)

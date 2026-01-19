@@ -244,6 +244,69 @@ class FinancialDataService:
             if cursor:
                 cursor.close()
 
+    def get_annual_financials(self, tickers=None, limit=500):
+        """
+        Retrieve annual financial data from ANNUAL_FINANCIALS table
+
+        Args:
+            tickers (list): Optional list of tickers to filter by
+            limit (int): Maximum number of records to retrieve
+
+        Returns:
+            pd.DataFrame: Annual financials data
+        """
+        if not self.connected:
+            self.logger.error("Not connected to HANA")
+            return pd.DataFrame()
+
+        # Check cache first
+        cache_key = f"annual_financials_{limit}_{','.join(tickers) if tickers else 'all'}"
+        cached_data = self._get_cached(cache_key)
+        if cached_data is not None:
+            return cached_data
+
+        cursor = None
+        try:
+            # Build query based on whether tickers are provided
+            if tickers:
+                placeholders = ', '.join(['?' for _ in tickers])
+                query = f"""
+                SELECT *
+                FROM "{self.schema}"."ANNUAL_FINANCIALS"
+                WHERE "TICKER" IN ({placeholders})
+                ORDER BY "TICKER", "FISCAL_YEAR" DESC
+                LIMIT {limit}
+                """
+                cursor = self.hana_client.connection.cursor()
+                cursor.execute(query, tickers)
+            else:
+                query = f"""
+                SELECT *
+                FROM "{self.schema}"."ANNUAL_FINANCIALS"
+                ORDER BY "TICKER", "FISCAL_YEAR" DESC
+                LIMIT {limit}
+                """
+                cursor = self.hana_client.connection.cursor()
+                cursor.execute(query)
+
+            columns = [desc[0] for desc in cursor.description]
+            data = cursor.fetchall()
+
+            df = pd.DataFrame(data, columns=columns)
+            self.logger.info(f"Retrieved {len(df)} annual financials records")
+
+            # Cache the result
+            self._set_cached(cache_key, df)
+
+            return df
+
+        except Exception as e:
+            self.logger.error(f"Error retrieving annual financials: {str(e)}")
+            return pd.DataFrame()
+        finally:
+            if cursor:
+                cursor.close()
+
     def get_comparison_data(self, tickers, metrics):
         """
         Get comparison data for multiple tickers and metrics

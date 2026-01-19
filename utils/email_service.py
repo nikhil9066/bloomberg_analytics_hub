@@ -232,6 +232,82 @@ class EmailService:
             self.logger.error(f"Failed to send email via SendGrid: {str(e)}")
             return False
 
+    def send_access_request_alert(self, name, email, company, reason, timestamp=None):
+        """
+        Send email alert when someone requests access to the dashboard
+
+        Args:
+            name (str): Name of the requester
+            email (str): Email address of the requester
+            company (str): Company name
+            reason (str): Reason for requesting access
+            timestamp (datetime): Time of the request
+
+        Returns:
+            bool: True if email sent successfully, False otherwise
+        """
+        if not timestamp:
+            timestamp = datetime.now()
+
+        subject = f"📋 New Access Request: {name} from {company}"
+
+        body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 2px solid #3b82f6; border-radius: 10px;">
+                <h2 style="color: #3b82f6;">📋 New Access Request</h2>
+
+                <p>Someone has requested access to the CFO Pulse Dashboard.</p>
+
+                <div style="background-color: #dbeafe; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                    <h3 style="margin-top: 0; color: #1e40af;">Request Details:</h3>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 8px; font-weight: bold; width: 140px;">Name:</td>
+                            <td style="padding: 8px;">{name}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; font-weight: bold;">Email:</td>
+                            <td style="padding: 8px;"><a href="mailto:{email}">{email}</a></td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; font-weight: bold;">Company:</td>
+                            <td style="padding: 8px;">{company}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; font-weight: bold;">Request Time:</td>
+                            <td style="padding: 8px;">{timestamp.strftime('%Y-%m-%d %H:%M:%S')}</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div style="background-color: #f3f4f6; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                    <h3 style="margin-top: 0; color: #374151;">📝 Reason for Access:</h3>
+                    <p style="background-color: #ffffff; padding: 12px; border-radius: 5px; border-left: 4px solid #3b82f6;">
+                        {reason}
+                    </p>
+                </div>
+
+                <div style="background-color: #ecfdf5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                    <h3 style="margin-top: 0; color: #065f46;">🔧 To Grant Access:</h3>
+                    <p>Run the admin tool:</p>
+                    <pre style="background-color: #1f2937; color: #10b981; padding: 10px; border-radius: 5px; overflow-x: auto;">python3 admin_user_manager.py</pre>
+                    <p>Then select option 1 to create a new user with email: <strong>{email}</strong></p>
+                </div>
+
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                    <p style="font-size: 12px; color: #6b7280;">
+                        This is an automated notification from CFO Pulse Dashboard.<br>
+                        Please review and respond to this request.
+                    </p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+        return self._send_email(self.notification_email, subject, body)
+
     def test_email_configuration(self):
         """
         Test email configuration by sending a test message

@@ -326,11 +326,11 @@
         }
 
         body.dark .container form {
-            background-color: transparent;
+            background-color: rgba(26, 26, 46, 1);
         }
 
         body.light .container form {
-            background-color: transparent;
+            background-color: rgba(255, 255, 255, 1);
         }
 
         .container h1 {
@@ -407,13 +407,20 @@
             width: 50%;
             opacity: 0;
             z-index: 1;
+            pointer-events: none;
         }
 
         .container.active .sign-up {
             transform: translateX(100%);
             opacity: 1;
             z-index: 5;
+            pointer-events: auto;
             animation: move 0.6s;
+        }
+
+        .container.active .sign-in {
+            opacity: 0;
+            pointer-events: none;
         }
 
         @keyframes move {
@@ -549,12 +556,13 @@
         <!-- Sign Up Form -->
         <div class="form-container sign-up">
             <form id="signUpForm">
-                <h1>Create Account</h1>
-                <span>use your email for registration</span>
-                <input type="text" placeholder="Name" required>
-                <input type="email" id="signupEmail" placeholder="Email" pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.com$" title="Email must contain @ and end with .com" required>
-                <input type="password" placeholder="Password" required>
-                <button type="submit">Sign Up</button>
+                <h1>Request Access</h1>
+                <span>Fill in your details</span>
+                <input type="text" id="signupName" placeholder="Your Name" required>
+                <input type="email" id="signupEmail" placeholder="Email ID" pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.com$" title="Email must contain @ and end with .com" required>
+                <input type="text" id="signupCompany" placeholder="Company Name" required>
+                <input type="text" id="signupReason" placeholder="Why do you need access?" required>
+                <button type="submit">Submit Request</button>
             </form>
         </div>
 
@@ -577,11 +585,13 @@
                     <h1>Welcome Back!</h1>
                     <p>Enter your personal details to use all of site features</p>
                     <button class="hidden" id="login">Sign In</button>
+                    <p style="margin-top: 20px; font-size: 13px;">Check out our company?</p>
+                    <button class="hidden" onclick="window.open('https://www.katbotz.com/', '_blank')" style="margin-top: 5px;">Visit KATBOTZ</button>
                 </div>
                 <div class="toggle-panel toggle-right">
-                    <h1>New Here ?</h1>
-                    <p>Register with your personal details to use all of site features</p>
-                    <button class="hidden" id="register">Sign Up</button>
+                    <h1>New Here?</h1>
+                    <p>Request access to get started</p>
+                    <button class="hidden" id="register">Request Access</button>
                 </div>
             </div>
         </div>
@@ -654,13 +664,21 @@
             }
         });
 
-        // Sign Up Form - Validate email and show alert
-        signUpForm.addEventListener('submit', (e) => {
+        // Sign Up Form - Handle access request
+        signUpForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const emailInput = document.getElementById('signupEmail');
-            const email = emailInput.value;
+            const name = document.getElementById('signupName').value;
+            const email = document.getElementById('signupEmail').value;
+            const company = document.getElementById('signupCompany').value;
+            const reason = document.getElementById('signupReason').value;
 
-            // Additional validation check
+            // Basic validation
+            if (!name || !email || !company || !reason) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            // Email validation - must contain @ and end with .com
             if (!email.includes('@')) {
                 alert('Email must contain @');
                 return;
@@ -670,7 +688,28 @@
                 return;
             }
 
-            alert('Sign Up functionality would be implemented here!');
+            try {
+                const response = await fetch('/request-access', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name, email, company, reason })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(data.message);
+                    signUpForm.reset();
+                    container.classList.remove("active");
+                } else {
+                    alert(data.message || 'Failed to submit request. Please try again.');
+                }
+            } catch (error) {
+                console.error('Access request error:', error);
+                alert('An error occurred. Please try again.');
+            }
         });
     </script>
 </body>
