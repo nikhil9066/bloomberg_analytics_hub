@@ -210,17 +210,17 @@ except Exception as e:
 # Load CSV data for local testing
 csv_data = None
 try:
-    financial_ratios_df = pd.read_csv('FINANCIAL_RATIOS.csv')
-    logger.info(f"Loaded FINANCIAL_RATIOS.csv: {len(financial_ratios_df)} records")
+    financial_ratios_df = pd.read_csv('basic.csv')
+    logger.info(f"Loaded basic.csv: {len(financial_ratios_df)} records")
     csv_data = {'financial_ratios': financial_ratios_df}
 
-    # Load ANNUAL_FINANCIALS CSV
+    # Load ANNUAL_FINANCIALS CSV (advance.csv)
     try:
-        annual_financials_df = pd.read_csv('ANNUAL_FINANCIALS.csv')
-        logger.info(f"Loaded ANNUAL_FINANCIALS.csv: {len(annual_financials_df)} records")
+        annual_financials_df = pd.read_csv('advance.csv')
+        logger.info(f"Loaded advance.csv: {len(annual_financials_df)} records")
         csv_data['annual_financials'] = annual_financials_df
     except Exception as e:
-        logger.warning(f"ANNUAL_FINANCIALS.csv not found or failed to load: {e}")
+        logger.warning(f"advance.csv not found or failed to load: {e}")
         csv_data['annual_financials'] = None
 except Exception as e:
     logger.error(f"Failed to load CSV files: {e}")
@@ -1762,11 +1762,11 @@ def update_kpi_grid(year, region, view_mode, timestamp, dark_mode, selected_comp
             avg_opex = ticker_avgs['IS_SGA_EXPENSE'].mean() if 'IS_SGA_EXPENSE' in ticker_avgs.columns else 0
             avg_cash_flow = ticker_avgs['CF_FREE_CASH_FLOW'].mean() if 'CF_FREE_CASH_FLOW' in ticker_avgs.columns else 0
 
-            # Calculate working capital (Current Assets - Current Liabilities)
-            if 'CUR_RATIO' in df.columns and 'BS_CUR_LIAB' in df.columns:
-                # Working Capital = Current Assets - Current Liabilities
-                # CUR_RATIO = Current Assets / Current Liabilities
-                # Current Assets = CUR_RATIO * Current Liabilities
+            # Get working capital directly from data if available
+            if 'WORKING_CAPITAL' in df.columns:
+                avg_working_capital = df.groupby('TICKER')['WORKING_CAPITAL'].mean().mean()
+            elif 'CUR_RATIO' in df.columns and 'BS_CUR_LIAB' in df.columns:
+                # Fallback: Calculate from Current Ratio and Current Liabilities
                 df['WORKING_CAPITAL'] = (df['CUR_RATIO'] * df['BS_CUR_LIAB']) - df['BS_CUR_LIAB']
                 avg_working_capital = df.groupby('TICKER')['WORKING_CAPITAL'].mean().mean()
             else:
@@ -2277,7 +2277,7 @@ def update_competitor_analysis(timestamp, dark_mode, selected_competitors, user_
     # Get available tickers
     available_tickers = get_available_tickers()
     if not available_tickers:
-        available_tickers = ['NVDA', 'MSFT', 'GOOGL', 'META', 'AVGO', 'WMT', 'ORCL', 'XOM']
+        available_tickers = ['META', 'NVDA', 'MSFT', 'GOOGL', 'AVGO', 'WMT', 'ORCL', 'XOM']
 
     # Add user company to available tickers if exists
     user_company_name = None
@@ -2701,7 +2701,7 @@ def update_competitor_analysis(timestamp, dark_mode, selected_competitors, user_
 def update_selected_competitors(selected):
     if selected:
         return selected
-    return ['NVDA', 'MSFT', 'GOOGL', 'META', 'AVGO']
+    return ['META']
 
 # Callback for Peer Comparison Benchmarking Table
 @app.callback(
@@ -2746,6 +2746,9 @@ def render_peer_comparison_table(selected_competitors, dark_mode, user_company):
 
     # Filter for selected competitors
     df_filtered = df[df['TICKER'].isin(selected_competitors)]
+
+    # Remove duplicates - keep only one row per ticker
+    df_filtered = df_filtered.drop_duplicates(subset=['TICKER'], keep='first')
 
     if df_filtered.empty:
         return html.Div("No data available", style={
@@ -3221,6 +3224,9 @@ def render_comparison_cards(selected_competitors, dark_mode, user_company):
     # Filter for selected competitors
     df_filtered = df[df['TICKER'].isin(selected_competitors)]
 
+    # Remove duplicates - keep only one row per ticker
+    df_filtered = df_filtered.drop_duplicates(subset=['TICKER'], keep='first')
+
     if df_filtered.empty:
         return html.Div("No data available", style={
             "textAlign": "center",
@@ -3447,6 +3453,9 @@ def render_competitor_chart(selected_metric, chart_type, view_mode, selected_com
     # Filter for selected competitors
     df_filtered = df[df['TICKER'].isin(selected_competitors)]
 
+    # Remove duplicates - keep only one row per ticker
+    df_filtered = df_filtered.drop_duplicates(subset=['TICKER'], keep='first')
+
     if df_filtered.empty:
         return html.Div("No data for selected competitors", style={"textAlign": "center", "padding": "40px"})
 
@@ -3587,9 +3596,11 @@ def update_comparative_analysis(timestamp, dark_mode):
 @app.callback(
     Output('margin-bridge-container', 'children'),
     [Input('update-timestamp', 'data'),
-     Input('dark-mode-store', 'data')]
+     Input('dark-mode-store', 'data'),
+     Input('selected-competitors-store', 'data'),
+     Input('user-company-store', 'data')]
 )
-def update_margin_bridge(timestamp, dark_mode):
+def update_margin_bridge(timestamp, dark_mode, selected_competitors, user_company):
     """Margin bridge waterfall chart showing revenue to net income breakdown"""
 
     card_style = {
@@ -3600,21 +3611,85 @@ def update_margin_bridge(timestamp, dark_mode):
         "marginBottom": "20px"
     }
 
+    # Default values (will be overwritten with actual data)
+    avg_revenue = 100000.0
+    avg_cogs = 40000.0
+    avg_gross_profit = 60000.0
+    avg_sga = 20000.0
+    avg_ebitda = 30000.0
+    avg_da = 5000.0
+    avg_ebit = 25000.0
+    avg_interest = 1000.0
+    avg_tax = 5000.0
+    avg_net_income = 19000.0
+    avg_gross_margin = 60.0
+    avg_ebitda_margin = 30.0
+    avg_ebit_margin = 25.0
+    avg_net_margin = 19.0
+
+    try:
+        # Get annual financials data from HANA or CSV
+        df = None
+        if data_service and data_service.connected:
+            df = data_service.get_annual_financials(selected_competitors)
+        elif csv_data and csv_data.get('annual_financials') is not None:
+            df = csv_data['annual_financials'].copy()
+            if selected_competitors:
+                df = df[df['TICKER'].isin(selected_competitors)]
+
+        if df is not None and not df.empty:
+            # Remove user company from calculations if present
+            user_company_name = user_company.get('company_name') if user_company else None
+            if user_company_name:
+                df = df[df['TICKER'] != user_company_name]
+
+            # Deduplicate - keep first row per ticker
+            df = df.drop_duplicates(subset=['TICKER'], keep='first')
+
+            if not df.empty:
+                # Get actual financial values (averages across selected companies)
+                avg_revenue = df['SALES_REV_TURN'].mean() if 'SALES_REV_TURN' in df.columns else avg_revenue
+                avg_cogs = df['IS_COG_AND_SERVICES_SOLD'].mean() if 'IS_COG_AND_SERVICES_SOLD' in df.columns else avg_cogs
+                avg_gross_profit = df['GROSS_PROFIT'].mean() if 'GROSS_PROFIT' in df.columns else avg_gross_profit
+                avg_sga = df['IS_SGA_EXPENSE'].mean() if 'IS_SGA_EXPENSE' in df.columns else avg_sga
+                avg_ebitda = df['EBITDA'].mean() if 'EBITDA' in df.columns else avg_ebitda
+                avg_da = df['IS_DEPRECIATION_AND_AMORTIZATION'].mean() if 'IS_DEPRECIATION_AND_AMORTIZATION' in df.columns else avg_da
+                avg_ebit = df['EBIT'].mean() if 'EBIT' in df.columns else avg_ebit
+                avg_interest = df['IS_INT_EXPENSE'].mean() if 'IS_INT_EXPENSE' in df.columns else avg_interest
+                avg_tax = df['IS_INC_TAX_EXP'].mean() if 'IS_INC_TAX_EXP' in df.columns else avg_tax
+                avg_net_income = df['NET_INCOME'].mean() if 'NET_INCOME' in df.columns else avg_net_income
+
+                # Get margin percentages
+                avg_gross_margin = df['GROSS_MARGIN'].mean() if 'GROSS_MARGIN' in df.columns else (avg_gross_profit / avg_revenue * 100 if avg_revenue else 0)
+                avg_ebitda_margin = df['EBITDA_MARGIN'].mean() if 'EBITDA_MARGIN' in df.columns else (avg_ebitda / avg_revenue * 100 if avg_revenue else 0)
+                avg_ebit_margin = df['OPER_MARGIN'].mean() if 'OPER_MARGIN' in df.columns else (avg_ebit / avg_revenue * 100 if avg_revenue else 0)
+                avg_net_margin = df['PROF_MARGIN'].mean() if 'PROF_MARGIN' in df.columns else (avg_net_income / avg_revenue * 100 if avg_revenue else 0)
+
+                # Handle NaN values
+                avg_da = avg_da if pd.notnull(avg_da) else (avg_ebitda - avg_ebit)
+                avg_sga = avg_sga if pd.notnull(avg_sga) else (avg_gross_profit - avg_ebitda)
+
+    except Exception as e:
+        logger.error(f"Error calculating margin bridge data: {e}")
+
+    # Calculate OpEx (difference between Gross Profit and EBITDA)
+    opex = avg_gross_profit - avg_ebitda if pd.notnull(avg_gross_profit) and pd.notnull(avg_ebitda) else avg_sga
+    # D&A (difference between EBITDA and EBIT)
+    da = avg_ebitda - avg_ebit if pd.notnull(avg_ebitda) and pd.notnull(avg_ebit) else avg_da
+    # Interest & Taxes (difference between EBIT and Net Income)
+    interest_taxes = avg_ebit - avg_net_income if pd.notnull(avg_ebit) and pd.notnull(avg_net_income) else (avg_interest + avg_tax)
+
     # Margin bridge data (in millions)
     bridge_data = [
-        {'step': 'Revenue', 'value': 500.0, 'type': 'total'},
-        {'step': 'COGS', 'value': -280.0, 'type': 'relative'},
-        {'step': 'Gross Profit', 'value': 220.0, 'type': 'total'},
-        {'step': 'R&D', 'value': -45.0, 'type': 'relative'},
-        {'step': 'Sales & Marketing', 'value': -60.0, 'type': 'relative'},
-        {'step': 'G&A', 'value': -25.0, 'type': 'relative'},
-        {'step': 'EBITDA', 'value': 90.0, 'type': 'total'},
-        {'step': 'Depreciation', 'value': -12.0, 'type': 'relative'},
-        {'step': 'Amortization', 'value': -8.0, 'type': 'relative'},
-        {'step': 'EBIT', 'value': 70.0, 'type': 'total'},
-        {'step': 'Interest', 'value': -5.0, 'type': 'relative'},
-        {'step': 'Taxes', 'value': -13.0, 'type': 'relative'},
-        {'step': 'Net Income', 'value': 52.0, 'type': 'total'},
+        {'step': 'Revenue', 'value': avg_revenue, 'type': 'total'},
+        {'step': 'COGS', 'value': -avg_cogs if pd.notnull(avg_cogs) else -(avg_revenue - avg_gross_profit), 'type': 'relative'},
+        {'step': 'Gross Profit', 'value': avg_gross_profit, 'type': 'total'},
+        {'step': 'OpEx (SG&A)', 'value': -opex, 'type': 'relative'},
+        {'step': 'EBITDA', 'value': avg_ebitda, 'type': 'total'},
+        {'step': 'D&A', 'value': -da, 'type': 'relative'},
+        {'step': 'EBIT', 'value': avg_ebit, 'type': 'total'},
+        {'step': 'Interest & Tax', 'value': -interest_taxes, 'type': 'relative'},
+        {'step': 'Net Income', 'value': avg_net_income, 'type': 'total'},
     ]
 
     # Create waterfall chart
@@ -3660,12 +3735,12 @@ def update_margin_bridge(timestamp, dark_mode):
 
     waterfall_chart = dcc.Graph(figure=fig, config={'displayModeBar': False})
 
-    # Margin metrics cards
+    # Margin metrics cards - using calculated averages from selected competitors
     margin_metrics = [
-        {'label': 'Gross Margin', 'value': 44.0, 'target': 45.0, 'icon': 'fa-chart-line'},
-        {'label': 'EBITDA Margin', 'value': 18.0, 'target': 20.0, 'icon': 'fa-coins'},
-        {'label': 'EBIT Margin', 'value': 14.0, 'target': 15.0, 'icon': 'fa-percentage'},
-        {'label': 'Net Margin', 'value': 10.4, 'target': 12.0, 'icon': 'fa-trophy'}
+        {'label': 'Gross Margin', 'value': avg_gross_margin, 'target': avg_gross_margin * 1.05, 'icon': 'fa-chart-line'},
+        {'label': 'EBITDA Margin', 'value': avg_ebitda_margin, 'target': avg_ebitda_margin * 1.1, 'icon': 'fa-coins'},
+        {'label': 'EBIT Margin', 'value': avg_ebit_margin, 'target': avg_ebit_margin * 1.1, 'icon': 'fa-percentage'},
+        {'label': 'Net Margin', 'value': avg_net_margin, 'target': avg_net_margin * 1.15, 'icon': 'fa-trophy'}
     ]
 
     metric_cards = []
