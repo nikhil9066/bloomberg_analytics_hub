@@ -964,18 +964,18 @@ def load_test_data():
         logger.error(f"Failed to load Kt.json: {e}")
         return None
 
-# Funny loading messages
+# Professional loading messages for CFO dashboard
 LOADING_MESSAGES = [
-    "Crunching numbers like a caffeinated accountant...",
-    "Teaching AI to count beans...",
-    "Convincing Excel that we're still friends...",
-    "Bribing the database with virtual cookies...",
-    "Asking ChatGPT to double-check our math...",
-    "Converting coffee into financial insights...",
-    "Pretending to understand your balance sheet...",
-    "Making your competitors nervous...",
-    "Calculating how many cups of coffee your CFO needs...",
-    "Turning boring numbers into exciting charts..."
+    "Analyzing financial metrics...",
+    "Calculating key performance indicators...",
+    "Loading competitor benchmarks...",
+    "Processing market intelligence...",
+    "Aggregating financial ratios...",
+    "Building margin analysis...",
+    "Synchronizing real-time data...",
+    "Preparing executive summary...",
+    "Optimizing dashboard performance...",
+    "Finalizing strategic insights..."
 ]
 
 def create_onboarding_screen():
@@ -1191,59 +1191,164 @@ def create_onboarding_screen():
     ], id='onboarding-screen')
 
 def create_loading_screen():
-    """Create a funny loading screen"""
+    """Create an elegant, animated loading screen for CFO dashboard"""
     return html.Div([
+        # Main content container
         html.Div([
-            # Animated logo
+            # Logo with glow effect
             html.Div([
-                html.I(className="fas fa-chart-line", style={
-                    "fontSize": "64px",
-                    "color": COLORS['primary'],
-                    "animation": "pulse 1.5s ease-in-out infinite"
+                html.Div([
+                    html.I(className="fas fa-chart-line", style={
+                        "fontSize": "48px",
+                        "color": COLORS['primary'],
+                        "filter": "drop-shadow(0 0 20px rgba(14, 165, 233, 0.5))"
+                    }),
+                ], style={
+                    "width": "100px",
+                    "height": "100px",
+                    "borderRadius": "50%",
+                    "background": "rgba(14, 165, 233, 0.1)",
+                    "border": f"2px solid {COLORS['primary']}",
+                    "display": "flex",
+                    "alignItems": "center",
+                    "justifyContent": "center",
+                    "animation": "pulseGlow 2s ease-in-out infinite",
+                    "marginBottom": "24px"
                 })
-            ], style={"marginBottom": "32px"}),
+            ], style={"display": "flex", "justifyContent": "center"}),
 
-            # Loading spinner
-            html.Div([
-                html.Span([dbc.Spinner(color="primary", type="grow", size="lg")]),
-                html.Span([dbc.Spinner(color="success", type="grow", size="lg")], style={"marginLeft": "16px"}),
-                html.Span([dbc.Spinner(color="warning", type="grow", size="lg")], style={"marginLeft": "16px"})
-            ], style={"marginBottom": "32px", "display": "flex", "justifyContent": "center"}),
-
-            # Funny message (will be updated dynamically)
-            html.H2(id='loading-message', children="Preparing your dashboard...", style={
-                "fontSize": "24px",
-                "fontWeight": "600",
+            # Brand title
+            html.H1("CFO Pulse", style={
+                "fontSize": "32px",
+                "fontWeight": "700",
                 "color": "#ffffff",
-                "marginBottom": "16px",
-                "textAlign": "center"
+                "marginBottom": "8px",
+                "letterSpacing": "0.05em",
+                "background": f"linear-gradient(135deg, {COLORS['primary']}, #22c55e)",
+                "WebkitBackgroundClip": "text",
+                "WebkitTextFillColor": "transparent",
+                "backgroundClip": "text"
             }),
 
-            # Progress indicator
-            html.Div([
-                html.Div(id='loading-progress-bar', style={
-                    "width": "0%",
-                    "height": "4px",
-                    "backgroundColor": COLORS['primary'],
-                    "borderRadius": "2px",
-                    "transition": "width 0.3s ease"
-                })
-            ], style={
-                "width": "300px",
-                "height": "4px",
-                "backgroundColor": COLORS['gray']['700'],
-                "borderRadius": "2px",
-                "overflow": "hidden"
-            }),
-
-            # Countdown
-            html.P(id='loading-countdown', children="", style={
+            html.P("Financial Intelligence Platform", style={
                 "fontSize": "14px",
                 "color": COLORS['gray']['400'],
-                "marginTop": "16px"
-            })
+                "marginBottom": "40px",
+                "letterSpacing": "0.1em",
+                "textTransform": "uppercase"
+            }),
+
+            # Animated metrics row
+            html.Div([
+                html.Div([
+                    html.I(className=icon, style={
+                        "fontSize": "20px",
+                        "color": color,
+                        "marginBottom": "8px"
+                    }),
+                    html.Div(label, style={
+                        "fontSize": "11px",
+                        "color": COLORS['gray']['500'],
+                        "textTransform": "uppercase",
+                        "letterSpacing": "0.05em"
+                    })
+                ], style={
+                    "display": "flex",
+                    "flexDirection": "column",
+                    "alignItems": "center",
+                    "padding": "16px 24px",
+                    "background": "rgba(255, 255, 255, 0.03)",
+                    "borderRadius": "12px",
+                    "border": "1px solid rgba(255, 255, 255, 0.05)",
+                    "animation": f"fadeInUp 0.5s ease-out {i * 0.1}s both"
+                }) for i, (icon, label, color) in enumerate([
+                    ("fas fa-dollar-sign", "Revenue", COLORS['primary']),
+                    ("fas fa-chart-pie", "Margins", COLORS['success']),
+                    ("fas fa-balance-scale", "Ratios", COLORS['warning']),
+                    ("fas fa-users", "Peers", COLORS['info'])
+                ])
+            ], style={
+                "display": "flex",
+                "gap": "16px",
+                "marginBottom": "48px",
+                "justifyContent": "center"
+            }),
+
+            # Loading message
+            html.H2(id='loading-message', children="Initializing dashboard...", style={
+                "fontSize": "18px",
+                "fontWeight": "500",
+                "color": "#ffffff",
+                "marginBottom": "24px",
+                "textAlign": "center",
+                "minHeight": "28px"
+            }),
+
+            # Progress bar container
+            html.Div([
+                html.Div([
+                    html.Div(id='loading-progress-bar', style={
+                        "width": "0%",
+                        "height": "100%",
+                        "background": f"linear-gradient(90deg, {COLORS['primary']}, #22c55e)",
+                        "borderRadius": "4px",
+                        "transition": "width 0.4s ease",
+                        "boxShadow": f"0 0 20px {COLORS['primary']}"
+                    })
+                ], style={
+                    "width": "100%",
+                    "height": "6px",
+                    "backgroundColor": "rgba(255, 255, 255, 0.1)",
+                    "borderRadius": "4px",
+                    "overflow": "hidden"
+                }),
+                html.Div([
+                    html.Span(id='loading-countdown', children="0%", style={
+                        "fontSize": "13px",
+                        "color": COLORS['gray']['400'],
+                        "fontWeight": "500"
+                    })
+                ], style={
+                    "display": "flex",
+                    "justifyContent": "flex-end",
+                    "marginTop": "8px"
+                })
+            ], style={"width": "350px"}),
+
+            # Tech footer
+            html.Div([
+                html.Div([
+                    html.I(className="fas fa-database", style={
+                        "fontSize": "12px",
+                        "color": COLORS['gray']['600'],
+                        "marginRight": "6px"
+                    }),
+                    html.Span("SAP HANA", style={"marginRight": "16px"}),
+                    html.I(className="fas fa-cloud", style={
+                        "fontSize": "12px",
+                        "color": COLORS['gray']['600'],
+                        "marginRight": "6px"
+                    }),
+                    html.Span("Cloud Foundry", style={"marginRight": "16px"}),
+                    html.I(className="fas fa-bolt", style={
+                        "fontSize": "12px",
+                        "color": COLORS['gray']['600'],
+                        "marginRight": "6px"
+                    }),
+                    html.Span("Real-time Analytics")
+                ], style={
+                    "fontSize": "11px",
+                    "color": COLORS['gray']['600'],
+                    "display": "flex",
+                    "alignItems": "center",
+                    "justifyContent": "center"
+                })
+            ], style={"marginTop": "48px"})
+
         ], style={
-            "textAlign": "center"
+            "textAlign": "center",
+            "position": "relative",
+            "zIndex": "1"
         })
     ], id='loading-screen', style={
         "position": "fixed",
@@ -1251,11 +1356,12 @@ def create_loading_screen():
         "left": "0",
         "right": "0",
         "bottom": "0",
-        "background": f"linear-gradient(135deg, {COLORS['gray']['900']} 0%, {COLORS['gray']['800']} 50%, #1e3a5f 100%)",
+        "background": "linear-gradient(135deg, #0a0f1a 0%, #0f172a 50%, #0c1929 100%)",
         "display": "none",
         "alignItems": "center",
         "justifyContent": "center",
-        "zIndex": "9999"
+        "zIndex": "9999",
+        "overflow": "hidden"
     })
 
 #==============================================================================
@@ -1474,6 +1580,7 @@ def handle_onboarding_submit(launch_clicks, test_clicks, company_name, industry,
 @app.callback(
     [Output('loading-message', 'children'),
      Output('loading-progress-bar', 'style'),
+     Output('loading-countdown', 'children'),
      Output('dashboard-container', 'style'),
      Output('loading-screen', 'style', allow_duplicate=True),
      Output('loading-interval', 'disabled', allow_duplicate=True)],
@@ -1483,29 +1590,35 @@ def handle_onboarding_submit(launch_clicks, test_clicks, company_name, industry,
 )
 def update_loading_screen(n_intervals, user_data):
     if n_intervals is None or n_intervals == 0:
-        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
-    # Calculate progress (8 intervals = 4 seconds at 500ms each)
-    total_intervals = 8
+    # Calculate progress (10 intervals = 5 seconds at 500ms each)
+    total_intervals = 10
     progress = min((n_intervals / total_intervals) * 100, 100)
 
+    # Gradient progress bar style
     progress_style = {
         "width": f"{progress}%",
-        "height": "4px",
-        "backgroundColor": COLORS['primary'],
-        "borderRadius": "2px",
-        "transition": "width 0.3s ease"
+        "height": "100%",
+        "background": f"linear-gradient(90deg, {COLORS['primary']}, #22c55e)",
+        "borderRadius": "4px",
+        "transition": "width 0.4s ease",
+        "boxShadow": f"0 0 20px {COLORS['primary']}"
     }
 
-    # Pick a random funny message
-    message = random.choice(LOADING_MESSAGES)
+    # Show percentage
+    percentage_text = f"{int(progress)}%"
+
+    # Sequential messages based on progress
+    message_index = min(int(progress / 10), len(LOADING_MESSAGES) - 1)
+    message = LOADING_MESSAGES[message_index]
 
     # Check if loading is complete
     if n_intervals >= total_intervals:
         # Show dashboard, hide loading
-        return message, progress_style, {'display': 'block', 'position': 'relative'}, {'display': 'none'}, True
+        return message, progress_style, "100%", {'display': 'block', 'position': 'relative'}, {'display': 'none'}, True
 
-    return message, progress_style, dash.no_update, dash.no_update, dash.no_update
+    return message, progress_style, percentage_text, dash.no_update, dash.no_update, dash.no_update
 
 #==============================================================================
 # CALLBACKS
