@@ -585,7 +585,7 @@ def create_sidebar(collapsed=False, dark_mode=False):
             # Collapsible content
             html.Div([
                 html.Div([
-                    # Last Run
+                    # Last Sync (from DB timestamp)
                     html.Div([
                         html.Div([
                             html.I(className="fas fa-check-circle", style={
@@ -593,33 +593,16 @@ def create_sidebar(collapsed=False, dark_mode=False):
                                 "color": COLORS['success'],
                                 "marginRight": "6px"
                             }),
-                            html.Span("Last Run", className="sidebar-footer-item-text", style={"fontSize": "11px"})
+                            html.Span("Last Sync", className="sidebar-footer-item-text", style={"fontSize": "11px"})
                         ], style={"marginBottom": "4px"}),
-                        html.Div(id="last-run-time", children="Jan 6, 2026 09:00 AM EST", style={
+                        html.Div(id="sidebar-last-sync", children="Loading...", style={
                             "fontSize": "11px",
                             "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600'],
                             "marginLeft": "16px"
                         })
                     ], style={"marginBottom": "12px"}),
 
-                    # Duration
-                    html.Div([
-                        html.Div([
-                            html.I(className="fas fa-clock", style={
-                                "fontSize": "10px",
-                                "color": COLORS['info'],
-                                "marginRight": "6px"
-                            }),
-                            html.Span("Duration", className="sidebar-footer-item-text", style={"fontSize": "11px"})
-                        ], style={"marginBottom": "4px"}),
-                        html.Div("45 seconds", style={
-                            "fontSize": "11px",
-                            "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600'],
-                            "marginLeft": "16px"
-                        })
-                    ], style={"marginBottom": "12px"}),
-
-                    # Records Updated
+                    # Total Records (from DB)
                     html.Div([
                         html.Div([
                             html.I(className="fas fa-database", style={
@@ -627,26 +610,26 @@ def create_sidebar(collapsed=False, dark_mode=False):
                                 "color": COLORS['primary'],
                                 "marginRight": "6px"
                             }),
-                            html.Span("Records Updated", className="sidebar-footer-item-text", style={"fontSize": "11px"})
+                            html.Span("Total Records", className="sidebar-footer-item-text", style={"fontSize": "11px"})
                         ], style={"marginBottom": "4px"}),
-                        html.Div("850", style={
+                        html.Div(id="sidebar-total-records", children="Loading...", style={
                             "fontSize": "11px",
                             "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600'],
                             "marginLeft": "16px"
                         })
                     ], style={"marginBottom": "12px"}),
 
-                    # Next Run
+                    # Unique Tickers (from DB)
                     html.Div([
                         html.Div([
-                            html.I(className="fas fa-calendar-alt", style={
+                            html.I(className="fas fa-building", style={
                                 "fontSize": "10px",
-                                "color": COLORS['warning'],
+                                "color": COLORS['info'],
                                 "marginRight": "6px"
                             }),
-                            html.Span("Next Run", className="sidebar-footer-item-text", style={"fontSize": "11px"})
+                            html.Span("Unique Tickers", className="sidebar-footer-item-text", style={"fontSize": "11px"})
                         ], style={"marginBottom": "4px"}),
-                        html.Div("Jan 7, 2026 09:00 AM EST", style={
+                        html.Div(id="sidebar-unique-tickers", children="Loading...", style={
                             "fontSize": "11px",
                             "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600'],
                             "marginLeft": "16px"
@@ -684,7 +667,7 @@ def create_sidebar(collapsed=False, dark_mode=False):
             # Collapsible content
             html.Div([
                 html.Div([
-                    # Data Quality
+                    # Data Quality (from DB)
                     html.Div([
                         html.Div([
                             html.I(className="fas fa-check-circle", style={
@@ -694,7 +677,7 @@ def create_sidebar(collapsed=False, dark_mode=False):
                             }),
                             html.Span("Data Quality", className="sidebar-footer-item-text", style={"fontSize": "11px"})
                         ], style={"marginBottom": "4px"}),
-                        html.Div("99.8%", style={
+                        html.Div(id="sidebar-data-quality", children="Loading...", style={
                             "fontSize": "16px",
                             "fontWeight": "700",
                             "color": COLORS['success'],
@@ -702,24 +685,7 @@ def create_sidebar(collapsed=False, dark_mode=False):
                         })
                     ], style={"marginBottom": "12px"}),
 
-                    # Last Sync
-                    html.Div([
-                        html.Div([
-                            html.I(className="fas fa-sync-alt", style={
-                                "fontSize": "10px",
-                                "color": COLORS['info'],
-                                "marginRight": "6px"
-                            }),
-                            html.Span("Last Sync", className="sidebar-footer-item-text", style={"fontSize": "11px"})
-                        ], style={"marginBottom": "4px"}),
-                        html.Div(id="sidebar-sync-time", children="Just now", style={
-                            "fontSize": "12px",
-                            "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600'],
-                            "marginLeft": "16px"
-                        })
-                    ], style={"marginBottom": "12px"}),
-
-                    # SAP HANA Connection
+                    # Connection Status (from DB)
                     html.Div([
                         html.Div([
                             html.I(className="fas fa-database", style={
@@ -729,23 +695,23 @@ def create_sidebar(collapsed=False, dark_mode=False):
                             }),
                             html.Span("SAP HANA Cloud", className="sidebar-footer-item-text", style={"fontSize": "11px"})
                         ], style={"marginBottom": "4px"}),
-                        html.Div([
-                            html.Div(style={
+                        html.Div(id="sidebar-connection-status", children=[
+                            html.Div(id="sidebar-connection-indicator", style={
                                 "width": "6px",
                                 "height": "6px",
                                 "borderRadius": "50%",
-                                "backgroundColor": COLORS['success'],
+                                "backgroundColor": COLORS['gray']['400'],
                                 "marginRight": "6px",
                                 "marginLeft": "16px"
                             }),
-                            html.Span("Connected", style={
+                            html.Span(id="sidebar-connection-text", children="Checking...", style={
                                 "fontSize": "11px",
                                 "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600']
                             })
                         ], style={"display": "flex", "alignItems": "center"})
                     ], style={"marginBottom": "12px"}),
 
-                    # Records Count
+                    # Annual Records Count (from DB)
                     html.Div([
                         html.Div([
                             html.I(className="fas fa-file-alt", style={
@@ -753,9 +719,9 @@ def create_sidebar(collapsed=False, dark_mode=False):
                                 "color": COLORS['warning'],
                                 "marginRight": "6px"
                             }),
-                            html.Span("Records", className="sidebar-footer-item-text", style={"fontSize": "11px"})
+                            html.Span("Annual Records", className="sidebar-footer-item-text", style={"fontSize": "11px"})
                         ], style={"marginBottom": "4px"}),
-                        html.Div("850 active", style={
+                        html.Div(id="sidebar-annual-records", children="Loading...", style={
                             "fontSize": "11px",
                             "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600'],
                             "marginLeft": "16px"
@@ -924,7 +890,7 @@ def create_data_trust_bar():
                         html.I(className="fas fa-check-circle",
                               style={"color": COLORS['success'], "marginRight": "8px"}),
                         html.Span("Data Quality: ", style={"fontWeight": "500", "color": COLORS['gray']['700']}),
-                        html.Span("99.8%", style={"color": COLORS['success'], "fontWeight": "600"})
+                        html.Span(id="header-data-quality", children="Loading...", style={"color": COLORS['success'], "fontWeight": "600"})
                     ], style={"display": "flex", "alignItems": "center"})
                 ], width="auto"),
 
@@ -933,7 +899,7 @@ def create_data_trust_bar():
                         html.I(className="fas fa-database",
                               style={"color": COLORS['info'], "marginRight": "8px"}),
                         html.Span("Last Sync: ", style={"fontWeight": "500", "color": COLORS['gray']['700']}),
-                        html.Span(id="last-sync-time", children="Just now",
+                        html.Span(id="header-last-sync", children="Loading...",
                                 style={"color": COLORS['gray']['600']})
                     ], style={"display": "flex", "alignItems": "center"})
                 ], width="auto"),
@@ -1747,16 +1713,108 @@ def toggle_data_refresh_status(n_clicks, sidebar_collapsed, content_style, icon_
 def render_footer(dark_mode):
     return create_footer(dark_mode=dark_mode)
 
-# Update sidebar sync time
+# Update all dashboard stats from database
 @app.callback(
-    Output('sidebar-sync-time', 'children'),
+    [Output('sidebar-last-sync', 'children'),
+     Output('sidebar-total-records', 'children'),
+     Output('sidebar-unique-tickers', 'children'),
+     Output('sidebar-data-quality', 'children'),
+     Output('sidebar-connection-indicator', 'style'),
+     Output('sidebar-connection-text', 'children'),
+     Output('sidebar-annual-records', 'children'),
+     Output('header-data-quality', 'children'),
+     Output('header-last-sync', 'children')],
     [Input('update-timestamp', 'data')]
 )
-def update_sidebar_sync_time(timestamp):
-    if timestamp:
-        dt = datetime.fromisoformat(timestamp)
-        return dt.strftime("%H:%M:%S")
-    return "Just now"
+def update_dashboard_stats(timestamp):
+    """Update all dashboard statistics from database"""
+    # Default values
+    default_indicator_style = {
+        "width": "6px",
+        "height": "6px",
+        "borderRadius": "50%",
+        "backgroundColor": COLORS['gray']['400'],
+        "marginRight": "6px",
+        "marginLeft": "16px"
+    }
+
+    try:
+        if data_service and data_service.connected:
+            stats = data_service.get_dashboard_stats()
+
+            # Format last sync time
+            last_sync = stats.get('last_sync')
+            if last_sync:
+                if isinstance(last_sync, str):
+                    last_sync_str = last_sync
+                else:
+                    last_sync_str = last_sync.strftime("%b %d, %Y %I:%M %p")
+            else:
+                last_sync_str = "N/A"
+
+            # Format counts
+            total_records = f"{stats.get('total_records', 0):,}"
+            annual_records = f"{stats.get('annual_records', 0):,}"
+            unique_tickers = f"{stats.get('unique_tickers', 0):,}"
+
+            # Format data quality
+            data_quality = stats.get('data_quality', 0)
+            data_quality_str = f"{data_quality}%"
+
+            # Connection status
+            conn_status = stats.get('connection_status', 'Disconnected')
+            if conn_status == 'Connected':
+                indicator_style = {**default_indicator_style, "backgroundColor": COLORS['success']}
+                conn_text = "Connected"
+            else:
+                indicator_style = {**default_indicator_style, "backgroundColor": COLORS['danger']}
+                conn_text = conn_status
+
+            return (
+                last_sync_str,
+                total_records,
+                unique_tickers,
+                data_quality_str,
+                indicator_style,
+                conn_text,
+                annual_records,
+                data_quality_str,
+                last_sync_str
+            )
+        else:
+            # No connection - use CSV data info
+            csv_records = 0
+            csv_tickers = 0
+            if csv_data and csv_data.get('financial_ratios') is not None:
+                df = csv_data['financial_ratios']
+                csv_records = len(df)
+                if 'TICKER' in df.columns:
+                    csv_tickers = df['TICKER'].nunique()
+
+            return (
+                "Using CSV fallback",
+                f"{csv_records:,} (CSV)",
+                f"{csv_tickers:,}",
+                "N/A",
+                {**default_indicator_style, "backgroundColor": COLORS['warning']},
+                "CSV Mode",
+                "N/A",
+                "N/A",
+                "CSV fallback"
+            )
+    except Exception as e:
+        logger.error(f"Error updating dashboard stats: {e}")
+        return (
+            "Error",
+            "Error",
+            "Error",
+            "Error",
+            {**default_indicator_style, "backgroundColor": COLORS['danger']},
+            "Error",
+            "Error",
+            "Error",
+            "Error"
+        )
 
 # Theme toggle callback
 @app.callback(
@@ -1794,17 +1852,6 @@ def refresh_data(n):
     if n:
         return datetime.now().isoformat()
     return dash.no_update
-
-# Update last sync time
-@app.callback(
-    Output('last-sync-time', 'children'),
-    [Input('update-timestamp', 'data')]
-)
-def update_sync_time(timestamp):
-    if timestamp:
-        dt = datetime.fromisoformat(timestamp)
-        return dt.strftime("%H:%M:%S")
-    return "Just now"
 
 #==============================================================================
 # KPI GRID COMPONENT CALLBACK
@@ -2355,34 +2402,32 @@ def update_ai_insights(timestamp, dark_mode):
 def get_available_tickers():
     """Get list of available tickers from data source"""
     try:
-        df = None
-        # Try HANA first
+        # Try HANA first - use get_ticker_list for efficiency
         if data_service and data_service.connected:
-            data = data_service.get_financial_ratios(limit=500)
-            if data is not None and isinstance(data, pd.DataFrame) and not data.empty:
-                df = data
+            tickers = data_service.get_ticker_list()
+            if tickers:
+                logger.info(f"Available tickers from HANA: {len(tickers)}")
+                return tickers
 
         # Fallback to CSV
-        if df is None or df.empty:
-            if csv_data and csv_data.get('financial_ratios') is not None:
-                df = csv_data['financial_ratios']
-
-        if df is not None and not df.empty and 'TICKER' in df.columns:
-            tickers = df['TICKER'].unique().tolist()
-            logger.info(f"Available tickers: {len(tickers)}")
-            return tickers
+        if csv_data and csv_data.get('financial_ratios') is not None:
+            df = csv_data['financial_ratios']
+            if df is not None and not df.empty and 'TICKER' in df.columns:
+                tickers = df['TICKER'].unique().tolist()
+                logger.info(f"Available tickers from CSV: {len(tickers)}")
+                return tickers
     except Exception as e:
         logger.error(f"Error getting tickers: {e}")
     return []
 
 def get_competitor_data():
-    """Get financial ratios dataframe"""
+    """Get financial ratios dataframe (latest 50 records)"""
     try:
-        # Try HANA first
+        # Try HANA first - uses default limit of 50, ordered by latest timestamp
         if data_service and data_service.connected:
-            data = data_service.get_financial_ratios(limit=500)
+            data = data_service.get_financial_ratios()  # Default: 50 latest records
             if data is not None and isinstance(data, pd.DataFrame) and not data.empty:
-                logger.info(f"Got {len(data)} records from HANA FINANCIAL_RATIOS")
+                logger.info(f"Got {len(data)} latest records from HANA FINANCIAL_RATIOS")
                 return data
             else:
                 logger.warning("HANA FINANCIAL_RATIOS returned empty data, falling back to CSV")
@@ -3989,7 +4034,7 @@ def update_margin_bridge(timestamp, dark_mode, selected_competitors, user_compan
      Input('dark-mode-store', 'data')]
 )
 def update_alert_feed(timestamp, dark_mode):
-    """Alert feed component"""
+    """Alert feed component - generates alerts based on real data analysis"""
     card_style = {
         "backgroundColor": COLORS['gray']['800'] if dark_mode else "#ffffff",
         "border": f"1px solid {COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']}",
@@ -3997,11 +4042,90 @@ def update_alert_feed(timestamp, dark_mode):
         "padding": "24px"
     }
 
-    alerts = [
-        {"icon": "fa-triangle-exclamation", "color": COLORS['danger'], "title": "Budget Variance Alert", "time": "2h ago"},
-        {"icon": "fa-info-circle", "color": COLORS['info'], "title": "Q4 Forecast Updated", "time": "5h ago"},
-        {"icon": "fa-check-circle", "color": COLORS['success'], "title": "Month-End Close Complete", "time": "1d ago"}
-    ]
+    # Generate dynamic alerts based on actual data
+    alerts = []
+
+    try:
+        # Get dashboard stats for data-driven alerts
+        if data_service and data_service.connected:
+            stats = data_service.get_dashboard_stats()
+
+            # Alert based on data quality
+            data_quality = stats.get('data_quality', 0)
+            if data_quality >= 95:
+                alerts.append({
+                    "icon": "fa-check-circle",
+                    "color": COLORS['success'],
+                    "title": f"Data Quality Excellent ({data_quality}%)",
+                    "time": "Now"
+                })
+            elif data_quality >= 80:
+                alerts.append({
+                    "icon": "fa-info-circle",
+                    "color": COLORS['info'],
+                    "title": f"Data Quality Good ({data_quality}%)",
+                    "time": "Now"
+                })
+            else:
+                alerts.append({
+                    "icon": "fa-triangle-exclamation",
+                    "color": COLORS['warning'],
+                    "title": f"Data Quality Below Target ({data_quality}%)",
+                    "time": "Now"
+                })
+
+            # Alert for record count
+            total_records = stats.get('total_records', 0)
+            if total_records > 0:
+                alerts.append({
+                    "icon": "fa-database",
+                    "color": COLORS['primary'],
+                    "title": f"{total_records:,} Financial Records Loaded",
+                    "time": "Now"
+                })
+
+            # Alert for last sync
+            last_sync = stats.get('last_sync')
+            if last_sync:
+                alerts.append({
+                    "icon": "fa-sync-alt",
+                    "color": COLORS['success'],
+                    "title": "Data Synchronized with SAP HANA",
+                    "time": "Just now"
+                })
+
+            # Connection status alert
+            conn_status = stats.get('connection_status', 'Disconnected')
+            if conn_status == 'Connected':
+                alerts.append({
+                    "icon": "fa-plug",
+                    "color": COLORS['success'],
+                    "title": "SAP HANA Cloud Connected",
+                    "time": "Active"
+                })
+        else:
+            # Fallback alerts for CSV mode
+            alerts = [
+                {"icon": "fa-info-circle", "color": COLORS['info'], "title": "Running in CSV Fallback Mode", "time": "Now"},
+                {"icon": "fa-database", "color": COLORS['warning'], "title": "HANA Connection Unavailable", "time": "Now"}
+            ]
+
+            if csv_data and csv_data.get('financial_ratios') is not None:
+                csv_count = len(csv_data['financial_ratios'])
+                alerts.append({
+                    "icon": "fa-file-csv",
+                    "color": COLORS['info'],
+                    "title": f"Using {csv_count} CSV Records",
+                    "time": "Now"
+                })
+    except Exception as e:
+        logger.error(f"Error generating alerts: {e}")
+        alerts = [
+            {"icon": "fa-triangle-exclamation", "color": COLORS['danger'], "title": "Error Loading Data Status", "time": "Now"}
+        ]
+
+    # Limit to max 5 alerts
+    alerts = alerts[:5]
 
     alert_items = []
     for alert in alerts:
@@ -4017,13 +4141,13 @@ def update_alert_feed(timestamp, dark_mode):
 
     return dbc.Card([
         dbc.CardBody([
-            html.H2("Recent Alerts", style={
+            html.H2("System Status", style={
                 "fontSize": "18px",
                 "fontWeight": "600",
                 "marginBottom": "16px",
                 "color": COLORS['gray']['100'] if dark_mode else COLORS['gray']['900']
             }),
-            html.Div(alert_items)
+            html.Div(alert_items if alert_items else html.Span("No alerts", style={"color": COLORS['gray']['500']}))
         ])
     ], style=card_style)
 

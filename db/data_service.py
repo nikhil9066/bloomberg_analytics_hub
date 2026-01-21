@@ -52,15 +52,15 @@ class FinancialDataService:
         self._cache[key] = (data, datetime.now())
         self.logger.debug(f"Cache set for key: {key}")
 
-    def get_financial_ratios(self, limit=100):
+    def get_financial_ratios(self, limit=50):
         """
-        Retrieve financial ratios data
+        Retrieve financial ratios data - latest records only
 
         Args:
-            limit (int): Maximum number of records to retrieve
+            limit (int): Maximum number of records to retrieve (default 50, latest by timestamp)
 
         Returns:
-            pd.DataFrame: Financial ratios data
+            pd.DataFrame: Financial ratios data (most recent records)
         """
         if not self.connected:
             self.logger.error("Not connected to HANA")
@@ -244,23 +244,105 @@ class FinancialDataService:
             if cursor:
                 cursor.close()
 
-    def get_annual_financials(self, tickers=None, limit=500):
+    def get_dashboard_stats(self):
+        """
+        Get comprehensive dashboard statistics for sidebar display
+
+        Returns:
+            dict: Dashboard statistics including counts, data quality, timestamps
+        """
+        if not self.connected:
+            return {
+                'total_records': 0,
+                'annual_records': 0,
+                'unique_tickers': 0,
+                'last_sync': None,
+                'data_quality': 0.0,
+                'connection_status': 'Disconnected'
+            }
+
+        cursor = None
+        try:
+            cursor = self.hana_client.connection.cursor()
+
+            # Count records in FINANCIAL_RATIOS table
+            cursor.execute(f'SELECT COUNT(*) FROM "{self.schema}"."FINANCIAL_RATIOS"')
+            ratios_count = cursor.fetchone()[0]
+
+            # Count records in ANNUAL_FINANCIALS table
+            try:
+                cursor.execute(f'SELECT COUNT(*) FROM "{self.schema}"."ANNUAL_FINANCIALS"')
+                annual_count = cursor.fetchone()[0]
+            except Exception:
+                annual_count = 0
+
+            # Get unique tickers
+            cursor.execute(f'SELECT COUNT(DISTINCT "TICKER") FROM "{self.schema}"."FINANCIAL_RATIOS"')
+            unique_tickers = cursor.fetchone()[0]
+
+            # Get last update time (most recent timestamp)
+            cursor.execute(f'SELECT MAX("TIMESTAMP") FROM "{self.schema}"."FINANCIAL_RATIOS"')
+            last_sync = cursor.fetchone()[0]
+
+            # Calculate data quality (percentage of non-null values in key columns)
+            cursor.execute(f'''
+                SELECT
+                    COUNT(*) as total,
+                    COUNT("TICKER") as ticker_count,
+                    COUNT("GROSS_MARGIN") as gross_margin_count,
+                    COUNT("EBITDA_MARGIN") as ebitda_margin_count,
+                    COUNT("CUR_RATIO") as cur_ratio_count,
+                    COUNT("QUICK_RATIO") as quick_ratio_count
+                FROM "{self.schema}"."FINANCIAL_RATIOS"
+            ''')
+            quality_row = cursor.fetchone()
+            if quality_row and quality_row[0] > 0:
+                total = quality_row[0]
+                filled_count = sum(quality_row[1:])
+                total_possible = total * 5  # 5 key columns
+                data_quality = (filled_count / total_possible) * 100 if total_possible > 0 else 0
+            else:
+                data_quality = 0.0
+
+            return {
+                'total_records': ratios_count,
+                'annual_records': annual_count,
+                'unique_tickers': unique_tickers,
+                'last_sync': last_sync,
+                'data_quality': round(data_quality, 1),
+                'connection_status': 'Connected'
+            }
+
+        except Exception as e:
+            self.logger.error(f"Error retrieving dashboard stats: {str(e)}")
+            return {
+                'total_records': 0,
+                'annual_records': 0,
+                'unique_tickers': 0,
+                'last_sync': None,
+                'data_quality': 0.0,
+                'connection_status': 'Error'
+            }
+        finally:
+            if cursor:
+                cursor.close()
+
+    def get_annual_financials(self, tickers=None):
         """
         Retrieve annual financial data from ANNUAL_FINANCIALS table
 
         Args:
             tickers (list): Optional list of tickers to filter by
-            limit (int): Maximum number of records to retrieve
 
         Returns:
-            pd.DataFrame: Annual financials data
+            pd.DataFrame: Annual financials data (all records, no limit)
         """
         if not self.connected:
             self.logger.error("Not connected to HANA")
             return pd.DataFrame()
 
         # Check cache first
-        cache_key = f"annual_financials_{limit}_{','.join(tickers) if tickers else 'all'}"
+        cache_key = f"annual_financials_{','.join(tickers) if tickers else 'all'}"
         cached_data = self._get_cached(cache_key)
         if cached_data is not None:
             return cached_data
@@ -275,7 +357,6 @@ class FinancialDataService:
                 FROM "{self.schema}"."ANNUAL_FINANCIALS"
                 WHERE "TICKER" IN ({placeholders})
                 ORDER BY "TICKER", "FISCAL_YEAR" DESC
-                LIMIT {limit}
                 """
                 cursor = self.hana_client.connection.cursor()
                 cursor.execute(query, tickers)
@@ -284,7 +365,6 @@ class FinancialDataService:
                 SELECT *
                 FROM "{self.schema}"."ANNUAL_FINANCIALS"
                 ORDER BY "TICKER", "FISCAL_YEAR" DESC
-                LIMIT {limit}
                 """
                 cursor = self.hana_client.connection.cursor()
                 cursor.execute(query)
