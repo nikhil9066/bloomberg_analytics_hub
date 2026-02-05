@@ -21,7 +21,7 @@ class FinancialDataService:
 
         # Simple in-memory cache with TTL
         self._cache = {}
-        self._cache_ttl = timedelta(minutes=5)  # Cache for 5 minutes
+        self._cache_ttl = timedelta(minutes=1)  # Cache for 1 minute
 
     def connect(self):
         """Establish connection to HANA"""
@@ -57,7 +57,7 @@ class FinancialDataService:
         Retrieve financial ratios data - latest records only
 
         Args:
-            limit (int): Maximum number of records to retrieve (default 50, latest by timestamp)
+            limit (int): Maximum number of records to retrieve (default 50, latest by inserted_at)
 
         Returns:
             pd.DataFrame: Financial ratios data (most recent records)
@@ -76,9 +76,11 @@ class FinancialDataService:
         try:
             query = f"""
             SELECT
+                "DATA_DATE",
                 "TICKER",
                 "IDENTIFIER_TYPE",
                 "IDENTIFIER_VALUE",
+                "ID_BB_GLOBAL",
                 "TOT_DEBT_TO_TOT_ASSET",
                 "CASH_DVD_COVERAGE",
                 "TOT_DEBT_TO_EBITDA",
@@ -89,9 +91,9 @@ class FinancialDataService:
                 "EBITDA_MARGIN",
                 "TOT_LIAB_AND_EQY",
                 "NET_DEBT_TO_SHRHLDR_EQTY",
-                "TIMESTAMP"
+                "INSERTED_AT"
             FROM "{self.schema}"."FINANCIAL_RATIOS"
-            ORDER BY "TIMESTAMP" DESC
+            ORDER BY "INSERTED_AT" DESC
             LIMIT {limit}
             """
 
@@ -116,20 +118,64 @@ class FinancialDataService:
             if cursor:
                 cursor.close()
 
-    def get_advanced_financials(self, limit=100):
+    def get_advanced_financials(self, tickers=None, limit=100):
         """
-        Retrieve advanced financial data
-        Note: This returns empty DataFrame as FINANCIAL_ADVANCED table doesn't exist
-        Kept for backward compatibility with dashboard code
+        Retrieve advanced financial data from FINANCIAL_DATA_ADVANCED
 
         Args:
+            tickers (list): Optional list of tickers to filter by
             limit (int): Maximum number of records to retrieve
 
         Returns:
-            pd.DataFrame: Empty DataFrame (table doesn't exist)
+            pd.DataFrame: Advanced financial data
         """
-        self.logger.debug("get_advanced_financials called but FINANCIAL_ADVANCED table doesn't exist")
-        return pd.DataFrame()
+        if not self.connected:
+            self.logger.error("Not connected to HANA")
+            return pd.DataFrame()
+
+        cache_key = f"advanced_financials_{','.join(tickers) if tickers else 'all'}_{limit}"
+        cached_data = self._get_cached(cache_key)
+        if cached_data is not None:
+            return cached_data
+
+        cursor = None
+        try:
+            if tickers:
+                placeholders = ', '.join(['?' for _ in tickers])
+                query = f"""
+                SELECT *
+                FROM "{self.schema}"."FINANCIAL_DATA_ADVANCED"
+                WHERE "TICKER" IN ({placeholders})
+                ORDER BY "TICKER", "INSERTED_AT" DESC
+                LIMIT {limit}
+                """
+                cursor = self.hana_client.connection.cursor()
+                cursor.execute(query, tickers)
+            else:
+                query = f"""
+                SELECT *
+                FROM "{self.schema}"."FINANCIAL_DATA_ADVANCED"
+                ORDER BY "INSERTED_AT" DESC
+                LIMIT {limit}
+                """
+                cursor = self.hana_client.connection.cursor()
+                cursor.execute(query)
+
+            columns = [desc[0] for desc in cursor.description]
+            data = cursor.fetchall()
+
+            df = pd.DataFrame(data, columns=columns)
+            self.logger.info(f"Retrieved {len(df)} advanced financial records")
+
+            self._set_cached(cache_key, df)
+            return df
+
+        except Exception as e:
+            self.logger.error(f"Error retrieving advanced financials: {str(e)}")
+            return pd.DataFrame()
+        finally:
+            if cursor:
+                cursor.close()
 
     def get_ticker_list(self):
         """
@@ -165,13 +211,13 @@ class FinancialDataService:
 
     def get_ticker_data(self, ticker):
         """
-        Get all data for a specific ticker from FINANCIAL_RATIOS table
+        Get all data for a specific ticker from FINANCIAL_RATIOS and FINANCIAL_DATA_ADVANCED
 
         Args:
             ticker (str): Stock ticker symbol
 
         Returns:
-            dict: Dictionary with 'ratios' DataFrame (advanced is empty)
+            dict: Dictionary with 'ratios' and 'advanced' DataFrames
         """
         if not self.connected:
             return {'ratios': pd.DataFrame(), 'advanced': pd.DataFrame()}
@@ -184,17 +230,25 @@ class FinancialDataService:
             ratios_query = f"""
             SELECT * FROM "{self.schema}"."FINANCIAL_RATIOS"
             WHERE "TICKER" = ?
-            ORDER BY "TIMESTAMP" DESC
+            ORDER BY "INSERTED_AT" DESC
             """
-
             cursor.execute(ratios_query, [ticker])
             columns = [desc[0] for desc in cursor.description]
-            ratios_data = cursor.fetchall()
-            ratios_df = pd.DataFrame(ratios_data, columns=columns)
+            ratios_df = pd.DataFrame(cursor.fetchall(), columns=columns)
+
+            # Get advanced data
+            advanced_query = f"""
+            SELECT * FROM "{self.schema}"."FINANCIAL_DATA_ADVANCED"
+            WHERE "TICKER" = ?
+            ORDER BY "INSERTED_AT" DESC
+            """
+            cursor.execute(advanced_query, [ticker])
+            columns = [desc[0] for desc in cursor.description]
+            advanced_df = pd.DataFrame(cursor.fetchall(), columns=columns)
 
             return {
                 'ratios': ratios_df,
-                'advanced': pd.DataFrame()  # No advanced table
+                'advanced': advanced_df
             }
 
         except Exception as e:
@@ -227,12 +281,16 @@ class FinancialDataService:
             unique_tickers = cursor.fetchone()[0]
 
             # Get last update time
-            cursor.execute(f'SELECT MAX("TIMESTAMP") FROM "{self.schema}"."FINANCIAL_RATIOS"')
+            cursor.execute(f'SELECT MAX("INSERTED_AT") FROM "{self.schema}"."FINANCIAL_RATIOS"')
             last_update = cursor.fetchone()[0]
+
+            # Count advanced records
+            cursor.execute(f'SELECT COUNT(*) FROM "{self.schema}"."FINANCIAL_DATA_ADVANCED"')
+            advanced_count = cursor.fetchone()[0]
 
             return {
                 'ratios_count': ratios_count,
-                'advanced_count': 0,  # No advanced table
+                'advanced_count': advanced_count,
                 'unique_tickers': unique_tickers,
                 'last_update': last_update
             }
@@ -269,9 +327,9 @@ class FinancialDataService:
             cursor.execute(f'SELECT COUNT(*) FROM "{self.schema}"."FINANCIAL_RATIOS"')
             ratios_count = cursor.fetchone()[0]
 
-            # Count records in ANNUAL_FINANCIALS table
+            # Count records in ANNUAL_FINANCIALS_10K table
             try:
-                cursor.execute(f'SELECT COUNT(*) FROM "{self.schema}"."ANNUAL_FINANCIALS"')
+                cursor.execute(f'SELECT COUNT(*) FROM "{self.schema}"."ANNUAL_FINANCIALS_10K"')
                 annual_count = cursor.fetchone()[0]
             except Exception:
                 annual_count = 0
@@ -280,8 +338,8 @@ class FinancialDataService:
             cursor.execute(f'SELECT COUNT(DISTINCT "TICKER") FROM "{self.schema}"."FINANCIAL_RATIOS"')
             unique_tickers = cursor.fetchone()[0]
 
-            # Get last update time (most recent timestamp)
-            cursor.execute(f'SELECT MAX("TIMESTAMP") FROM "{self.schema}"."FINANCIAL_RATIOS"')
+            # Get last update time (most recent insert)
+            cursor.execute(f'SELECT MAX("INSERTED_AT") FROM "{self.schema}"."FINANCIAL_RATIOS"')
             last_sync = cursor.fetchone()[0]
 
             # Calculate data quality (percentage of non-null values in key columns)
@@ -329,13 +387,14 @@ class FinancialDataService:
 
     def get_annual_financials(self, tickers=None):
         """
-        Retrieve annual financial data from ANNUAL_FINANCIALS table
+        Retrieve annual financial data from ANNUAL_FINANCIALS_10K table.
+        Deduplicates to latest REPORT_DATE per (TICKER, FISCAL_YEAR).
 
         Args:
             tickers (list): Optional list of tickers to filter by
 
         Returns:
-            pd.DataFrame: Annual financials data (all records, no limit)
+            pd.DataFrame: Annual financials data (one row per ticker per year)
         """
         if not self.connected:
             self.logger.error("Not connected to HANA")
@@ -349,22 +408,36 @@ class FinancialDataService:
 
         cursor = None
         try:
-            # Build query based on whether tickers are provided
+            # Subquery deduplicates: one row per (TICKER, FISCAL_YEAR) using latest REPORT_DATE
             if tickers:
                 placeholders = ', '.join(['?' for _ in tickers])
                 query = f"""
-                SELECT *
-                FROM "{self.schema}"."ANNUAL_FINANCIALS"
-                WHERE "TICKER" IN ({placeholders})
-                ORDER BY "TICKER", "FISCAL_YEAR" DESC
+                SELECT A.*
+                FROM "{self.schema}"."ANNUAL_FINANCIALS_10K" A
+                INNER JOIN (
+                    SELECT "TICKER", "FISCAL_YEAR", MAX("REPORT_DATE") AS "MAX_DATE"
+                    FROM "{self.schema}"."ANNUAL_FINANCIALS_10K"
+                    WHERE "TICKER" IN ({placeholders})
+                    GROUP BY "TICKER", "FISCAL_YEAR"
+                ) B ON A."TICKER" = B."TICKER"
+                   AND A."FISCAL_YEAR" = B."FISCAL_YEAR"
+                   AND A."REPORT_DATE" = B."MAX_DATE"
+                ORDER BY A."TICKER", A."FISCAL_YEAR" DESC
                 """
                 cursor = self.hana_client.connection.cursor()
                 cursor.execute(query, tickers)
             else:
                 query = f"""
-                SELECT *
-                FROM "{self.schema}"."ANNUAL_FINANCIALS"
-                ORDER BY "TICKER", "FISCAL_YEAR" DESC
+                SELECT A.*
+                FROM "{self.schema}"."ANNUAL_FINANCIALS_10K" A
+                INNER JOIN (
+                    SELECT "TICKER", "FISCAL_YEAR", MAX("REPORT_DATE") AS "MAX_DATE"
+                    FROM "{self.schema}"."ANNUAL_FINANCIALS_10K"
+                    GROUP BY "TICKER", "FISCAL_YEAR"
+                ) B ON A."TICKER" = B."TICKER"
+                   AND A."FISCAL_YEAR" = B."FISCAL_YEAR"
+                   AND A."REPORT_DATE" = B."MAX_DATE"
+                ORDER BY A."TICKER", A."FISCAL_YEAR" DESC
                 """
                 cursor = self.hana_client.connection.cursor()
                 cursor.execute(query)
@@ -373,7 +446,21 @@ class FinancialDataService:
             data = cursor.fetchall()
 
             df = pd.DataFrame(data, columns=columns)
-            self.logger.info(f"Retrieved {len(df)} annual financials records")
+            self.logger.info(f"Retrieved {len(df)} annual financials records (deduped)")
+
+            # Normalize monetary columns to millions for dashboard consistency
+            # (FINANCIAL_RATIOS and FINANCIAL_DATA_ADVANCED already store in millions)
+            money_cols = [
+                'SALES_REV_TURN', 'GROSS_PROFIT', 'IS_OPER_INC', 'EBIT', 'EBITDA',
+                'PRETAX_INC', 'NET_INCOME', 'IS_SGA_EXPENSE',
+                'IS_DEPRECIATION_AND_AMORTIZATION', 'IS_INT_EXPENSE', 'IS_INC_TAX_EXP',
+                'TOT_LIAB_AND_EQY', 'BS_CUR_LIAB', 'BS_LT_BORROW', 'BS_TOT_ASSET',
+                'BS_SH_OUT', 'CF_FREE_CASH_FLOW', 'CF_CASH_FROM_OPER',
+                'CF_CAP_EXPEND_PRPTY_ADD'
+            ]
+            for col in money_cols:
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], errors='coerce') / 1_000_000
 
             # Cache the result
             self._set_cached(cache_key, df)

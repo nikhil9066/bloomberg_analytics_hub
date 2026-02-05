@@ -47,9 +47,11 @@ class HanaClient:
             'FINANCIAL_RATIOS': """
                 CREATE TABLE "{schema}"."{table}" (
                     "ID" INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                    "DATA_DATE" DATE,
                     "TICKER" NVARCHAR(50),
                     "IDENTIFIER_TYPE" NVARCHAR(20),
                     "IDENTIFIER_VALUE" NVARCHAR(100),
+                    "ID_BB_GLOBAL" NVARCHAR(100),
                     "TOT_DEBT_TO_TOT_ASSET" DECIMAL(18,6),
                     "CASH_DVD_COVERAGE" DECIMAL(18,6),
                     "TOT_DEBT_TO_EBITDA" DECIMAL(18,6),
@@ -60,12 +62,13 @@ class HanaClient:
                     "EBITDA_MARGIN" DECIMAL(18,6),
                     "TOT_LIAB_AND_EQY" DECIMAL(18,6),
                     "NET_DEBT_TO_SHRHLDR_EQTY" DECIMAL(18,6),
-                    "TIMESTAMP" TIMESTAMP
+                    "INSERTED_AT" TIMESTAMP
                 )
             """,
             'FINANCIAL_DATA_ADVANCED': """
                 CREATE TABLE "{schema}"."{table}" (
                     "ID" INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                    "DATA_DATE" DATE,
                     "TICKER" NVARCHAR(50),
                     "IDENTIFIER_TYPE" NVARCHAR(20),
                     "IDENTIFIER_VALUE" NVARCHAR(100),
@@ -152,7 +155,47 @@ class HanaClient:
                     "WORKING_CAPITAL" DECIMAL(18,6),
                     "CF_FREE_CASH_FLOW" DECIMAL(18,6),
                     "NET_INC_GROWTH" DECIMAL(18,6),
-                    "TIMESTAMP" TIMESTAMP
+                    "INSERTED_AT" TIMESTAMP
+                )
+            """,
+            'ANNUAL_FINANCIALS_10K': """
+                CREATE TABLE "{schema}"."{table}" (
+                    "ID" INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                    "REPORT_DATE" DATE,
+                    "FISCAL_YEAR" INTEGER,
+                    "TICKER" NVARCHAR(50),
+                    "SALES_REV_TURN" DECIMAL(18,6),
+                    "GROSS_PROFIT" DECIMAL(18,6),
+                    "IS_OPER_INC" DECIMAL(18,6),
+                    "EBIT" DECIMAL(18,6),
+                    "EBITDA" DECIMAL(18,6),
+                    "PRETAX_INC" DECIMAL(18,6),
+                    "NET_INCOME" DECIMAL(18,6),
+                    "IS_EPS" DECIMAL(18,6),
+                    "IS_DILUTED_EPS" DECIMAL(18,6),
+                    "IS_SGA_EXPENSE" DECIMAL(18,6),
+                    "IS_DEPRECIATION_AND_AMORTIZATION" DECIMAL(18,6),
+                    "IS_INT_EXPENSE" DECIMAL(18,6),
+                    "IS_INC_TAX_EXP" DECIMAL(18,6),
+                    "TOT_LIAB_AND_EQY" DECIMAL(18,6),
+                    "BS_CUR_LIAB" DECIMAL(18,6),
+                    "BS_LT_BORROW" DECIMAL(18,6),
+                    "BS_TOT_ASSET" DECIMAL(18,6),
+                    "BS_SH_OUT" DECIMAL(18,6),
+                    "CF_FREE_CASH_FLOW" DECIMAL(18,6),
+                    "CF_CASH_FROM_OPER" DECIMAL(18,6),
+                    "CF_CAP_EXPEND_PRPTY_ADD" DECIMAL(18,6),
+                    "GROSS_MARGIN" DECIMAL(18,6),
+                    "EBITDA_MARGIN" DECIMAL(18,6),
+                    "OPER_MARGIN" DECIMAL(18,6),
+                    "PROF_MARGIN" DECIMAL(18,6),
+                    "CUR_RATIO" DECIMAL(18,6),
+                    "QUICK_RATIO" DECIMAL(18,6),
+                    "TOT_DEBT_TO_TOT_ASSET" DECIMAL(18,6),
+                    "TOT_DEBT_TO_EBITDA" DECIMAL(18,6),
+                    "INTEREST_COVERAGE_RATIO" DECIMAL(18,6),
+                    "RETURN_ON_ASSET" DECIMAL(18,6),
+                    "RETURN_COM_EQY" DECIMAL(18,6)
                 )
             """,
             'INGESTION_LOGS': """
@@ -286,6 +329,9 @@ class HanaClient:
                 if table_name.upper() in ('FINANCIAL_DATA_ADVANCED', 'FINANCIAL_ADVANCED'):
                     create_table_sql = self.table_schemas['FINANCIAL_DATA_ADVANCED'].format(
                         schema=schema_name, table=table_name)
+                elif table_name.upper() == 'ANNUAL_FINANCIALS_10K':
+                    create_table_sql = self.table_schemas['ANNUAL_FINANCIALS_10K'].format(
+                        schema=schema_name, table=table_name)
                 elif table_name.upper() == 'INGESTION_LOGS':
                     create_table_sql = self.table_schemas['INGESTION_LOGS'].format(
                         schema=schema_name, table=table_name)
@@ -354,7 +400,7 @@ class HanaClient:
                     values = []
 
                     # Always add the common columns
-                    column_names.extend(['"TICKER"', '"IDENTIFIER_TYPE"', '"IDENTIFIER_VALUE"', '"TIMESTAMP"'])
+                    column_names.extend(['"TICKER"', '"IDENTIFIER_TYPE"', '"IDENTIFIER_VALUE"', '"INSERTED_AT"'])
                     placeholders.extend(['?', '?', '?', '?'])
                     values.extend([ticker, identifier_type, identifier_value, timestamp])
 
@@ -787,7 +833,7 @@ class HanaClient:
                     values = []
 
                     # Always add the common columns
-                    column_names.extend(['"TICKER"', '"IDENTIFIER_TYPE"', '"IDENTIFIER_VALUE"', '"TIMESTAMP"'])
+                    column_names.extend(['"TICKER"', '"IDENTIFIER_TYPE"', '"IDENTIFIER_VALUE"', '"INSERTED_AT"'])
                     placeholders.extend(['?', '?', '?', '?'])
                     values.extend([ticker, identifier_type, identifier_value, timestamp])
 

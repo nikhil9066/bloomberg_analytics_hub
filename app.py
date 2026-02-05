@@ -3829,8 +3829,8 @@ def update_margin_bridge(timestamp, dark_mode, selected_competitors, user_compan
             if not df.empty:
                 # Get actual financial values (averages across selected companies)
                 avg_revenue = df['SALES_REV_TURN'].mean() if 'SALES_REV_TURN' in df.columns else avg_revenue
-                avg_cogs = df['IS_COG_AND_SERVICES_SOLD'].mean() if 'IS_COG_AND_SERVICES_SOLD' in df.columns else avg_cogs
                 avg_gross_profit = df['GROSS_PROFIT'].mean() if 'GROSS_PROFIT' in df.columns else avg_gross_profit
+                avg_cogs = df['IS_COG_AND_SERVICES_SOLD'].mean() if 'IS_COG_AND_SERVICES_SOLD' in df.columns else (avg_revenue - avg_gross_profit)
                 avg_sga = df['IS_SGA_EXPENSE'].mean() if 'IS_SGA_EXPENSE' in df.columns else avg_sga
                 avg_ebitda = df['EBITDA'].mean() if 'EBITDA' in df.columns else avg_ebitda
                 avg_da = df['IS_DEPRECIATION_AND_AMORTIZATION'].mean() if 'IS_DEPRECIATION_AND_AMORTIZATION' in df.columns else avg_da

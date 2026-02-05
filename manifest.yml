@@ -14,31 +14,25 @@ applications:
     FLASK_ENV: production
     DASH_DEBUG: false
 
-    # HANA Credentials (TESTING ONLY - REMOVE BEFORE PRODUCTION)
-    HANA_ADDRESS: a0b0b370-2621-4f9c-95c3-2063833ac9ef.hana.prod-us10.hanacloud.ondemand.com
+    # Bloomberg API Configuration
+    BLOOMBERG_CLIENT_ID: ad66b6dc591ac1134e0c3d88787d6b41
+    BLOOMBERG_CLIENT_SECRET: 3d4cc2242371183a456144aa1ee0030f77930b682d5ff65cc16f2954ba5f5204
+    BLOOMBERG_API_HOST: https://api.bloomberg.com
+    BLOOMBERG_OAUTH_ENDPOINT: https://bsso.blpprofessional.com/ext/api/as/token.oauth2
+
+    # SAP HANA Cloud Configuration
+    HANA_ADDRESS: 5462aa73-c26f-48c5-b7cd-a8ab8960b902.hna1.prod-us10.hanacloud.ondemand.com
     HANA_PORT: 443
     HANA_USER: DBADMIN
-    HANA_PASSWORD: Qwerty!123456
+    HANA_PASSWORD: Katbotz@22
     HANA_SCHEMA: BLOOMBERG_DATA
     HANA_TABLE: FINANCIAL_RATIOS
 
-    # Email Notification Configuration (DO NOT COMMIT REAL API KEY)
-    # Set via: cf set-env financial-dashboard SENDGRID_API_KEY "your_key"
+    # Gmail SMTP Configuration
+    GMAIL_SENDER: alertcfo@katbotz.com
+    GMAIL_APP_PASSWORD: mznadhnbigypkyqa
+    NOTIFICATION_EMAILS: nikhilpr16@katbotz.com, amehta@katbotz.com, akshat4003@katbotz.com
+
+    # SendGrid Email Configuration
     SENDGRID_FROM_EMAIL: nikhilpr16+alerts@katbotz.com
     NOTIFICATION_EMAIL: nikhilpr16@katbotz.com
-
-  # IMPORTANT: Set HANA credentials using Cloud Foundry services or environment variables
-  # Do NOT hardcode credentials in this file
-  #
-  # Option 1: Use cf set-env to configure credentials
-  #   cf set-env financial-dashboard HANA_ADDRESS "your-instance.hana.ondemand.com"
-  #   cf set-env financial-dashboard HANA_PORT "443"
-  #   cf set-env financial-dashboard HANA_USER "DBADMIN"
-  #   cf set-env financial-dashboard HANA_PASSWORD "your_password"
-  #   cf set-env financial-dashboard HANA_SCHEMA "BLOOMBERG_DATA"
-  #
-  # Option 2: Bind to a user-provided service
-  #   cf create-user-provided-service hana-credentials -p '{"address":"...","port":"443",...}'
-  #   cf bind-service financial-dashboard hana-credentials
-  #
-  # See deployment guide for more details
