@@ -2938,7 +2938,7 @@ def render_peer_comparison_table(selected_competitors, dark_mode, user_company):
     text_color = COLORS['gray']['100'] if dark_mode else COLORS['gray']['900']
     header_bg = COLORS['gray']['700'] if dark_mode else COLORS['gray']['100']
     row_bg = COLORS['gray']['800'] if dark_mode else "#ffffff"
-    alt_row_bg = COLORS['gray']['750'] if dark_mode else COLORS['gray']['50']
+    alt_row_bg = COLORS['gray']['700'] if dark_mode else COLORS['gray']['50']
     border_color = COLORS['gray']['600'] if dark_mode else COLORS['gray']['200']
 
     # Define metrics with comments
@@ -3116,7 +3116,7 @@ def render_industry_median_table(dark_mode, user_company, selected_competitors):
     text_color = COLORS['gray']['100'] if dark_mode else COLORS['gray']['900']
     header_bg = COLORS['gray']['700'] if dark_mode else COLORS['gray']['100']
     row_bg = COLORS['gray']['800'] if dark_mode else "#ffffff"
-    alt_row_bg = COLORS['gray']['750'] if dark_mode else COLORS['gray']['50']
+    alt_row_bg = COLORS['gray']['700'] if dark_mode else COLORS['gray']['50']
     border_color = COLORS['gray']['600'] if dark_mode else COLORS['gray']['200']
 
     # Get user company values

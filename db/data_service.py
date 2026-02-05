@@ -106,6 +106,16 @@ class FinancialDataService:
             df = pd.DataFrame(data, columns=columns)
             self.logger.info(f"Retrieved {len(df)} financial ratio records")
 
+            # HANA returns decimal.Decimal — convert numeric columns to float
+            skip_cols = {'TICKER', 'IDENTIFIER_TYPE', 'IDENTIFIER_VALUE',
+                         'ID_BB_GLOBAL', 'DATA_DATE', 'INSERTED_AT'}
+            for col in df.columns:
+                if col not in skip_cols:
+                    try:
+                        df[col] = pd.to_numeric(df[col])
+                    except (ValueError, TypeError):
+                        pass
+
             # Cache the result
             self._set_cached(cache_key, df)
 
@@ -166,6 +176,18 @@ class FinancialDataService:
 
             df = pd.DataFrame(data, columns=columns)
             self.logger.info(f"Retrieved {len(df)} advanced financial records")
+
+            # HANA returns decimal.Decimal — convert numeric columns to float
+            skip_cols = {'TICKER', 'IDENTIFIER_TYPE', 'IDENTIFIER_VALUE',
+                         'ID_BB_COMPANY', 'ID_BB_GLOBAL', 'ID_BB_GLOBAL_COMPANY',
+                         'FISCAL_YEAR_PERIOD', 'ACCOUNTING_STANDARD',
+                         'DATA_DATE', 'INSERTED_AT'}
+            for col in df.columns:
+                if col not in skip_cols:
+                    try:
+                        df[col] = pd.to_numeric(df[col])
+                    except (ValueError, TypeError):
+                        pass
 
             self._set_cached(cache_key, df)
             return df
@@ -448,6 +470,15 @@ class FinancialDataService:
             df = pd.DataFrame(data, columns=columns)
             self.logger.info(f"Retrieved {len(df)} annual financials records (deduped)")
 
+            # HANA returns decimal.Decimal for DECIMAL columns — convert all to float
+            skip_cols = {'TICKER', 'REPORT_DATE'}
+            for col in df.columns:
+                if col not in skip_cols:
+                    try:
+                        df[col] = pd.to_numeric(df[col])
+                    except (ValueError, TypeError):
+                        pass
+
             # Normalize monetary columns to millions for dashboard consistency
             # (FINANCIAL_RATIOS and FINANCIAL_DATA_ADVANCED already store in millions)
             money_cols = [
@@ -460,7 +491,7 @@ class FinancialDataService:
             ]
             for col in money_cols:
                 if col in df.columns:
-                    df[col] = pd.to_numeric(df[col], errors='coerce') / 1_000_000
+                    df[col] = df[col] / 1_000_000
 
             # Cache the result
             self._set_cached(cache_key, df)

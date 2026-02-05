@@ -19,45 +19,85 @@
 }
 
 ::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: #1f2937;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #888;
+    background: #4b5563;
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #555;
+    background: #6b7280;
 }
 
 /* Dropdown styling */
 .Select-control {
     border-radius: 6px !important;
-    border-color: #e5e7eb !important;
+    border-color: #4b5563 !important;
+    background-color: #1f2937 !important;
+    color: #e5e7eb !important;
 }
 
 .Select-control:hover {
     border-color: #3b82f6 !important;
 }
 
+.Select-value-label {
+    color: #e5e7eb !important;
+}
+
+.Select-placeholder {
+    color: #9ca3af !important;
+}
+
+.Select-arrow {
+    border-top-color: #9ca3af !important;
+}
+
+.Select-menu-outer {
+    background-color: #1f2937 !important;
+    border-color: #4b5563 !important;
+}
+
+.Select-option {
+    color: #e5e7eb !important;
+    background-color: #1f2937 !important;
+}
+
+.Select-option:hover, .Select-option.is-focused {
+    background-color: #374151 !important;
+    color: #f3f4f6 !important;
+}
+
+.Select-input input {
+    color: #e5e7eb !important;
+}
+
 /* Button hover effects */
 .btn-light:hover {
-    background-color: #f3f4f6 !important;
-    border-color: #d1d5db !important;
+    background-color: #374151 !important;
+    border-color: #4b5563 !important;
+    color: #f3f4f6 !important;
+}
+
+.btn-light {
+    background-color: #1f2937 !important;
+    border-color: #4b5563 !important;
+    color: #e5e7eb !important;
 }
 
 /* Tab styling */
 .nav-tabs .nav-link {
     border: none !important;
     border-bottom: 2px solid transparent !important;
-    color: #6b7280 !important;
+    color: #94a3b8 !important;
     font-weight: 500 !important;
 }
 
 .nav-tabs .nav-link:hover {
-    color: #1f2937 !important;
-    border-bottom-color: #d1d5db !important;
+    color: #e2e8f0 !important;
+    border-bottom-color: #4b5563 !important;
 }
 
 .nav-tabs .nav-link.active {
@@ -77,7 +117,7 @@
 }
 
 .alert-item:hover {
-    background-color: #f9fafb;
+    background-color: rgba(255, 255, 255, 0.05);
 }
 
 /* Loading spinner */
@@ -111,25 +151,28 @@
 
 /* Dark mode enhancements */
 .dark-mode {
-    background-color: #111827;
+    background-color: #0f172a;
     color: #f3f4f6;
 }
 
 .dark-mode .card {
-    background-color: #1f2937;
-    border-color: #374151;
+    background-color: #1e293b;
+    border-color: #334155;
 }
 
-.dark-mode ::-webkit-scrollbar-track {
-    background: #1f2937;
+.dark-mode .card-header {
+    border-bottom-color: #334155;
 }
 
-.dark-mode ::-webkit-scrollbar-thumb {
-    background: #4b5563;
+.dark-mode .btn-outline-secondary {
+    border-color: #4b5563;
+    color: #cbd5e1;
 }
 
-.dark-mode ::-webkit-scrollbar-thumb:hover {
-    background: #6b7280;
+.dark-mode .btn-outline-secondary:hover {
+    background-color: #334155;
+    border-color: #6b7280;
+    color: #f1f5f9;
 }
 
 /* Badge styling */
@@ -184,8 +227,9 @@ button:focus,
 /* Card header improvements */
 .card-header {
     background-color: transparent;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid #374151;
     padding: 20px 24px;
+    color: #e2e8f0;
 }
 
 /* Table styling improvements */
@@ -199,15 +243,16 @@ table th {
     text-transform: uppercase;
     font-size: 12px;
     letter-spacing: 0.5px;
-    color: #6b7280;
+    color: #94a3b8;
 }
 
 table td {
     padding: 12px 16px;
+    color: #e2e8f0;
 }
 
 table tr:hover {
-    background-color: #f9fafb;
+    background-color: rgba(255, 255, 255, 0.04);
 }
 
 /* Icon sizing */
@@ -249,7 +294,7 @@ table tr:hover {
 
 /* Loading state */
 .loading-skeleton {
-    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background: linear-gradient(90deg, #1f2937 25%, #374151 50%, #1f2937 75%);
     background-size: 200% 100%;
     animation: loading 1.5s ease-in-out infinite;
 }
@@ -272,13 +317,13 @@ table tr:hover {
     top: 0;
     left: 0;
     height: 100vh;
-    background-color: #ffffff;
-    border-right: 1px solid #e5e7eb;
+    background-color: #1e293b;
+    border-right: 1px solid #374151;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 1100;
     display: flex;
     flex-direction: column;
-    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.25);
 }
 
 .sidebar.expanded {
@@ -291,7 +336,7 @@ table tr:hover {
 
 .sidebar-header {
     padding: 20px 16px;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid #374151;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -321,7 +366,7 @@ table tr:hover {
 .sidebar-logo-text {
     font-weight: 600;
     font-size: 16px;
-    color: #111827;
+    color: #f1f5f9;
     white-space: nowrap;
     transition: opacity 0.2s ease, transform 0.2s ease;
 }
@@ -337,19 +382,19 @@ table tr:hover {
     height: 32px;
     min-width: 32px;
     border-radius: 6px;
-    background-color: #f3f4f6;
+    background-color: #374151;
     border: none;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     transition: all 0.2s ease;
-    color: #6b7280;
+    color: #9ca3af;
 }
 
 .sidebar-toggle:hover {
-    background-color: #e5e7eb;
-    color: #111827;
+    background-color: #4b5563;
+    color: #f3f4f6;
 }
 
 .sidebar-nav {
@@ -366,7 +411,7 @@ table tr:hover {
     padding: 12px 16px;
     margin-bottom: 4px;
     border-radius: 8px;
-    color: #6b7280;
+    color: #94a3b8;
     text-decoration: none;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -375,13 +420,13 @@ table tr:hover {
 }
 
 .sidebar-nav-item:hover {
-    background-color: #f3f4f6;
-    color: #111827;
+    background-color: #334155;
+    color: #f1f5f9;
 }
 
 .sidebar-nav-item.active {
-    background-color: #eff6ff;
-    color: #3b82f6;
+    background-color: #1e3a8a;
+    color: #60a5fa;
 }
 
 .sidebar-nav-item-icon {
@@ -409,7 +454,7 @@ table tr:hover {
 }
 
 .sidebar-footer {
-    border-top: 1px solid #e5e7eb;
+    border-top: 1px solid #374151;
     padding: 16px 8px;
 }
 
@@ -420,7 +465,7 @@ table tr:hover {
     padding: 12px 16px;
     margin-bottom: 4px;
     border-radius: 8px;
-    color: #6b7280;
+    color: #94a3b8;
     text-decoration: none;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -428,8 +473,8 @@ table tr:hover {
 }
 
 .sidebar-footer-item:hover {
-    background-color: #f3f4f6;
-    color: #111827;
+    background-color: #334155;
+    color: #f1f5f9;
 }
 
 .sidebar-footer-item:last-child {
@@ -558,12 +603,12 @@ table tr:hover {
 }
 
 .sidebar-nav::-webkit-scrollbar-thumb {
-    background: #d1d5db;
+    background: #4b5563;
     border-radius: 4px;
 }
 
 .sidebar-nav::-webkit-scrollbar-thumb:hover {
-    background: #9ca3af;
+    background: #6b7280;
 }
 
 /* ========================================
