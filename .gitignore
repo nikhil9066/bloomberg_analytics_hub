@@ -60,3 +60,5 @@ downloads/
 .coverage
 htmlcov/
 .env
+.venv/
+data/acdoca_sample*.csv
