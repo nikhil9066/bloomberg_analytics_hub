@@ -109,27 +109,42 @@
     }
 }
 
-/* Dark mode enhancements */
+/* Dark mode enhancements - uses CSS variables from theme.css */
 .dark-mode {
-    background-color: #111827;
-    color: #f3f4f6;
+    background-color: var(--bg-primary, #0f172a) !important;
+    color: var(--text-primary, #f1f5f9) !important;
 }
 
-.dark-mode .card {
-    background-color: #1f2937;
-    border-color: #374151;
+.dark-mode .card,
+.dark-mode .kpi-card-hover,
+.dark-mode [class*="kpi-card"] {
+    background-color: var(--bg-card, #1e293b) !important;
+    border-color: var(--border-primary, #334155) !important;
+    color: var(--text-primary, #f1f5f9) !important;
+}
+
+.dark-mode .card-body {
+    background-color: var(--bg-card, #1e293b) !important;
+}
+
+.dark-mode h1, .dark-mode h2, .dark-mode h3, .dark-mode h4, .dark-mode h5, .dark-mode h6 {
+    color: var(--text-primary, #f1f5f9) !important;
+}
+
+.dark-mode p, .dark-mode span {
+    color: inherit;
 }
 
 .dark-mode ::-webkit-scrollbar-track {
-    background: #1f2937;
+    background: var(--bg-secondary, #1e293b);
 }
 
 .dark-mode ::-webkit-scrollbar-thumb {
-    background: #4b5563;
+    background: var(--border-secondary, #475569);
 }
 
 .dark-mode ::-webkit-scrollbar-thumb:hover {
-    background: #6b7280;
+    background: var(--text-muted, #64748b);
 }
 
 /* Badge styling */
@@ -501,51 +516,52 @@ table tr:hover {
     width: calc(100% - 72px);
 }
 
-/* Dark mode sidebar */
-.sidebar.dark-mode {
-    background-color: #1f2937;
-    border-right-color: #374151;
+/* Dark mode sidebar - uses CSS variables */
+.sidebar.dark-mode,
+.dark-mode .sidebar {
+    background-color: var(--bg-card, #1e293b) !important;
+    border-right-color: var(--border-primary, #334155) !important;
 }
 
 .dark-mode .sidebar-logo-text {
-    color: #f3f4f6;
+    color: var(--text-primary, #f1f5f9) !important;
 }
 
 .dark-mode .sidebar-toggle {
-    background-color: #374151;
-    color: #9ca3af;
+    background-color: var(--bg-tertiary, #334155) !important;
+    color: var(--text-tertiary, #94a3b8) !important;
 }
 
 .dark-mode .sidebar-toggle:hover {
-    background-color: #4b5563;
-    color: #f3f4f6;
+    background-color: var(--bg-hover, #334155) !important;
+    color: var(--text-primary, #f1f5f9) !important;
 }
 
 .dark-mode .sidebar-nav-item {
-    color: #9ca3af;
+    color: var(--text-tertiary, #94a3b8) !important;
 }
 
 .dark-mode .sidebar-nav-item:hover {
-    background-color: #374151;
-    color: #f3f4f6;
+    background-color: var(--bg-hover, #334155) !important;
+    color: var(--text-primary, #f1f5f9) !important;
 }
 
 .dark-mode .sidebar-nav-item.active {
-    background-color: #1e3a8a;
-    color: #60a5fa;
+    background-color: rgba(59, 130, 246, 0.15) !important;
+    color: var(--accent-primary, #3b82f6) !important;
 }
 
 .dark-mode .sidebar-footer {
-    border-top-color: #374151;
+    border-top-color: var(--border-primary, #334155) !important;
 }
 
 .dark-mode .sidebar-footer-item {
-    color: #9ca3af;
+    color: var(--text-tertiary, #94a3b8) !important;
 }
 
 .dark-mode .sidebar-footer-item:hover {
-    background-color: #374151;
-    color: #f3f4f6;
+    background-color: var(--bg-hover, #334155) !important;
+    color: var(--text-primary, #f1f5f9) !important;
 }
 
 /* Scrollbar for sidebar */
