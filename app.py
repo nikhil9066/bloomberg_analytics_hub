@@ -945,371 +945,238 @@ LOADING_MESSAGES = [
 ]
 
 def create_onboarding_screen():
-    """Create the onboarding form for user company details"""
-
-    input_style = {
-        "backgroundColor": "#ffffff",
-        "border": f"1px solid {COLORS['gray']['300']}",
-        "borderRadius": "8px",
-        "padding": "12px 16px",
-        "fontSize": "14px",
-        "width": "100%",
-        "marginBottom": "4px"
-    }
-
-    label_style = {
-        "fontSize": "13px",
-        "fontWeight": "500",
-        "color": COLORS['gray']['700'],
-        "marginBottom": "6px",
-        "display": "block"
-    }
-
-    section_title_style = {
-        "fontSize": "16px",
-        "fontWeight": "600",
-        "color": COLORS['gray']['800'],
-        "marginBottom": "16px",
-        "marginTop": "24px",
-        "paddingBottom": "8px",
-        "borderBottom": f"2px solid {COLORS['primary']}"
-    }
-
+    """Create the onboarding form for user company details - Enhanced UI"""
+    
     return html.Div([
-        # Background with gradient
-        html.Div(style={
-            "position": "fixed",
-            "top": "0",
-            "left": "0",
-            "right": "0",
-            "bottom": "0",
-            "background": f"linear-gradient(135deg, {COLORS['gray']['900']} 0%, {COLORS['gray']['800']} 50%, #1e3a5f 100%)",
-            "zIndex": "-1"
-        }),
+        # Background with animated gradient
+        html.Div(className="onboarding-background"),
 
         # Main container
         html.Div([
             # Header
             html.Div([
-                html.I(className="fas fa-chart-pie", style={
-                    "fontSize": "48px",
-                    "color": COLORS['primary'],
-                    "marginBottom": "16px"
-                }),
-                html.H1("Welcome to CFO Pulse", style={
-                    "fontSize": "32px",
-                    "fontWeight": "700",
-                    "color": "#ffffff",
-                    "marginBottom": "8px"
-                }),
-                html.P("Enter your company details to benchmark against industry leaders", style={
-                    "fontSize": "16px",
-                    "color": COLORS['gray']['400'],
-                    "marginBottom": "32px"
-                })
-            ], style={"textAlign": "center"}),
+                html.Div([
+                    html.I(className="fas fa-chart-pie")
+                ], className="onboarding-logo"),
+                html.H1("Welcome to CFO Pulse", className="onboarding-title"),
+                html.P("Enter your company details to benchmark against industry leaders", 
+                       className="onboarding-subtitle")
+            ], className="onboarding-header"),
 
             # Form Card
             html.Div([
                 # Company Basic Info Section
-                html.H3("Company Information", style=section_title_style),
+                html.H3([
+                    html.I(className="fas fa-building"),
+                    "Company Information"
+                ], className="onboarding-section-title"),
 
                 dbc.Row([
                     dbc.Col([
-                        html.Label("Company Name *", style=label_style),
+                        html.Label("Company Name *", className="onboarding-label"),
                         dcc.Input(
                             id='onboard-company-name',
                             type='text',
                             placeholder='e.g., Acme Corporation',
-                            style=input_style
+                            className="onboarding-input"
                         )
                     ], md=6),
                     dbc.Col([
-                        html.Label("Industry", style=label_style),
+                        html.Label("Industry", className="onboarding-label"),
                         dcc.Dropdown(
                             id='onboard-industry',
                             options=[
-                                {'label': 'Technology', 'value': 'tech'},
-                                {'label': 'Healthcare', 'value': 'healthcare'},
-                                {'label': 'Finance', 'value': 'finance'},
-                                {'label': 'Retail', 'value': 'retail'},
-                                {'label': 'Manufacturing', 'value': 'manufacturing'},
-                                {'label': 'Energy', 'value': 'energy'},
-                                {'label': 'Other', 'value': 'other'}
+                                {'label': '🖥️ Technology', 'value': 'tech'},
+                                {'label': '🏥 Healthcare', 'value': 'healthcare'},
+                                {'label': '💰 Finance', 'value': 'finance'},
+                                {'label': '🛒 Retail', 'value': 'retail'},
+                                {'label': '🏭 Manufacturing', 'value': 'manufacturing'},
+                                {'label': '⚡ Energy', 'value': 'energy'},
+                                {'label': '📦 Other', 'value': 'other'}
                             ],
                             placeholder='Select industry...',
-                            style={"marginBottom": "4px"}
+                            className="onboarding-dropdown"
                         )
                     ], md=6)
-                ], className="mb-3"),
+                ], className="mb-4"),
 
                 # Financial Ratios Section
-                html.H3("Financial Ratios", style=section_title_style),
-                html.P("Enter your key financial metrics for comparison", style={
-                    "fontSize": "13px",
-                    "color": COLORS['gray']['500'],
-                    "marginBottom": "16px"
-                }),
+                html.H3([
+                    html.I(className="fas fa-chart-line"),
+                    "Financial Ratios"
+                ], className="onboarding-section-title"),
+                html.P("Enter your key financial metrics for comparison with industry leaders", 
+                       style={"fontSize": "14px", "color": "#64748b", "marginBottom": "20px"}),
 
+                # Profitability Metrics
+                html.Div([
+                    html.Label("📊 Profitability", style={
+                        "fontSize": "12px", "fontWeight": "600", "color": "#3b82f6",
+                        "textTransform": "uppercase", "letterSpacing": "0.1em", "marginBottom": "12px"
+                    })
+                ]),
                 dbc.Row([
                     dbc.Col([
-                        html.Label("EBITDA Margin (%)", style=label_style),
-                        dcc.Input(id='onboard-ebitda-margin', type='number', placeholder='e.g., 15.5', style=input_style)
+                        html.Label("EBITDA Margin (%)", className="onboarding-label"),
+                        dcc.Input(id='onboard-ebitda-margin', type='number', 
+                                  placeholder='e.g., 15.5', className="onboarding-input")
                     ], md=4),
                     dbc.Col([
-                        html.Label("Gross Margin (%)", style=label_style),
-                        dcc.Input(id='onboard-gross-margin', type='number', placeholder='e.g., 45.0', style=input_style)
+                        html.Label("Gross Margin (%)", className="onboarding-label"),
+                        dcc.Input(id='onboard-gross-margin', type='number', 
+                                  placeholder='e.g., 45.0', className="onboarding-input")
                     ], md=4),
                     dbc.Col([
-                        html.Label("Current Ratio", style=label_style),
-                        dcc.Input(id='onboard-current-ratio', type='number', placeholder='e.g., 1.5', style=input_style)
+                        html.Label("Cash Dividend Coverage", className="onboarding-label"),
+                        dcc.Input(id='onboard-cash-dividend', type='number', 
+                                  placeholder='e.g., 3.0', className="onboarding-input")
                     ], md=4)
-                ], className="mb-3"),
+                ], className="mb-4"),
 
+                # Liquidity Metrics
+                html.Div([
+                    html.Label("💧 Liquidity", style={
+                        "fontSize": "12px", "fontWeight": "600", "color": "#22c55e",
+                        "textTransform": "uppercase", "letterSpacing": "0.1em", "marginBottom": "12px"
+                    })
+                ]),
                 dbc.Row([
                     dbc.Col([
-                        html.Label("Quick Ratio", style=label_style),
-                        dcc.Input(id='onboard-quick-ratio', type='number', placeholder='e.g., 1.2', style=input_style)
+                        html.Label("Current Ratio", className="onboarding-label"),
+                        dcc.Input(id='onboard-current-ratio', type='number', 
+                                  placeholder='e.g., 1.5', className="onboarding-input")
                     ], md=4),
                     dbc.Col([
-                        html.Label("Debt to Asset (%)", style=label_style),
-                        dcc.Input(id='onboard-debt-to-asset', type='number', placeholder='e.g., 25.0', style=input_style)
+                        html.Label("Quick Ratio", className="onboarding-label"),
+                        dcc.Input(id='onboard-quick-ratio', type='number', 
+                                  placeholder='e.g., 1.2', className="onboarding-input")
                     ], md=4),
                     dbc.Col([
-                        html.Label("Debt to EBITDA", style=label_style),
-                        dcc.Input(id='onboard-debt-to-ebitda', type='number', placeholder='e.g., 2.5', style=input_style)
+                        html.Label("Interest Coverage", className="onboarding-label"),
+                        dcc.Input(id='onboard-interest-coverage', type='number', 
+                                  placeholder='e.g., 8.0', className="onboarding-input")
                     ], md=4)
-                ], className="mb-3"),
+                ], className="mb-4"),
 
+                # Leverage Metrics
+                html.Div([
+                    html.Label("⚖️ Leverage", style={
+                        "fontSize": "12px", "fontWeight": "600", "color": "#f59e0b",
+                        "textTransform": "uppercase", "letterSpacing": "0.1em", "marginBottom": "12px"
+                    })
+                ]),
                 dbc.Row([
                     dbc.Col([
-                        html.Label("Interest Coverage Ratio", style=label_style),
-                        dcc.Input(id='onboard-interest-coverage', type='number', placeholder='e.g., 8.0', style=input_style)
+                        html.Label("Debt to Asset (%)", className="onboarding-label"),
+                        dcc.Input(id='onboard-debt-to-asset', type='number', 
+                                  placeholder='e.g., 25.0', className="onboarding-input")
                     ], md=4),
                     dbc.Col([
-                        html.Label("Net Debt to Equity (%)", style=label_style),
-                        dcc.Input(id='onboard-net-debt-equity', type='number', placeholder='e.g., 50.0', style=input_style)
+                        html.Label("Debt to EBITDA", className="onboarding-label"),
+                        dcc.Input(id='onboard-debt-to-ebitda', type='number', 
+                                  placeholder='e.g., 2.5', className="onboarding-input")
                     ], md=4),
                     dbc.Col([
-                        html.Label("Cash Dividend Coverage", style=label_style),
-                        dcc.Input(id='onboard-cash-dividend', type='number', placeholder='e.g., 3.0', style=input_style)
+                        html.Label("Net Debt to Equity (%)", className="onboarding-label"),
+                        dcc.Input(id='onboard-net-debt-equity', type='number', 
+                                  placeholder='e.g., 50.0', className="onboarding-input")
                     ], md=4)
                 ], className="mb-3"),
 
                 # Privacy Notice
                 html.Div([
-                    html.I(className="fas fa-shield-halved", style={
-                        "color": COLORS['success'],
-                        "marginRight": "8px"
-                    }),
-                    html.Span("We don't store any of your company data. It's only used for comparison during this session.", style={
-                        "fontSize": "13px",
-                        "color": COLORS['gray']['600']
-                    })
-                ], style={
-                    "backgroundColor": COLORS['gray']['100'],
-                    "padding": "12px 16px",
-                    "borderRadius": "8px",
-                    "marginTop": "24px",
-                    "marginBottom": "24px",
-                    "display": "flex",
-                    "alignItems": "center"
-                }),
+                    html.I(className="fas fa-shield-halved"),
+                    html.Span("Your data stays private. We don't store any company information — it's only used for comparison during this session.")
+                ], className="onboarding-privacy"),
 
                 # Buttons
                 html.Div([
-                    dbc.Button([
-                        html.I(className="fas fa-rocket me-2"),
+                    html.Button([
+                        html.I(className="fas fa-rocket"),
                         "Launch Dashboard"
-                    ], id='btn-launch-dashboard', color="primary", size="lg", style={
-                        "padding": "12px 32px",
-                        "fontWeight": "600",
-                        "borderRadius": "8px"
-                    }),
+                    ], id='btn-launch-dashboard', className="onboarding-btn-primary"),
 
-                    dbc.Button([
-                        html.I(className="fas fa-flask me-2"),
-                        "Use Test Data"
-                    ], id='btn-use-test-data', color="secondary", outline=True, size="lg", style={
-                        "padding": "12px 32px",
-                        "fontWeight": "600",
-                        "borderRadius": "8px",
-                        "marginLeft": "16px"
-                    })
-                ], style={"textAlign": "center", "marginTop": "8px"})
+                    html.Button([
+                        html.I(className="fas fa-flask"),
+                        "Use Demo Data"
+                    ], id='btn-use-test-data', className="onboarding-btn-secondary")
+                ], className="onboarding-buttons")
 
-            ], style={
-                "backgroundColor": "#ffffff",
-                "borderRadius": "16px",
-                "padding": "32px",
-                "maxWidth": "800px",
-                "margin": "0 auto",
-                "boxShadow": "0 20px 60px rgba(0,0,0,0.3)"
-            })
+            ], className="onboarding-card")
 
-        ], style={
-            "minHeight": "100vh",
-            "padding": "40px 20px",
-            "display": "flex",
-            "flexDirection": "column",
-            "justifyContent": "center"
-        })
+        ], className="onboarding-container")
     ], id='onboarding-screen')
 
 def create_loading_screen():
     """Create an elegant, animated loading screen for CFO dashboard"""
+    
+    # Metric items with icons and colors
+    metrics = [
+        {"icon": "fas fa-dollar-sign", "label": "Revenue", "color": COLORS['primary']},
+        {"icon": "fas fa-chart-pie", "label": "Margins", "color": COLORS['success']},
+        {"icon": "fas fa-balance-scale", "label": "Ratios", "color": COLORS['warning']},
+        {"icon": "fas fa-users", "label": "Peers", "color": COLORS['info']}
+    ]
+    
     return html.Div([
+        # Floating particles for ambiance
+        html.Div([
+            html.Div(className="loading-particle") for _ in range(6)
+        ], className="loading-particles"),
+        
         # Main content container
         html.Div([
-            # Logo with glow effect
+            # Logo with animated ring
             html.Div([
                 html.Div([
-                    html.I(className="fas fa-chart-line", style={
-                        "fontSize": "48px",
-                        "color": COLORS['primary'],
-                        "filter": "drop-shadow(0 0 20px rgba(14, 165, 233, 0.5))"
-                    }),
-                ], style={
-                    "width": "100px",
-                    "height": "100px",
-                    "borderRadius": "50%",
-                    "background": "rgba(14, 165, 233, 0.1)",
-                    "border": f"2px solid {COLORS['primary']}",
-                    "display": "flex",
-                    "alignItems": "center",
-                    "justifyContent": "center",
-                    "animation": "pulseGlow 2s ease-in-out infinite",
-                    "marginBottom": "24px"
-                })
-            ], style={"display": "flex", "justifyContent": "center"}),
+                    html.I(className="fas fa-chart-line")
+                ], className="loading-logo")
+            ], className="loading-logo-container"),
 
-            # Brand title
-            html.H1("CFO Pulse", style={
-                "fontSize": "32px",
-                "fontWeight": "700",
-                "color": "#ffffff",
-                "marginBottom": "8px",
-                "letterSpacing": "0.05em",
-                "background": f"linear-gradient(135deg, {COLORS['primary']}, #22c55e)",
-                "WebkitBackgroundClip": "text",
-                "WebkitTextFillColor": "transparent",
-                "backgroundClip": "text"
-            }),
-
-            html.P("Financial Intelligence Platform", style={
-                "fontSize": "14px",
-                "color": COLORS['gray']['400'],
-                "marginBottom": "40px",
-                "letterSpacing": "0.1em",
-                "textTransform": "uppercase"
-            }),
+            # Brand title with gradient
+            html.H1("CFO Pulse", className="loading-title"),
+            
+            # Subtitle
+            html.P("Financial Intelligence Platform", className="loading-subtitle"),
 
             # Animated metrics row
             html.Div([
                 html.Div([
-                    html.I(className=icon, style={
-                        "fontSize": "20px",
-                        "color": color,
-                        "marginBottom": "8px"
-                    }),
-                    html.Div(label, style={
-                        "fontSize": "11px",
-                        "color": COLORS['gray']['500'],
-                        "textTransform": "uppercase",
-                        "letterSpacing": "0.05em"
-                    })
-                ], style={
-                    "display": "flex",
-                    "flexDirection": "column",
-                    "alignItems": "center",
-                    "padding": "16px 24px",
-                    "background": "rgba(255, 255, 255, 0.03)",
-                    "borderRadius": "12px",
-                    "border": "1px solid rgba(255, 255, 255, 0.05)",
-                    "animation": f"fadeInUp 0.5s ease-out {i * 0.1}s both"
-                }) for i, (icon, label, color) in enumerate([
-                    ("fas fa-dollar-sign", "Revenue", COLORS['primary']),
-                    ("fas fa-chart-pie", "Margins", COLORS['success']),
-                    ("fas fa-balance-scale", "Ratios", COLORS['warning']),
-                    ("fas fa-users", "Peers", COLORS['info'])
-                ])
-            ], style={
-                "display": "flex",
-                "gap": "16px",
-                "marginBottom": "48px",
-                "justifyContent": "center"
-            }),
+                    html.I(className=m["icon"], style={"color": m["color"]}),
+                    html.Span(m["label"])
+                ], className="loading-metric") for m in metrics
+            ], className="loading-metrics"),
 
-            # Loading message
-            html.H2(id='loading-message', children="Initializing dashboard...", style={
-                "fontSize": "18px",
-                "fontWeight": "500",
-                "color": "#ffffff",
-                "marginBottom": "24px",
-                "textAlign": "center",
-                "minHeight": "28px"
-            }),
+            # Loading message (updated by callback)
+            html.Div(id='loading-message', children="Initializing dashboard...", 
+                     className="loading-message"),
 
             # Progress bar container
             html.Div([
                 html.Div([
-                    html.Div(id='loading-progress-bar', style={
-                        "width": "0%",
-                        "height": "100%",
-                        "background": f"linear-gradient(90deg, {COLORS['primary']}, #22c55e)",
-                        "borderRadius": "4px",
-                        "transition": "width 0.4s ease",
-                        "boxShadow": f"0 0 20px {COLORS['primary']}"
-                    })
-                ], style={
-                    "width": "100%",
-                    "height": "6px",
-                    "backgroundColor": "rgba(255, 255, 255, 0.1)",
-                    "borderRadius": "4px",
-                    "overflow": "hidden"
-                }),
+                    html.Div(id='loading-progress-bar', className="loading-progress-bar",
+                             style={"width": "0%"})
+                ], className="loading-progress-track"),
                 html.Div([
-                    html.Span(id='loading-countdown', children="0%", style={
-                        "fontSize": "13px",
-                        "color": COLORS['gray']['400'],
-                        "fontWeight": "500"
-                    })
-                ], style={
-                    "display": "flex",
-                    "justifyContent": "flex-end",
-                    "marginTop": "8px"
-                })
-            ], style={"width": "350px"}),
+                    html.Span(id='loading-countdown', children="0%")
+                ], className="loading-progress-text")
+            ], className="loading-progress-container"),
 
             # Tech footer
             html.Div([
                 html.Div([
-                    html.I(className="fas fa-database", style={
-                        "fontSize": "12px",
-                        "color": COLORS['gray']['600'],
-                        "marginRight": "6px"
-                    }),
-                    html.Span("SAP HANA", style={"marginRight": "16px"}),
-                    html.I(className="fas fa-cloud", style={
-                        "fontSize": "12px",
-                        "color": COLORS['gray']['600'],
-                        "marginRight": "6px"
-                    }),
-                    html.Span("Cloud Foundry", style={"marginRight": "16px"}),
-                    html.I(className="fas fa-bolt", style={
-                        "fontSize": "12px",
-                        "color": COLORS['gray']['600'],
-                        "marginRight": "6px"
-                    }),
+                    html.I(className="fas fa-database"),
+                    html.Span("SAP HANA")
+                ], className="loading-tech-item"),
+                html.Div([
+                    html.I(className="fas fa-cloud"),
+                    html.Span("Cloud Foundry")
+                ], className="loading-tech-item"),
+                html.Div([
+                    html.I(className="fas fa-bolt"),
                     html.Span("Real-time Analytics")
-                ], style={
-                    "fontSize": "11px",
-                    "color": COLORS['gray']['600'],
-                    "display": "flex",
-                    "alignItems": "center",
-                    "justifyContent": "center"
-                })
-            ], style={"marginTop": "48px"})
+                ], className="loading-tech-item")
+            ], className="loading-tech-footer")
 
         ], style={
             "textAlign": "center",
@@ -1317,17 +1184,7 @@ def create_loading_screen():
             "zIndex": "1"
         })
     ], id='loading-screen', style={
-        "position": "fixed",
-        "top": "0",
-        "left": "0",
-        "right": "0",
-        "bottom": "0",
-        "background": "linear-gradient(135deg, #0a0f1a 0%, #0f172a 50%, #0c1929 100%)",
-        "display": "none",
-        "alignItems": "center",
-        "justifyContent": "center",
-        "zIndex": "9999",
-        "overflow": "hidden"
+        "display": "none"
     })
 
 #==============================================================================
@@ -1446,18 +1303,8 @@ def handle_onboarding_submit(launch_clicks, test_clicks, company_name, industry,
 
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
-    loading_style = {
-        "position": "fixed",
-        "top": "0",
-        "left": "0",
-        "right": "0",
-        "bottom": "0",
-        "background": f"linear-gradient(135deg, {COLORS['gray']['900']} 0%, {COLORS['gray']['800']} 50%, #1e3a5f 100%)",
-        "display": "flex",
-        "alignItems": "center",
-        "justifyContent": "center",
-        "zIndex": "9999"
-    }
+    # Loading screen style - CSS handles the rest
+    loading_style = {"display": "flex"}
 
     if triggered_id == 'btn-use-test-data':
         # Load test data from Kt.json
@@ -1562,15 +1409,8 @@ def update_loading_screen(n_intervals, user_data):
     total_intervals = 10
     progress = min((n_intervals / total_intervals) * 100, 100)
 
-    # Gradient progress bar style
-    progress_style = {
-        "width": f"{progress}%",
-        "height": "100%",
-        "background": f"linear-gradient(90deg, {COLORS['primary']}, #22c55e)",
-        "borderRadius": "4px",
-        "transition": "width 0.4s ease",
-        "boxShadow": f"0 0 20px {COLORS['primary']}"
-    }
+    # Progress bar style - just update width, CSS handles the rest
+    progress_style = {"width": f"{progress}%"}
 
     # Show percentage
     percentage_text = f"{int(progress)}%"
@@ -1602,8 +1442,7 @@ def render_sidebar(collapsed, dark_mode):
 # Sidebar toggle callback
 @app.callback(
     [Output('sidebar-collapsed-store', 'data'),
-     Output('sidebar-toggle-icon', 'className'),
-     Output('main-content', 'className')],
+     Output('sidebar-toggle-icon', 'className')],
     [Input('sidebar-toggle-btn', 'n_clicks')],
     [State('sidebar-collapsed-store', 'data')]
 )
@@ -1611,9 +1450,27 @@ def toggle_sidebar(n, collapsed):
     if n:
         new_collapsed = not collapsed
         icon = "fas fa-chevron-right" if new_collapsed else "fas fa-chevron-left"
-        main_class = "main-content sidebar-collapsed" if new_collapsed else "main-content sidebar-expanded"
-        return new_collapsed, icon, main_class
-    return collapsed, "fas fa-chevron-left", "main-content sidebar-expanded"
+        return new_collapsed, icon
+    return collapsed, "fas fa-chevron-left"
+
+# Main content class update (combines sidebar state and dark mode)
+@app.callback(
+    Output('main-content', 'className'),
+    [Input('sidebar-collapsed-store', 'data'),
+     Input('dark-mode-store', 'data')]
+)
+def update_main_content_class(collapsed, dark_mode):
+    sidebar_class = "sidebar-collapsed" if collapsed else "sidebar-expanded"
+    dark_class = " dark-mode" if dark_mode else ""
+    return f"main-content {sidebar_class}{dark_class}"
+
+# Dashboard container class update for dark mode
+@app.callback(
+    Output('dashboard-container', 'className'),
+    [Input('dark-mode-store', 'data')]
+)
+def update_dashboard_class(dark_mode):
+    return "dark-mode" if dark_mode else ""
 
 # System status toggle callback with state store
 @app.callback(

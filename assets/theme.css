@@ -1,0 +1,418 @@
+/* ========================================
+   CFO PULSE - LIGHT & DARK THEME SYSTEM
+   Consistent theming across all components
+   ======================================== */
+
+/* ----------------------------------------
+   CSS Custom Properties (Variables)
+   ---------------------------------------- */
+
+/* Light Mode (Default) */
+:root {
+    /* Background Colors */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8fafc;
+    --bg-tertiary: #f1f5f9;
+    --bg-card: #ffffff;
+    --bg-hover: #f1f5f9;
+    
+    /* Text Colors */
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-tertiary: #64748b;
+    --text-muted: #94a3b8;
+    
+    /* Border Colors */
+    --border-primary: #e2e8f0;
+    --border-secondary: #cbd5e1;
+    --border-hover: #94a3b8;
+    
+    /* Accent Colors (same in both modes) */
+    --accent-primary: #3b82f6;
+    --accent-success: #22c55e;
+    --accent-warning: #f59e0b;
+    --accent-danger: #ef4444;
+    --accent-info: #06b6d4;
+    --accent-purple: #8b5cf6;
+    
+    /* Shadow */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.1);
+    
+    /* Chart Colors */
+    --chart-bg: #ffffff;
+    --chart-grid: #e2e8f0;
+    --chart-text: #64748b;
+}
+
+/* Dark Mode */
+.dark-mode,
+[data-theme="dark"] {
+    --bg-primary: #0f172a;
+    --bg-secondary: #1e293b;
+    --bg-tertiary: #334155;
+    --bg-card: #1e293b;
+    --bg-hover: #334155;
+    
+    --text-primary: #f1f5f9;
+    --text-secondary: #cbd5e1;
+    --text-tertiary: #94a3b8;
+    --text-muted: #64748b;
+    
+    --border-primary: #334155;
+    --border-secondary: #475569;
+    --border-hover: #64748b;
+    
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+    --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.3);
+    
+    --chart-bg: #1e293b;
+    --chart-grid: #334155;
+    --chart-text: #94a3b8;
+}
+
+/* ----------------------------------------
+   Global Styles
+   ---------------------------------------- */
+
+body {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ----------------------------------------
+   Cards
+   ---------------------------------------- */
+
+.card,
+.dbc-card {
+    background-color: var(--bg-card) !important;
+    border-color: var(--border-primary) !important;
+    box-shadow: var(--shadow-card);
+    transition: all 0.2s ease;
+}
+
+.card:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.card-header {
+    background-color: var(--bg-secondary) !important;
+    border-bottom-color: var(--border-primary) !important;
+    color: var(--text-primary);
+}
+
+.card-body {
+    background-color: var(--bg-card);
+    color: var(--text-primary);
+}
+
+.card-title {
+    color: var(--text-primary) !important;
+}
+
+.card-text {
+    color: var(--text-secondary) !important;
+}
+
+/* ----------------------------------------
+   Typography
+   ---------------------------------------- */
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--text-primary);
+}
+
+p {
+    color: var(--text-secondary);
+}
+
+.text-muted {
+    color: var(--text-muted) !important;
+}
+
+small, .small {
+    color: var(--text-tertiary) !important;
+}
+
+/* ----------------------------------------
+   Form Controls
+   ---------------------------------------- */
+
+input, 
+textarea,
+select {
+    background-color: var(--bg-secondary) !important;
+    border-color: var(--border-primary) !important;
+    color: var(--text-primary) !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+    border-color: var(--accent-primary) !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+}
+
+input::placeholder {
+    color: var(--text-muted) !important;
+}
+
+/* Dash Dropdowns */
+.Select-control {
+    background-color: var(--bg-secondary) !important;
+    border-color: var(--border-primary) !important;
+}
+
+.Select-menu-outer {
+    background-color: var(--bg-card) !important;
+    border-color: var(--border-primary) !important;
+}
+
+.Select-option {
+    background-color: var(--bg-card) !important;
+    color: var(--text-primary) !important;
+}
+
+.Select-option:hover,
+.Select-option.is-focused {
+    background-color: var(--bg-hover) !important;
+}
+
+.Select-value-label {
+    color: var(--text-primary) !important;
+}
+
+.Select-placeholder {
+    color: var(--text-muted) !important;
+}
+
+/* ----------------------------------------
+   Buttons
+   ---------------------------------------- */
+
+.btn-light {
+    background-color: var(--bg-secondary) !important;
+    border-color: var(--border-primary) !important;
+    color: var(--text-primary) !important;
+}
+
+.btn-light:hover {
+    background-color: var(--bg-hover) !important;
+    border-color: var(--border-secondary) !important;
+}
+
+/* ----------------------------------------
+   Tables
+   ---------------------------------------- */
+
+table {
+    background-color: var(--bg-card);
+    color: var(--text-primary);
+}
+
+th {
+    background-color: var(--bg-secondary) !important;
+    color: var(--text-secondary) !important;
+    border-color: var(--border-primary) !important;
+}
+
+td {
+    border-color: var(--border-primary) !important;
+    color: var(--text-primary);
+}
+
+tr:hover {
+    background-color: var(--bg-hover) !important;
+}
+
+/* ----------------------------------------
+   Sidebar Theme Overrides
+   ---------------------------------------- */
+
+.sidebar {
+    background-color: var(--bg-card);
+    border-right-color: var(--border-primary);
+}
+
+.sidebar-logo-text {
+    color: var(--text-primary);
+}
+
+.sidebar-nav-item {
+    color: var(--text-secondary);
+}
+
+.sidebar-nav-item:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.sidebar-nav-item.active {
+    background-color: rgba(59, 130, 246, 0.1);
+    color: var(--accent-primary);
+}
+
+.sidebar-toggle {
+    background-color: var(--bg-secondary);
+    color: var(--text-secondary);
+}
+
+.sidebar-toggle:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.sidebar-footer {
+    border-top-color: var(--border-primary);
+}
+
+.sidebar-footer-item {
+    color: var(--text-secondary);
+}
+
+.sidebar-footer-item:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+/* ----------------------------------------
+   Dashboard Header
+   ---------------------------------------- */
+
+.dashboard-header {
+    background-color: var(--bg-card);
+    border-bottom-color: var(--border-primary);
+}
+
+/* ----------------------------------------
+   KPI Cards
+   ---------------------------------------- */
+
+.kpi-card {
+    background-color: var(--bg-card);
+    border-color: var(--border-primary);
+}
+
+.kpi-card:hover {
+    border-color: var(--accent-primary);
+    box-shadow: var(--shadow-md);
+}
+
+.kpi-card .kpi-value {
+    color: var(--text-primary);
+}
+
+.kpi-card .kpi-label {
+    color: var(--text-secondary);
+}
+
+/* ----------------------------------------
+   Charts - Plotly Override
+   ---------------------------------------- */
+
+.js-plotly-plot .plotly .main-svg {
+    background-color: var(--chart-bg) !important;
+}
+
+/* ----------------------------------------
+   Tabs
+   ---------------------------------------- */
+
+.nav-tabs {
+    border-bottom-color: var(--border-primary) !important;
+}
+
+.nav-tabs .nav-link {
+    color: var(--text-secondary) !important;
+}
+
+.nav-tabs .nav-link:hover {
+    color: var(--text-primary) !important;
+    border-bottom-color: var(--border-secondary) !important;
+}
+
+.nav-tabs .nav-link.active {
+    color: var(--accent-primary) !important;
+    border-bottom-color: var(--accent-primary) !important;
+    background-color: transparent !important;
+}
+
+/* ----------------------------------------
+   Scrollbar (Light Mode)
+   ---------------------------------------- */
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-secondary);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
+/* ----------------------------------------
+   Footer
+   ---------------------------------------- */
+
+footer {
+    background-color: var(--bg-secondary);
+    border-top-color: var(--border-primary);
+    color: var(--text-secondary);
+}
+
+footer a {
+    color: var(--text-tertiary);
+}
+
+footer a:hover {
+    color: var(--accent-primary);
+}
+
+/* ----------------------------------------
+   Utility Classes
+   ---------------------------------------- */
+
+.bg-card {
+    background-color: var(--bg-card);
+}
+
+.bg-secondary {
+    background-color: var(--bg-secondary) !important;
+}
+
+.border-primary {
+    border-color: var(--border-primary) !important;
+}
+
+.text-primary-theme {
+    color: var(--text-primary);
+}
+
+.text-secondary-theme {
+    color: var(--text-secondary);
+}
+
+/* ----------------------------------------
+   Responsive Adjustments
+   ---------------------------------------- */
+
+@media (max-width: 768px) {
+    .sidebar {
+        box-shadow: var(--shadow-lg);
+    }
+}
