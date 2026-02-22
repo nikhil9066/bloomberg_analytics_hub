@@ -1943,35 +1943,39 @@ def create_kpi_card(kpi, view_mode, dark_mode):
         target_display = f"${kpi['target']/1000000:.1f}M"
         user_value_display = f"${kpi.get('user_value', 0)/1000000:.1f}M"
 
-    # Create sparkline chart
+    # Create sparkline chart with improved visibility
+    sparkline_color = COLORS['success'] if is_good else COLORS['danger']
+    sparkline_fill = 'rgba(16, 185, 129, 0.15)' if is_good else 'rgba(239, 68, 68, 0.15)'
+    
     sparkline_fig = go.Figure()
     sparkline_fig.add_trace(go.Scatter(
         y=kpi['sparkline'],
+        x=list(range(len(kpi['sparkline']))),
         mode='lines',
-        line=dict(color=COLORS['success'] if is_good else COLORS['danger'], width=2),
+        line=dict(color=sparkline_color, width=2.5, shape='spline'),
         fill='tozeroy',
-        fillcolor=f"rgba({'16, 185, 129' if is_good else '239, 68, 68'}, 0.1)"
+        fillcolor=sparkline_fill,
+        hoverinfo='skip'
     ))
     sparkline_fig.update_layout(
         showlegend=False,
-        xaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
-        yaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
-        margin=dict(l=0, r=0, t=0, b=0),
-        height=64,
+        xaxis=dict(showgrid=False, showticklabels=False, zeroline=False, fixedrange=True),
+        yaxis=dict(showgrid=False, showticklabels=False, zeroline=False, fixedrange=True),
+        margin=dict(l=0, r=0, t=4, b=4),
+        height=70,
         plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)'
+        paper_bgcolor='rgba(0,0,0,0)',
+        hovermode=False
     )
 
     # Progress to target
     progress = (kpi['value'] / kpi['target']) * 100
 
+    # Let CSS handle background colors for proper dark/light mode
     card_style = {
-        "backgroundColor": COLORS['gray']['800'] if dark_mode else "#ffffff",
-        "border": f"1px solid {COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']}",
         "borderRadius": "12px",
         "padding": "24px",
         "position": "relative",
-        "transition": "box-shadow 0.3s",
         "cursor": "pointer"
     }
 
@@ -2013,9 +2017,8 @@ def create_kpi_card(kpi, view_mode, dark_mode):
                     html.H3(kpi['name'], style={
                         "fontSize": "16px",
                         "fontWeight": "500",
-                        "margin": "0",
-                        "color": COLORS['gray']['200'] if dark_mode else COLORS['gray']['900']
-                    }),
+                        "margin": "0"
+                    }, className="text-primary-theme"),
                     # Comparison arrow: Your company vs Average
                     html.Div([
                         html.I(className=f"fas fa-arrow-{'up' if is_good else 'down'}",
@@ -2034,20 +2037,17 @@ def create_kpi_card(kpi, view_mode, dark_mode):
         html.Div([
             html.Div([
                 html.Span("Competitor Avg: ", style={
-                    "fontSize": "14px",
-                    "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['500']
-                }),
+                    "fontSize": "14px"
+                }, className="text-secondary-theme"),
                 html.Span(value_display, style={
                     "fontSize": "28px",
-                    "fontWeight": "700",
-                    "color": COLORS['gray']['100'] if dark_mode else COLORS['gray']['900']
-                })
+                    "fontWeight": "700"
+                }, className="text-primary-theme")
             ], style={"marginBottom": "8px"}),
             html.Div([
                 html.Span("Your Company: ", style={
-                    "fontSize": "13px",
-                    "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['500']
-                }),
+                    "fontSize": "13px"
+                }, className="text-secondary-theme"),
                 html.Span(user_value_display, style={
                     "fontSize": "16px",
                     "fontWeight": "600",
@@ -2065,14 +2065,12 @@ def create_kpi_card(kpi, view_mode, dark_mode):
         html.Div([
             html.Div([
                 html.Span("Progress to Target", style={
-                    "fontSize": "13px",
-                    "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600']
-                }),
+                    "fontSize": "13px"
+                }, className="text-secondary-theme"),
                 html.Span(f"{progress:.0f}%", style={
                     "fontSize": "13px",
-                    "fontWeight": "600",
-                    "color": COLORS['gray']['200'] if dark_mode else COLORS['gray']['900']
-                })
+                    "fontWeight": "600"
+                }, className="text-primary-theme")
             ], style={"display": "flex", "justifyContent": "space-between", "marginBottom": "8px"}),
             dbc.Progress(value=progress, style={"height": "8px"},
                         color="success" if progress >= 95 else "warning" if progress >= 80 else "danger")
@@ -2081,16 +2079,16 @@ def create_kpi_card(kpi, view_mode, dark_mode):
         # Bifurcation view
         html.Div([
             html.Div([
-                html.Span("Actual", style={"fontSize": "13px", "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600']}),
+                html.Span("Actual", style={"fontSize": "13px"}, className="text-secondary-theme"),
                 html.Span(value_display, style={"fontSize": "13px", "fontWeight": "600", "color": COLORS['success']})
             ], style={"display": "flex", "justifyContent": "space-between", "marginBottom": "8px"}),
             html.Div([
-                html.Span("Budget", style={"fontSize": "13px", "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600']}),
+                html.Span("Budget", style={"fontSize": "13px"}, className="text-secondary-theme"),
                 html.Span(f"${kpi['target']*0.95/1000000:.1f}M" if not kpi.get('is_percentage') else f"{kpi['target']*0.95:.1f}%",
                          style={"fontSize": "13px", "fontWeight": "600", "color": COLORS['primary']})
             ], style={"display": "flex", "justifyContent": "space-between", "marginBottom": "8px"}),
             html.Div([
-                html.Span("Variance", style={"fontSize": "13px", "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600']}),
+                html.Span("Variance", style={"fontSize": "13px"}, className="text-secondary-theme"),
                 html.Span(f"+${(kpi['value'] - kpi['target']*0.95)/1000000:.1f}M" if not kpi.get('is_percentage') else f"+{kpi['value'] - kpi['target']*0.95:.1f}%",
                          style={"fontSize": "13px", "fontWeight": "600", "color": COLORS['success'] if kpi['change'] >= 0 else COLORS['danger']})
             ], style={"display": "flex", "justifyContent": "space-between"})

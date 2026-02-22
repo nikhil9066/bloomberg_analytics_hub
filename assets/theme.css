@@ -1,6 +1,6 @@
 /* ========================================
-   CFO PULSE - LIGHT & DARK THEME SYSTEM
-   Consistent theming across all components
+   CFO PULSE - COMPREHENSIVE THEME SYSTEM
+   Dark/Light Mode + Animations + Micro-interactions
    ======================================== */
 
 /* ----------------------------------------
@@ -15,6 +15,7 @@
     --bg-tertiary: #f1f5f9;
     --bg-card: #ffffff;
     --bg-hover: #f1f5f9;
+    --bg-sidebar: #ffffff;
     
     /* Text Colors */
     --text-primary: #0f172a;
@@ -40,21 +41,31 @@
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --shadow-card-hover: 0 8px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
     
     /* Chart Colors */
-    --chart-bg: #ffffff;
+    --chart-bg: transparent;
     --chart-grid: #e2e8f0;
     --chart-text: #64748b;
+    --chart-line: #3b82f6;
+    
+    /* Animation timing */
+    --transition-fast: 0.15s ease;
+    --transition-normal: 0.3s ease;
+    --transition-slow: 0.5s ease;
+    --transition-bounce: 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 
-/* Dark Mode */
+/* Dark Mode - Applied to body or dashboard-container */
 .dark-mode,
-[data-theme="dark"] {
+[data-theme="dark"],
+body.dark-mode {
     --bg-primary: #0f172a;
     --bg-secondary: #1e293b;
     --bg-tertiary: #334155;
     --bg-card: #1e293b;
     --bg-hover: #334155;
+    --bg-sidebar: #1e293b;
     
     --text-primary: #f1f5f9;
     --text-secondary: #cbd5e1;
@@ -69,24 +80,177 @@
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
     --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --shadow-card-hover: 0 8px 25px -5px rgba(0, 0, 0, 0.4);
     
-    --chart-bg: #1e293b;
+    --chart-bg: transparent;
     --chart-grid: #334155;
     --chart-text: #94a3b8;
 }
 
 /* ----------------------------------------
-   Global Styles
+   Page Transition Animations
    ---------------------------------------- */
 
-body {
-    background-color: var(--bg-secondary);
-    color: var(--text-primary);
-    transition: background-color 0.3s ease, color 0.3s ease;
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+@keyframes countUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+}
+
+@keyframes glow {
+    0%, 100% { box-shadow: 0 0 5px rgba(59, 130, 246, 0.2); }
+    50% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.4); }
 }
 
 /* ----------------------------------------
-   Cards
+   Global Styles with Transitions
+   ---------------------------------------- */
+
+body {
+    background-color: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+    transition: background-color var(--transition-normal), color var(--transition-normal);
+}
+
+/* Main content area */
+.main-content {
+    background-color: var(--bg-secondary) !important;
+    transition: background-color var(--transition-normal);
+    animation: fadeIn 0.4s ease-out;
+}
+
+/* Dashboard container - critical for dark mode */
+#dashboard-container,
+.dashboard-container,
+[id*="dashboard"] {
+    background-color: var(--bg-secondary) !important;
+    color: var(--text-primary);
+    transition: all var(--transition-normal);
+}
+
+.dark-mode #dashboard-container,
+.dark-mode .dashboard-container {
+    background-color: var(--bg-primary) !important;
+}
+
+/* ----------------------------------------
+   KPI Cards - Override Inline Styles
+   ---------------------------------------- */
+
+/* Force KPI card backgrounds - use !important to override inline styles */
+.kpi-card-hover,
+[class*="kpi-card"],
+.card.kpi-card-hover {
+    background-color: var(--bg-card) !important;
+    border: 1px solid var(--border-primary) !important;
+    border-radius: 12px !important;
+    transition: all var(--transition-normal) !important;
+    animation: fadeInUp 0.5s ease-out both;
+}
+
+/* Staggered animation for KPI cards */
+.kpi-card-hover:nth-child(1) { animation-delay: 0.05s; }
+.kpi-card-hover:nth-child(2) { animation-delay: 0.1s; }
+.kpi-card-hover:nth-child(3) { animation-delay: 0.15s; }
+.kpi-card-hover:nth-child(4) { animation-delay: 0.2s; }
+.kpi-card-hover:nth-child(5) { animation-delay: 0.25s; }
+.kpi-card-hover:nth-child(6) { animation-delay: 0.3s; }
+
+/* KPI card hover effect */
+.kpi-card-hover:hover {
+    transform: translateY(-4px) !important;
+    box-shadow: var(--shadow-card-hover) !important;
+    border-color: var(--accent-primary) !important;
+}
+
+/* Value highlight animation on change */
+.kpi-value-highlight {
+    animation: countUp 0.6s ease-out, glow 2s ease-in-out;
+}
+
+/* Dark mode KPI cards */
+.dark-mode .kpi-card-hover,
+.dark-mode [class*="kpi-card"],
+.dark-mode .card.kpi-card-hover {
+    background-color: var(--bg-card) !important;
+    border-color: var(--border-primary) !important;
+}
+
+/* ----------------------------------------
+   Cards - General
    ---------------------------------------- */
 
 .card,
@@ -94,7 +258,8 @@ body {
     background-color: var(--bg-card) !important;
     border-color: var(--border-primary) !important;
     box-shadow: var(--shadow-card);
-    transition: all 0.2s ease;
+    transition: all var(--transition-normal);
+    animation: scaleIn 0.4s ease-out;
 }
 
 .card:hover {
@@ -104,12 +269,12 @@ body {
 .card-header {
     background-color: var(--bg-secondary) !important;
     border-bottom-color: var(--border-primary) !important;
-    color: var(--text-primary);
+    color: var(--text-primary) !important;
 }
 
 .card-body {
-    background-color: var(--bg-card);
-    color: var(--text-primary);
+    background-color: var(--bg-card) !important;
+    color: var(--text-primary) !important;
 }
 
 .card-title {
@@ -121,15 +286,135 @@ body {
 }
 
 /* ----------------------------------------
+   Skeleton Loaders with Shimmer
+   ---------------------------------------- */
+
+.skeleton {
+    background: linear-gradient(
+        90deg,
+        var(--bg-tertiary) 25%,
+        var(--bg-hover) 50%,
+        var(--bg-tertiary) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    border-radius: 8px;
+}
+
+.skeleton-text {
+    height: 16px;
+    margin-bottom: 8px;
+    width: 100%;
+}
+
+.skeleton-text.short {
+    width: 60%;
+}
+
+.skeleton-title {
+    height: 24px;
+    width: 40%;
+    margin-bottom: 16px;
+}
+
+.skeleton-chart {
+    height: 200px;
+    width: 100%;
+}
+
+.skeleton-card {
+    height: 180px;
+    width: 100%;
+    border-radius: 12px;
+}
+
+/* Dark mode skeleton */
+.dark-mode .skeleton {
+    background: linear-gradient(
+        90deg,
+        var(--bg-tertiary) 25%,
+        #475569 50%,
+        var(--bg-tertiary) 75%
+    );
+    background-size: 200% 100%;
+}
+
+/* ----------------------------------------
+   Data Refresh Visual Feedback
+   ---------------------------------------- */
+
+.refreshing {
+    position: relative;
+    pointer-events: none;
+}
+
+.refreshing::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(59, 130, 246, 0.1) 50%,
+        transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1s ease-in-out infinite;
+    border-radius: inherit;
+    z-index: 10;
+}
+
+.refresh-indicator {
+    animation: pulse 1s ease-in-out infinite;
+}
+
+.refresh-spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* ----------------------------------------
+   Chart Entry Animations
+   ---------------------------------------- */
+
+.js-plotly-plot {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+/* Plotly chart backgrounds - transparent to inherit card background */
+.js-plotly-plot .plotly .main-svg,
+.js-plotly-plot .plotly .bg {
+    fill: transparent !important;
+}
+
+/* Ensure chart text is visible */
+.js-plotly-plot .plotly text {
+    fill: var(--chart-text) !important;
+}
+
+/* Chart grid lines */
+.js-plotly-plot .plotly .gridlayer line {
+    stroke: var(--chart-grid) !important;
+}
+
+/* ----------------------------------------
    Typography
    ---------------------------------------- */
 
 h1, h2, h3, h4, h5, h6 {
-    color: var(--text-primary);
+    color: var(--text-primary) !important;
+    transition: color var(--transition-normal);
 }
 
-p {
-    color: var(--text-secondary);
+p, span, div {
+    transition: color var(--transition-normal);
 }
 
 .text-muted {
@@ -150,6 +435,7 @@ select {
     background-color: var(--bg-secondary) !important;
     border-color: var(--border-primary) !important;
     color: var(--text-primary) !important;
+    transition: all var(--transition-fast);
 }
 
 input:focus,
@@ -157,6 +443,7 @@ textarea:focus,
 select:focus {
     border-color: var(--accent-primary) !important;
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+    outline: none;
 }
 
 input::placeholder {
@@ -167,16 +454,23 @@ input::placeholder {
 .Select-control {
     background-color: var(--bg-secondary) !important;
     border-color: var(--border-primary) !important;
+    transition: all var(--transition-fast);
+}
+
+.Select-control:hover {
+    border-color: var(--border-hover) !important;
 }
 
 .Select-menu-outer {
     background-color: var(--bg-card) !important;
     border-color: var(--border-primary) !important;
+    animation: fadeIn 0.2s ease-out;
 }
 
 .Select-option {
     background-color: var(--bg-card) !important;
     color: var(--text-primary) !important;
+    transition: background-color var(--transition-fast);
 }
 
 .Select-option:hover,
@@ -193,8 +487,32 @@ input::placeholder {
 }
 
 /* ----------------------------------------
-   Buttons
+   Buttons with Micro-interactions
    ---------------------------------------- */
+
+button, .btn {
+    transition: all var(--transition-fast);
+    position: relative;
+    overflow: hidden;
+}
+
+button:hover, .btn:hover {
+    transform: translateY(-1px);
+}
+
+button:active, .btn:active {
+    transform: translateY(0) scale(0.98);
+}
+
+.btn-primary {
+    background-color: var(--accent-primary) !important;
+    border-color: var(--accent-primary) !important;
+}
+
+.btn-primary:hover {
+    filter: brightness(1.1);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
 
 .btn-light {
     background-color: var(--bg-secondary) !important;
@@ -207,13 +525,37 @@ input::placeholder {
     border-color: var(--border-secondary) !important;
 }
 
+/* Button ripple effect */
+.btn-ripple {
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-ripple::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.6s ease, height 0.6s ease;
+}
+
+.btn-ripple:active::after {
+    width: 300px;
+    height: 300px;
+}
+
 /* ----------------------------------------
-   Tables
+   Tables with Animations
    ---------------------------------------- */
 
 table {
-    background-color: var(--bg-card);
-    color: var(--text-primary);
+    background-color: var(--bg-card) !important;
+    color: var(--text-primary) !important;
 }
 
 th {
@@ -224,61 +566,104 @@ th {
 
 td {
     border-color: var(--border-primary) !important;
-    color: var(--text-primary);
+    color: var(--text-primary) !important;
+    transition: background-color var(--transition-fast);
+}
+
+tr {
+    transition: background-color var(--transition-fast);
 }
 
 tr:hover {
     background-color: var(--bg-hover) !important;
 }
 
+/* Row entry animation */
+tbody tr {
+    animation: fadeInUp 0.3s ease-out both;
+}
+
+tbody tr:nth-child(1) { animation-delay: 0.05s; }
+tbody tr:nth-child(2) { animation-delay: 0.1s; }
+tbody tr:nth-child(3) { animation-delay: 0.15s; }
+tbody tr:nth-child(4) { animation-delay: 0.2s; }
+tbody tr:nth-child(5) { animation-delay: 0.25s; }
+
 /* ----------------------------------------
-   Sidebar Theme Overrides
+   Sidebar
    ---------------------------------------- */
 
 .sidebar {
-    background-color: var(--bg-card);
-    border-right-color: var(--border-primary);
+    background-color: var(--bg-sidebar) !important;
+    border-right-color: var(--border-primary) !important;
+    transition: all var(--transition-normal);
+}
+
+.dark-mode .sidebar,
+.sidebar.dark-mode {
+    background-color: var(--bg-card) !important;
+    border-right-color: var(--border-primary) !important;
 }
 
 .sidebar-logo-text {
-    color: var(--text-primary);
+    color: var(--text-primary) !important;
 }
 
 .sidebar-nav-item {
-    color: var(--text-secondary);
+    color: var(--text-secondary) !important;
+    transition: all var(--transition-fast);
+    position: relative;
+}
+
+.sidebar-nav-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background-color: var(--accent-primary);
+    transform: scaleY(0);
+    transition: transform var(--transition-fast);
 }
 
 .sidebar-nav-item:hover {
-    background-color: var(--bg-hover);
-    color: var(--text-primary);
+    background-color: var(--bg-hover) !important;
+    color: var(--text-primary) !important;
 }
 
 .sidebar-nav-item.active {
-    background-color: rgba(59, 130, 246, 0.1);
-    color: var(--accent-primary);
+    background-color: rgba(59, 130, 246, 0.1) !important;
+    color: var(--accent-primary) !important;
+}
+
+.sidebar-nav-item.active::before {
+    transform: scaleY(1);
 }
 
 .sidebar-toggle {
-    background-color: var(--bg-secondary);
-    color: var(--text-secondary);
+    background-color: var(--bg-secondary) !important;
+    color: var(--text-secondary) !important;
+    transition: all var(--transition-fast);
 }
 
 .sidebar-toggle:hover {
-    background-color: var(--bg-hover);
-    color: var(--text-primary);
+    background-color: var(--bg-hover) !important;
+    color: var(--text-primary) !important;
+    transform: scale(1.05);
 }
 
 .sidebar-footer {
-    border-top-color: var(--border-primary);
+    border-top-color: var(--border-primary) !important;
 }
 
 .sidebar-footer-item {
-    color: var(--text-secondary);
+    color: var(--text-secondary) !important;
 }
 
 .sidebar-footer-item:hover {
-    background-color: var(--bg-hover);
-    color: var(--text-primary);
+    background-color: var(--bg-hover) !important;
+    color: var(--text-primary) !important;
 }
 
 /* ----------------------------------------
@@ -286,42 +671,19 @@ tr:hover {
    ---------------------------------------- */
 
 .dashboard-header {
-    background-color: var(--bg-card);
-    border-bottom-color: var(--border-primary);
+    background-color: var(--bg-card) !important;
+    border-bottom-color: var(--border-primary) !important;
+    animation: slideInLeft 0.5s ease-out;
+}
+
+/* Header title */
+.dashboard-header h1,
+.dashboard-header h2 {
+    animation: fadeInUp 0.6s ease-out 0.2s both;
 }
 
 /* ----------------------------------------
-   KPI Cards
-   ---------------------------------------- */
-
-.kpi-card {
-    background-color: var(--bg-card);
-    border-color: var(--border-primary);
-}
-
-.kpi-card:hover {
-    border-color: var(--accent-primary);
-    box-shadow: var(--shadow-md);
-}
-
-.kpi-card .kpi-value {
-    color: var(--text-primary);
-}
-
-.kpi-card .kpi-label {
-    color: var(--text-secondary);
-}
-
-/* ----------------------------------------
-   Charts - Plotly Override
-   ---------------------------------------- */
-
-.js-plotly-plot .plotly .main-svg {
-    background-color: var(--chart-bg) !important;
-}
-
-/* ----------------------------------------
-   Tabs
+   Tabs with Animations
    ---------------------------------------- */
 
 .nav-tabs {
@@ -330,21 +692,50 @@ tr:hover {
 
 .nav-tabs .nav-link {
     color: var(--text-secondary) !important;
+    transition: all var(--transition-fast);
+    position: relative;
+}
+
+.nav-tabs .nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background-color: var(--accent-primary);
+    transition: all var(--transition-fast);
+    transform: translateX(-50%);
 }
 
 .nav-tabs .nav-link:hover {
     color: var(--text-primary) !important;
-    border-bottom-color: var(--border-secondary) !important;
+}
+
+.nav-tabs .nav-link:hover::after {
+    width: 50%;
 }
 
 .nav-tabs .nav-link.active {
     color: var(--accent-primary) !important;
-    border-bottom-color: var(--accent-primary) !important;
     background-color: transparent !important;
 }
 
+.nav-tabs .nav-link.active::after {
+    width: 100%;
+}
+
+/* Tab content transition */
+.tab-content {
+    animation: fadeIn 0.3s ease-out;
+}
+
+.tab-pane {
+    animation: fadeInUp 0.4s ease-out;
+}
+
 /* ----------------------------------------
-   Scrollbar (Light Mode)
+   Scrollbar
    ---------------------------------------- */
 
 ::-webkit-scrollbar {
@@ -359,6 +750,7 @@ tr:hover {
 ::-webkit-scrollbar-thumb {
     background: var(--border-secondary);
     border-radius: 4px;
+    transition: background var(--transition-fast);
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -370,25 +762,191 @@ tr:hover {
    ---------------------------------------- */
 
 footer {
-    background-color: var(--bg-secondary);
-    border-top-color: var(--border-primary);
-    color: var(--text-secondary);
+    background-color: var(--bg-secondary) !important;
+    border-top-color: var(--border-primary) !important;
+    color: var(--text-secondary) !important;
+    animation: fadeIn 0.5s ease-out;
 }
 
 footer a {
-    color: var(--text-tertiary);
+    color: var(--text-tertiary) !important;
+    transition: color var(--transition-fast);
 }
 
 footer a:hover {
-    color: var(--accent-primary);
+    color: var(--accent-primary) !important;
 }
+
+/* ----------------------------------------
+   Alerts & Badges
+   ---------------------------------------- */
+
+.badge, .alert-badge {
+    animation: scaleIn 0.3s ease-out, pulse 2s ease-in-out 1s;
+}
+
+.alert-badge.danger {
+    background-color: var(--accent-danger) !important;
+}
+
+.alert-badge.warning {
+    background-color: var(--accent-warning) !important;
+}
+
+.alert-badge.success {
+    background-color: var(--accent-success) !important;
+}
+
+/* ----------------------------------------
+   Tooltips
+   ---------------------------------------- */
+
+.tooltip, [data-tooltip] {
+    animation: fadeIn 0.2s ease-out;
+}
+
+/* ----------------------------------------
+   Progress Bars
+   ---------------------------------------- */
+
+.progress {
+    background-color: var(--bg-tertiary) !important;
+    overflow: hidden;
+}
+
+.progress-bar {
+    transition: width 0.6s ease-out;
+    position: relative;
+}
+
+.progress-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.2) 50%,
+        transparent 100%
+    );
+    animation: shimmer 2s ease-in-out infinite;
+}
+
+/* ----------------------------------------
+   Modals
+   ---------------------------------------- */
+
+.modal-content {
+    background-color: var(--bg-card) !important;
+    border-color: var(--border-primary) !important;
+    animation: scaleIn 0.3s ease-out;
+}
+
+.modal-header {
+    border-bottom-color: var(--border-primary) !important;
+    color: var(--text-primary) !important;
+}
+
+.modal-footer {
+    border-top-color: var(--border-primary) !important;
+}
+
+/* Modal backdrop */
+.modal-backdrop {
+    animation: fadeIn 0.2s ease-out;
+}
+
+/* ----------------------------------------
+   Filter Pills / Chips
+   ---------------------------------------- */
+
+.filter-pill {
+    transition: all var(--transition-fast);
+}
+
+.filter-pill:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+}
+
+.filter-pill.active {
+    animation: pulse 0.3s ease-out;
+}
+
+/* ----------------------------------------
+   Status Indicators
+   ---------------------------------------- */
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.status-dot.online {
+    background-color: var(--accent-success);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.status-dot.offline {
+    background-color: var(--accent-danger);
+}
+
+.status-dot.pending {
+    background-color: var(--accent-warning);
+    animation: pulse 1s ease-in-out infinite;
+}
+
+/* ----------------------------------------
+   Number Counter Animation
+   ---------------------------------------- */
+
+.counter-animate {
+    display: inline-block;
+    animation: countUp 0.6s ease-out;
+}
+
+/* Value change indicators */
+.value-up {
+    color: var(--accent-success) !important;
+    animation: fadeInUp 0.4s ease-out;
+}
+
+.value-down {
+    color: var(--accent-danger) !important;
+    animation: fadeInUp 0.4s ease-out;
+}
+
+.value-changed {
+    animation: glow 1s ease-out;
+}
+
+/* ----------------------------------------
+   Section Containers
+   ---------------------------------------- */
+
+[id*="container"] {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+/* Stagger container animations */
+#kpi-grid-container { animation-delay: 0.1s; }
+#ai-insights-container { animation-delay: 0.15s; }
+#competitor-analysis-container { animation-delay: 0.2s; }
+#comparative-analysis-container { animation-delay: 0.25s; }
+#margin-bridge-container { animation-delay: 0.3s; }
+#advanced-charts-container { animation-delay: 0.35s; }
 
 /* ----------------------------------------
    Utility Classes
    ---------------------------------------- */
 
 .bg-card {
-    background-color: var(--bg-card);
+    background-color: var(--bg-card) !important;
 }
 
 .bg-secondary {
@@ -400,11 +958,48 @@ footer a:hover {
 }
 
 .text-primary-theme {
-    color: var(--text-primary);
+    color: var(--text-primary) !important;
 }
 
 .text-secondary-theme {
-    color: var(--text-secondary);
+    color: var(--text-secondary) !important;
+}
+
+/* Animation utilities */
+.animate-fade-in {
+    animation: fadeIn var(--transition-normal);
+}
+
+.animate-fade-up {
+    animation: fadeInUp var(--transition-normal);
+}
+
+.animate-slide-left {
+    animation: slideInLeft var(--transition-normal);
+}
+
+.animate-slide-right {
+    animation: slideInRight var(--transition-normal);
+}
+
+.animate-scale {
+    animation: scaleIn var(--transition-normal);
+}
+
+.animate-delay-1 { animation-delay: 0.1s; }
+.animate-delay-2 { animation-delay: 0.2s; }
+.animate-delay-3 { animation-delay: 0.3s; }
+.animate-delay-4 { animation-delay: 0.4s; }
+.animate-delay-5 { animation-delay: 0.5s; }
+
+/* Hover lift effect */
+.hover-lift {
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
 }
 
 /* ----------------------------------------
@@ -414,5 +1009,27 @@ footer a:hover {
 @media (max-width: 768px) {
     .sidebar {
         box-shadow: var(--shadow-lg);
+    }
+    
+    /* Reduce animation complexity on mobile */
+    .kpi-card-hover:hover {
+        transform: none !important;
+    }
+    
+    /* Faster animations on mobile */
+    :root {
+        --transition-normal: 0.2s ease;
+        --transition-slow: 0.3s ease;
+    }
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
     }
 }
