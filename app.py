@@ -24,6 +24,7 @@ from utils.advanced_charts import (
     example_treemap,
     example_funnel
 )
+from ml.ml_service import MLService
 
 # Initialize logging
 setup_logging()
@@ -73,20 +74,22 @@ server.config.update(
     SESSION_COOKIE_NAME='financial_dashboard_session'
 )
 
-# Initialize authentication service
+# Initialize authentication service and ML service
 auth_service = None
+ml_service = None
 hana_client = None
 try:
     from db.hana_client import HanaClient
     hana_client = HanaClient(config)
     if hana_client.connect():
         auth_service = AuthService(hana_client, config['hana']['schema'])
-        logger.info("Authentication service initialized successfully")
+        ml_service = MLService(hana_client)
+        logger.info("Authentication and ML services initialized successfully")
     else:
         logger.warning("HANA connection failed - authentication will not be available")
 except Exception as e:
-    logger.error(f"Failed to initialize authentication service: {e}")
-    logger.warning("Continuing without authentication service")
+    logger.error(f"Failed to initialize services: {e}")
+    logger.warning("Continuing without authentication/ML services")
 
 # Add redirect from root to login
 @server.route('/')
@@ -4042,60 +4045,557 @@ def update_tabbed_analytics(timestamp, dark_mode):
 @app.callback(
     Output('analytics-tab-content', 'children'),
     [Input('analytics-tabs', 'active_tab'),
-     Input('dark-mode-store', 'data')]
+     Input('dark-mode-store', 'data'),
+     Input('selected-competitors-store', 'data')]
 )
-def render_tab_content(active_tab, dark_mode):
-    """Render content for active tab"""
+def render_tab_content(active_tab, dark_mode, selected_competitors):
+    """Render ML-powered content for active tab"""
+    
+    # Styling based on dark mode
+    text_color = COLORS['gray']['100'] if dark_mode else COLORS['gray']['800']
+    bg_color = COLORS['gray']['800'] if dark_mode else '#ffffff'
+    card_bg = COLORS['gray']['700'] if dark_mode else COLORS['gray']['50']
+    
+    # Ensure we have selected companies
+    if not selected_competitors:
+        selected_competitors = ['NVDA', 'MSFT', 'GOOGL', 'META', 'AAPL']
+    
+    # Check if ML service is available
+    if ml_service is None:
+        return html.Div([
+            html.I(className="fas fa-exclamation-triangle", style={"fontSize": "48px", "color": COLORS['warning']}),
+            html.P("ML Service not available. Please check HANA connection.", 
+                   style={"color": text_color, "marginTop": "16px"})
+        ], style={"textAlign": "center", "padding": "60px"})
 
+    # ==================== RATIO ANALYZER ====================
     if active_tab == "ratio-analyzer":
-        # Create ratio analysis visualization
-        fig = go.Figure()
-        categories = ['Liquidity', 'Profitability', 'Efficiency', 'Leverage']
-        values = [85, 92, 78, 88]
+        try:
+            data = ml_service.analyze_ratios(selected_competitors)
+            
+            if "error" in data or not data.get("companies"):
+                return _render_no_data_message("Ratio Analyzer", dark_mode)
+            
+            companies = data["companies"]
+            cluster_labels = data.get("cluster_labels", [])
+            
+            # Create radar chart for top company
+            if companies:
+                top_company = companies[0]
+                ratio_scores = top_company.get('ratio_scores', {})
+                
+                # Radar chart
+                categories = list(ratio_scores.keys())[:8]  # Limit to 8 for readability
+                values = [ratio_scores.get(c, 0) for c in categories]
+                
+                fig_radar = go.Figure()
+                fig_radar.add_trace(go.Scatterpolar(
+                    r=values + [values[0]],  # Close the polygon
+                    theta=categories + [categories[0]],
+                    fill='toself',
+                    fillcolor=f"rgba(99, 102, 241, 0.3)",
+                    line=dict(color=COLORS['primary'], width=2),
+                    name=top_company['ticker']
+                ))
+                
+                fig_radar.update_layout(
+                    polar=dict(
+                        radialaxis=dict(visible=True, range=[0, 100], tickfont=dict(color=text_color)),
+                        angularaxis=dict(tickfont=dict(color=text_color))
+                    ),
+                    showlegend=True,
+                    height=350,
+                    margin=dict(l=60, r=60, t=40, b=40),
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color=text_color)
+                )
+            
+            # Health score cards
+            health_cards = []
+            health_colors = {
+                'Excellent': COLORS['success'],
+                'Good': '#22c55e',
+                'Fair': COLORS['warning'],
+                'Weak': '#f97316',
+                'At Risk': COLORS['danger'],
+            }
+            
+            for company in companies[:6]:
+                label = company.get('health_label', 'N/A')
+                color = health_colors.get(label, COLORS['gray']['500'])
+                
+                health_cards.append(
+                    dbc.Col([
+                        html.Div([
+                            html.H5(company['ticker'], style={"marginBottom": "8px", "color": text_color}),
+                            html.Div([
+                                html.Span(label, style={
+                                    "backgroundColor": color,
+                                    "color": "white",
+                                    "padding": "4px 12px",
+                                    "borderRadius": "12px",
+                                    "fontSize": "12px",
+                                    "fontWeight": "600"
+                                })
+                            ]),
+                            html.P(f"Score: {company.get('overall_score', 0):.0f}", 
+                                   style={"marginTop": "8px", "color": COLORS['gray']['400'], "fontSize": "14px"})
+                        ], style={
+                            "backgroundColor": card_bg,
+                            "padding": "16px",
+                            "borderRadius": "8px",
+                            "textAlign": "center"
+                        })
+                    ], width=2)
+                )
+            
+            return html.Div([
+                html.H4("Financial Health Analysis", style={"color": text_color, "marginBottom": "24px"}),
+                dbc.Row([
+                    dbc.Col([
+                        dcc.Graph(figure=fig_radar, config={'displayModeBar': False})
+                    ], width=6),
+                    dbc.Col([
+                        html.H5("Cluster Distribution", style={"color": text_color, "marginBottom": "16px"}),
+                        html.Div([
+                            html.Div([
+                                html.Span(f"{cl['label']}", style={"fontWeight": "600", "color": text_color}),
+                                html.Span(f" ({cl['sample_count']} companies)", 
+                                         style={"color": COLORS['gray']['400'], "fontSize": "14px"})
+                            ], style={"marginBottom": "8px"})
+                            for cl in cluster_labels
+                        ])
+                    ], width=6)
+                ]),
+                html.Hr(style={"borderColor": COLORS['gray']['600'] if dark_mode else COLORS['gray']['200']}),
+                html.H5("Company Health Scores", style={"color": text_color, "marginBottom": "16px"}),
+                dbc.Row(health_cards)
+            ])
+            
+        except Exception as e:
+            logger.error(f"Error rendering ratio analyzer: {e}")
+            return _render_error_message("Ratio Analyzer", str(e), dark_mode)
 
-        fig.add_trace(go.Bar(
-            x=categories,
-            y=values,
-            marker_color=COLORS['primary'],
-            text=values,
-            textposition='outside'
-        ))
+    # ==================== SCENARIO SIMULATOR ====================
+    elif active_tab == "scenario-simulator":
+        try:
+            target = selected_competitors[0] if selected_competitors else 'NVDA'
+            data = ml_service.simulate_scenarios(target)
+            
+            if "error" in data:
+                return _render_no_data_message("Scenario Simulator", dark_mode)
+            
+            scenarios = data.get("scenarios", [])
+            
+            # Create bar chart comparing scenarios
+            fig = go.Figure()
+            
+            scenario_names = [s['name'] for s in scenarios]
+            revenues = [s['revenue'] for s in scenarios]
+            profits = [s['profit'] for s in scenarios]
+            
+            fig.add_trace(go.Bar(
+                name='Revenue',
+                x=scenario_names,
+                y=revenues,
+                marker_color=COLORS['primary'],
+                text=[f"${r/1000:.1f}B" for r in revenues],
+                textposition='outside'
+            ))
+            
+            fig.add_trace(go.Bar(
+                name='Profit',
+                x=scenario_names,
+                y=profits,
+                marker_color=COLORS['success'],
+                text=[f"${p/1000:.1f}B" for p in profits],
+                textposition='outside'
+            ))
+            
+            fig.update_layout(
+                title=f"Scenario Analysis - {target}",
+                barmode='group',
+                height=400,
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                font=dict(color=text_color),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02),
+                yaxis=dict(title="Value ($M)", gridcolor=COLORS['gray']['700'] if dark_mode else COLORS['gray']['200'])
+            )
+            
+            # Scenario impact cards
+            impact_cards = []
+            for scenario in scenarios:
+                rev_change = scenario.get('revenue_change', 0)
+                margin_change = scenario.get('margin_change', 0)
+                
+                impact_cards.append(
+                    dbc.Col([
+                        html.Div([
+                            html.H6(scenario['name'], style={"color": text_color, "marginBottom": "12px"}),
+                            html.Div([
+                                html.Span("Revenue: ", style={"color": COLORS['gray']['400']}),
+                                html.Span(f"{rev_change:+.1f}%", style={
+                                    "color": COLORS['success'] if rev_change >= 0 else COLORS['danger'],
+                                    "fontWeight": "600"
+                                })
+                            ]),
+                            html.Div([
+                                html.Span("Margin: ", style={"color": COLORS['gray']['400']}),
+                                html.Span(f"{margin_change:+.1f}pp", style={
+                                    "color": COLORS['success'] if margin_change >= 0 else COLORS['danger'],
+                                    "fontWeight": "600"
+                                })
+                            ])
+                        ], style={
+                            "backgroundColor": card_bg,
+                            "padding": "16px",
+                            "borderRadius": "8px"
+                        })
+                    ], width=True)
+                )
+            
+            return html.Div([
+                html.H4("Scenario Simulator", style={"color": text_color, "marginBottom": "24px"}),
+                dcc.Graph(figure=fig, config={'displayModeBar': False}),
+                html.Hr(style={"borderColor": COLORS['gray']['600'] if dark_mode else COLORS['gray']['200']}),
+                html.H5("Scenario Impacts", style={"color": text_color, "marginBottom": "16px"}),
+                dbc.Row(impact_cards, className="g-3")
+            ])
+            
+        except Exception as e:
+            logger.error(f"Error rendering scenario simulator: {e}")
+            return _render_error_message("Scenario Simulator", str(e), dark_mode)
 
-        fig.update_layout(
-            title="Financial Ratio Analysis",
-            height=400,
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            font=dict(color=COLORS['gray']['600']),
-            yaxis=dict(title="Score", range=[0, 100])
-        )
-
-        return dcc.Graph(figure=fig, config={'displayModeBar': False})
-
+    # ==================== FORECAST & TRENDS ====================
     elif active_tab == "forecast":
-        # Forecast chart
-        months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
-        actual = [220, 225, 230, 235, 242, 245]
-        forecast = [248, 252, 258, 265, 272, 280]
+        try:
+            data = ml_service.get_forecasts(selected_competitors[:3])  # Top 3 companies
+            
+            if "error" in data or not data.get("companies"):
+                return _render_no_data_message("Forecast & Trends", dark_mode)
+            
+            companies = data["companies"]
+            
+            # Create forecast charts
+            fig = go.Figure()
+            
+            colors = [COLORS['primary'], COLORS['success'], COLORS['warning']]
+            
+            for i, company in enumerate(companies):
+                ticker = company['ticker']
+                forecasts = company.get('forecasts', {})
+                
+                if 'SALES_REV_TURN' in forecasts:
+                    fc = forecasts['SALES_REV_TURN']
+                    periods = ['Current', '1Y Forecast', '2Y Forecast']
+                    values = [fc['current'], fc['forecast_1y'], fc['forecast_2y']]
+                    
+                    fig.add_trace(go.Scatter(
+                        x=periods,
+                        y=values,
+                        name=ticker,
+                        mode='lines+markers',
+                        line=dict(color=colors[i % len(colors)], width=3),
+                        marker=dict(size=10)
+                    ))
+            
+            fig.update_layout(
+                title="Revenue Forecast Comparison",
+                height=400,
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                font=dict(color=text_color),
+                xaxis=dict(title="Period"),
+                yaxis=dict(title="Revenue ($M)", gridcolor=COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02)
+            )
+            
+            # Forecast details table
+            forecast_rows = []
+            for company in companies:
+                ticker = company['ticker']
+                forecasts = company.get('forecasts', {})
+                
+                for metric, fc in forecasts.items():
+                    growth = fc.get('growth_rate', 0) * 100
+                    forecast_rows.append(
+                        html.Tr([
+                            html.Td(ticker, style={"color": text_color, "fontWeight": "600"}),
+                            html.Td(metric.replace('_', ' ').title(), style={"color": COLORS['gray']['400']}),
+                            html.Td(f"${fc['current']/1000:.2f}B" if fc['current'] > 1000 else f"${fc['current']:.1f}M", 
+                                   style={"color": text_color}),
+                            html.Td(f"${fc['forecast_1y']/1000:.2f}B" if fc['forecast_1y'] > 1000 else f"${fc['forecast_1y']:.1f}M",
+                                   style={"color": text_color}),
+                            html.Td(f"{growth:+.1f}%", style={
+                                "color": COLORS['success'] if growth >= 0 else COLORS['danger']
+                            })
+                        ])
+                    )
+            
+            return html.Div([
+                html.H4("Forecast & Trends", style={"color": text_color, "marginBottom": "24px"}),
+                dcc.Graph(figure=fig, config={'displayModeBar': False}),
+                html.Hr(style={"borderColor": COLORS['gray']['600'] if dark_mode else COLORS['gray']['200']}),
+                html.H5("Detailed Forecasts", style={"color": text_color, "marginBottom": "16px"}),
+                html.Div([
+                    html.Table([
+                        html.Thead([
+                            html.Tr([
+                                html.Th("Company", style={"color": text_color, "padding": "8px"}),
+                                html.Th("Metric", style={"color": text_color, "padding": "8px"}),
+                                html.Th("Current", style={"color": text_color, "padding": "8px"}),
+                                html.Th("1Y Forecast", style={"color": text_color, "padding": "8px"}),
+                                html.Th("Growth", style={"color": text_color, "padding": "8px"})
+                            ])
+                        ]),
+                        html.Tbody(forecast_rows[:10])  # Limit rows
+                    ], style={"width": "100%", "borderCollapse": "collapse"})
+                ], style={"overflowX": "auto"})
+            ])
+            
+        except Exception as e:
+            logger.error(f"Error rendering forecast: {e}")
+            return _render_error_message("Forecast & Trends", str(e), dark_mode)
 
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=months, y=actual, name='Actual', mode='lines+markers',
-                                line=dict(color=COLORS['primary'], width=3)))
-        fig.add_trace(go.Scatter(x=months, y=forecast, name='Forecast', mode='lines+markers',
-                                line=dict(color=COLORS['success'], width=3, dash='dash')))
+    # ==================== ANOMALY HEATMAP ====================
+    elif active_tab == "heatmap":
+        try:
+            data = ml_service.detect_anomalies(selected_competitors)
+            
+            if "error" in data or not data.get("companies"):
+                return _render_no_data_message("Anomaly Detection", dark_mode)
+            
+            companies = data["companies"]
+            features = data.get("features", [])[:8]  # Limit features
+            
+            # Build heatmap data
+            z_data = []
+            y_labels = []
+            
+            for company in companies[:10]:  # Limit companies
+                ticker = company['ticker']
+                y_labels.append(ticker)
+                
+                row = []
+                for feat in features:
+                    score = company.get('metric_scores', {}).get(feat, {}).get('score', 0)
+                    row.append(score)
+                z_data.append(row)
+            
+            fig = go.Figure(data=go.Heatmap(
+                z=z_data,
+                x=[f.replace('_', ' ')[:15] for f in features],
+                y=y_labels,
+                colorscale='RdYlGn_r',  # Red = anomaly, Green = normal
+                zmin=0,
+                zmax=5,
+                text=[[f"{v:.1f}" for v in row] for row in z_data],
+                texttemplate="%{text}",
+                textfont={"size": 10},
+                hovertemplate="Company: %{y}<br>Metric: %{x}<br>Anomaly Score: %{z:.2f}<extra></extra>"
+            ))
+            
+            fig.update_layout(
+                title="Anomaly Detection Heatmap (Higher = More Anomalous)",
+                height=450,
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                font=dict(color=text_color),
+                xaxis=dict(tickangle=45),
+                margin=dict(l=80, r=20, t=60, b=100)
+            )
+            
+            # Anomaly alerts
+            anomaly_alerts = []
+            for company in companies:
+                if company.get('is_anomaly'):
+                    anomaly_alerts.append(
+                        html.Div([
+                            html.I(className="fas fa-exclamation-triangle", 
+                                  style={"color": COLORS['warning'], "marginRight": "8px"}),
+                            html.Span(f"{company['ticker']}", style={"fontWeight": "600", "color": text_color}),
+                            html.Span(f" - Anomaly Score: {company['anomaly_score']:.2f}", 
+                                     style={"color": COLORS['gray']['400']})
+                        ], style={"marginBottom": "8px"})
+                    )
+            
+            return html.Div([
+                html.H4("Anomaly Detection", style={"color": text_color, "marginBottom": "24px"}),
+                dcc.Graph(figure=fig, config={'displayModeBar': False}),
+                html.Hr(style={"borderColor": COLORS['gray']['600'] if dark_mode else COLORS['gray']['200']}),
+                html.H5("Anomaly Alerts", style={"color": text_color, "marginBottom": "16px"}),
+                html.Div(anomaly_alerts if anomaly_alerts else [
+                    html.P("No anomalies detected", style={"color": COLORS['success']})
+                ])
+            ])
+            
+        except Exception as e:
+            logger.error(f"Error rendering anomaly heatmap: {e}")
+            return _render_error_message("Anomaly Detection", str(e), dark_mode)
 
-        fig.update_layout(
-            title="Revenue Forecast & Trends",
-            height=400,
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            font=dict(color=COLORS['gray']['600']),
-            yaxis=dict(title="Revenue ($M)"),
-            xaxis=dict(title="Month")
-        )
+    # ==================== COMPETITOR BENCHMARK ====================
+    elif active_tab == "competitor":
+        try:
+            target = selected_competitors[0] if selected_competitors else 'NVDA'
+            data = ml_service.benchmark_competitors(selected_competitors, target)
+            
+            if "error" in data or not data.get("companies"):
+                return _render_no_data_message("Competitor Benchmark", dark_mode)
+            
+            companies = data["companies"]
+            features = data.get("features", [])[:5]
+            
+            # Similarity bar chart
+            fig_similarity = go.Figure()
+            
+            tickers = [c['ticker'] for c in companies]
+            similarities = [c['similarity'] * 100 for c in companies]
+            colors_bar = [COLORS['primary'] if c['is_target'] else COLORS['gray']['400'] for c in companies]
+            
+            fig_similarity.add_trace(go.Bar(
+                x=tickers,
+                y=similarities,
+                marker_color=colors_bar,
+                text=[f"{s:.0f}%" for s in similarities],
+                textposition='outside'
+            ))
+            
+            fig_similarity.update_layout(
+                title=f"Similarity to {target}",
+                height=350,
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                font=dict(color=text_color),
+                yaxis=dict(title="Similarity %", range=[0, 110], gridcolor=COLORS['gray']['700'] if dark_mode else COLORS['gray']['200'])
+            )
+            
+            # Comparison table
+            comparison_rows = []
+            target_company = next((c for c in companies if c['is_target']), None)
+            
+            if target_company:
+                for feat in features:
+                    target_val = target_company.get('metric_comparison', {}).get(feat, {}).get('target_value', 0)
+                    
+                    cells = [html.Td(feat.replace('_', ' ').title(), style={"color": text_color, "fontWeight": "600"})]
+                    
+                    for company in companies[:5]:
+                        comp = company.get('metric_comparison', {}).get(feat, {})
+                        val = comp.get('value', 0)
+                        status = comp.get('status', 'similar')
+                        
+                        status_color = COLORS['success'] if status == 'above' else (COLORS['danger'] if status == 'below' else text_color)
+                        
+                        cells.append(html.Td(f"{val:.2f}", style={"color": status_color, "textAlign": "center"}))
+                    
+                    comparison_rows.append(html.Tr(cells))
+            
+            return html.Div([
+                html.H4("Competitor Benchmark", style={"color": text_color, "marginBottom": "24px"}),
+                dbc.Row([
+                    dbc.Col([
+                        dcc.Graph(figure=fig_similarity, config={'displayModeBar': False})
+                    ], width=12)
+                ]),
+                html.Hr(style={"borderColor": COLORS['gray']['600'] if dark_mode else COLORS['gray']['200']}),
+                html.H5("Metric Comparison", style={"color": text_color, "marginBottom": "16px"}),
+                html.Div([
+                    html.Table([
+                        html.Thead([
+                            html.Tr([
+                                html.Th("Metric", style={"color": text_color, "padding": "8px"})
+                            ] + [
+                                html.Th(c['ticker'], style={"color": text_color, "padding": "8px", "textAlign": "center"})
+                                for c in companies[:5]
+                            ])
+                        ]),
+                        html.Tbody(comparison_rows)
+                    ], style={"width": "100%", "borderCollapse": "collapse"})
+                ], style={"overflowX": "auto"})
+            ])
+            
+        except Exception as e:
+            logger.error(f"Error rendering competitor benchmark: {e}")
+            return _render_error_message("Competitor Benchmark", str(e), dark_mode)
 
-        return dcc.Graph(figure=fig, config={'displayModeBar': False})
+    # ==================== GOAL TRACKER ====================
+    elif active_tab == "goals":
+        try:
+            data = ml_service.track_goals(selected_competitors[:5])
+            
+            if "error" in data or not data.get("companies"):
+                return _render_no_data_message("Goal Tracker", dark_mode)
+            
+            companies = data["companies"]
+            
+            # Progress cards for each company
+            company_cards = []
+            
+            for company in companies:
+                ticker = company['ticker']
+                goals = company.get('goals', [])
+                overall = company.get('overall_progress', 0)
+                
+                goal_items = []
+                for goal in goals:
+                    progress = goal.get('progress', 0)
+                    status = goal.get('status', 'behind')
+                    status_color = COLORS['success'] if status == 'achieved' else (COLORS['warning'] if status == 'on_track' else COLORS['danger'])
+                    
+                    goal_items.append(
+                        html.Div([
+                            html.Div([
+                                html.Span(goal['name'], style={"color": text_color, "fontSize": "13px"}),
+                                html.Span(f"{progress:.0f}%", style={"color": status_color, "fontWeight": "600", "float": "right"})
+                            ]),
+                            html.Div([
+                                html.Div(style={
+                                    "width": f"{min(100, progress)}%",
+                                    "height": "6px",
+                                    "backgroundColor": status_color,
+                                    "borderRadius": "3px",
+                                    "transition": "width 0.3s ease"
+                                })
+                            ], style={
+                                "backgroundColor": COLORS['gray']['600'] if dark_mode else COLORS['gray']['200'],
+                                "borderRadius": "3px",
+                                "marginTop": "4px"
+                            })
+                        ], style={"marginBottom": "12px"})
+                    )
+                
+                company_cards.append(
+                    dbc.Col([
+                        html.Div([
+                            html.Div([
+                                html.H5(ticker, style={"color": text_color, "marginBottom": "4px"}),
+                                html.Span(f"Overall: {overall:.0f}%", style={
+                                    "color": COLORS['success'] if overall >= 75 else COLORS['warning'],
+                                    "fontSize": "14px"
+                                })
+                            ], style={"marginBottom": "16px"}),
+                            html.Div(goal_items)
+                        ], style={
+                            "backgroundColor": card_bg,
+                            "padding": "20px",
+                            "borderRadius": "12px",
+                            "height": "100%"
+                        })
+                    ], width=4, style={"marginBottom": "16px"})
+                )
+            
+            return html.Div([
+                html.H4("Goal Tracker", style={"color": text_color, "marginBottom": "24px"}),
+                html.P("Track progress towards key financial metrics", style={"color": COLORS['gray']['400'], "marginBottom": "24px"}),
+                dbc.Row(company_cards)
+            ])
+            
+        except Exception as e:
+            logger.error(f"Error rendering goal tracker: {e}")
+            return _render_error_message("Goal Tracker", str(e), dark_mode)
 
+    # Default fallback
     else:
         return html.Div([
             html.P(f"Content for {active_tab} tab", style={
@@ -4104,6 +4604,27 @@ def render_tab_content(active_tab, dark_mode):
                 "color": COLORS['gray']['500']
             })
         ])
+
+
+def _render_no_data_message(section_name, dark_mode):
+    """Render a no data available message"""
+    text_color = COLORS['gray']['100'] if dark_mode else COLORS['gray']['800']
+    return html.Div([
+        html.I(className="fas fa-database", style={"fontSize": "48px", "color": COLORS['gray']['400']}),
+        html.H5(f"No Data Available for {section_name}", style={"color": text_color, "marginTop": "16px"}),
+        html.P("Please ensure ML models are trained and data is available.", 
+               style={"color": COLORS['gray']['400']})
+    ], style={"textAlign": "center", "padding": "60px"})
+
+
+def _render_error_message(section_name, error, dark_mode):
+    """Render an error message"""
+    text_color = COLORS['gray']['100'] if dark_mode else COLORS['gray']['800']
+    return html.Div([
+        html.I(className="fas fa-exclamation-circle", style={"fontSize": "48px", "color": COLORS['danger']}),
+        html.H5(f"Error Loading {section_name}", style={"color": text_color, "marginTop": "16px"}),
+        html.P(f"Error: {error}", style={"color": COLORS['gray']['400'], "fontSize": "14px"})
+    ], style={"textAlign": "center", "padding": "60px"})
 
 #==============================================================================
 # ADVANCED CHARTS SECTION
