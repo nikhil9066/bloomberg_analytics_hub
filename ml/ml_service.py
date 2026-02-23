@@ -135,22 +135,18 @@ class MLService:
         try:
             cursor = self.hana_client.connection.cursor()
             
+            # First get all data from latest date
             query = f"""
                 SELECT * FROM "{self.data_schema}"."FINANCIAL_RATIOS"
                 WHERE "DATA_DATE" = (SELECT MAX("DATA_DATE") FROM "{self.data_schema}"."FINANCIAL_RATIOS")
             """
-            
-            if tickers:
-                placeholders = ','.join(['?' for _ in tickers])
-                query += f' AND "TICKER" IN ({placeholders})'
-                cursor.execute(query, tickers)
-            else:
-                cursor.execute(query)
+            cursor.execute(query)
             
             columns = [desc[0] for desc in cursor.description]
             rows = cursor.fetchall()
             
             df = pd.DataFrame(rows, columns=columns)
+            logger.info(f"Loaded {len(df)} rows from FINANCIAL_RATIOS")
             
             # Convert Decimal to float
             for col in df.columns:
@@ -159,6 +155,18 @@ class MLService:
                         df[col] = pd.to_numeric(df[col], errors='ignore')
                     except:
                         pass
+            
+            # Normalize ticker column - remove " US Equity" suffix if present
+            if 'TICKER' in df.columns:
+                df['TICKER'] = df['TICKER'].str.replace(' US Equity', '', regex=False)
+                logger.info(f"Tickers in DB: {df['TICKER'].unique().tolist()[:10]}")
+            
+            # Filter by tickers if provided
+            if tickers and 'TICKER' in df.columns:
+                # Normalize input tickers too
+                normalized_tickers = [t.replace(' US Equity', '') for t in tickers]
+                df = df[df['TICKER'].isin(normalized_tickers)]
+                logger.info(f"Filtered to {len(df)} rows for tickers: {normalized_tickers[:5]}")
             
             return df
             
@@ -199,19 +207,78 @@ class MLService:
             logger.error(f"Error getting advanced data: {e}")
             return pd.DataFrame()
     
+    def _analyze_ratios_without_model(self, df: pd.DataFrame) -> Dict:
+        """Fallback ratio analysis without ML model"""
+        ratio_metrics = ['CUR_RATIO', 'QUICK_RATIO', 'GROSS_MARGIN', 'EBITDA_MARGIN', 
+                        'TOT_DEBT_TO_TOT_ASSET', 'INTEREST_COVERAGE_RATIO']
+        available = [m for m in ratio_metrics if m in df.columns]
+        
+        results = []
+        for _, row in df.iterrows():
+            ticker = row.get('TICKER', 'Unknown')
+            
+            ratio_scores = {}
+            total_score = 0
+            count = 0
+            
+            for feat in available:
+                val = float(row[feat]) if pd.notna(row[feat]) else 0
+                # Normalize to 0-100 scale
+                if feat in ['CUR_RATIO', 'QUICK_RATIO']:
+                    score = min(100, val * 40)  # Target ~2.5
+                elif feat in ['GROSS_MARGIN', 'EBITDA_MARGIN']:
+                    score = min(100, val * 2)  # Target ~50%
+                elif feat == 'TOT_DEBT_TO_TOT_ASSET':
+                    score = max(0, 100 - val * 2)  # Lower is better
+                else:
+                    score = min(100, max(0, val * 5))
+                
+                ratio_scores[feat] = score
+                total_score += score
+                count += 1
+            
+            avg_score = total_score / count if count > 0 else 50
+            health_label = 'Excellent' if avg_score >= 80 else ('Good' if avg_score >= 60 else ('Fair' if avg_score >= 40 else 'Weak'))
+            
+            results.append({
+                'ticker': ticker,
+                'cluster': 0,
+                'health_label': health_label,
+                'ratio_scores': ratio_scores,
+                'overall_score': avg_score
+            })
+        
+        return {
+            "companies": results,
+            "cluster_labels": [
+                {"cluster_id": 0, "label": "Excellent", "sample_count": len([r for r in results if r['health_label'] == 'Excellent']), "avg_health_score": 85},
+                {"cluster_id": 1, "label": "Good", "sample_count": len([r for r in results if r['health_label'] == 'Good']), "avg_health_score": 70},
+                {"cluster_id": 2, "label": "Fair", "sample_count": len([r for r in results if r['health_label'] == 'Fair']), "avg_health_score": 50},
+                {"cluster_id": 3, "label": "Weak", "sample_count": len([r for r in results if r['health_label'] == 'Weak']), "avg_health_score": 30},
+            ],
+            "features": available,
+            "model_metrics": {"mode": "data-only"}
+        }
+
     # ==================== RATIO ANALYZER ====================
     def analyze_ratios(self, tickers: List[str]) -> Dict:
         """
         Analyze financial ratios for given companies.
         Returns cluster assignments and health scores.
         """
-        model, scaler, features, metrics = self.load_model('ratio_analyzer')
-        if model is None:
-            return {"error": "Model not loaded", "companies": []}
-        
+        # Get data first
         df = self.get_company_data(tickers)
         if df.empty:
+            logger.warning(f"No data found for tickers: {tickers}")
             return {"error": "No data", "companies": []}
+        
+        # Try to load model
+        model, scaler, features, metrics = self.load_model('ratio_analyzer')
+        
+        # If no model, use data-only analysis
+        if model is None:
+            logger.warning("Ratio analyzer model not loaded, using data-only mode")
+            return self._analyze_ratios_without_model(df)
         
         # Get cluster labels
         cluster_labels = self.get_cluster_labels('ratio_analyzer')
