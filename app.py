@@ -2748,8 +2748,11 @@ def update_competitor_analysis(timestamp, dark_mode, selected_competitors, user_
     prevent_initial_call=True
 )
 def update_selected_competitors(selected):
+    logger.info(f"[STORE UPDATE] update_selected_competitors called with: {selected}")
     if selected:
+        logger.info(f"[STORE UPDATE] Setting selected-competitors-store to: {selected}")
         return selected
+    logger.info("[STORE UPDATE] No selection, defaulting to ['META']")
     return ['META']
 
 # Callback for Peer Comparison Benchmarking Table
@@ -4082,7 +4085,9 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
     # ==================== RATIO ANALYZER ====================
     if active_tab == "ratio-analyzer":
         try:
+            logger.info(f"[RATIO ANALYZER] Rendering with selected_competitors: {selected_competitors}")
             data = ml_service.analyze_ratios(selected_competitors)
+            logger.info(f"[RATIO ANALYZER] analyze_ratios returned {len(data.get('companies', []))} companies: {[c.get('ticker') for c in data.get('companies', [])]}")
             
             if "error" in data or not data.get("companies"):
                 return _render_no_data_message("Ratio Analyzer", dark_mode)
