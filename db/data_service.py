@@ -925,3 +925,79 @@ class FinancialDataService:
         finally:
             if cursor:
                 cursor.close()
+
+    def get_ml_models_info(self):
+        """Get information about trained ML models"""
+        if not self.connected:
+            return []
+
+        cursor = None
+        try:
+            cursor = self.hana_client.connection.cursor()
+            
+            cursor.execute("""
+                SELECT "MODEL_NAME", "MODEL_TYPE", "VERSION", 
+                       "TRAINING_ROWS", "CREATED_AT"
+                FROM "BLOOMBERG_ML"."ML_MODELS"
+                WHERE "IS_ACTIVE" = 1
+                ORDER BY "MODEL_NAME"
+            """)
+            
+            columns = [desc[0] for desc in cursor.description]
+            rows = cursor.fetchall()
+            
+            models = []
+            for row in rows:
+                models.append({
+                    "name": row[0],
+                    "type": row[1],
+                    "version": row[2],
+                    "training_rows": row[3],
+                    "trained_at": row[4].strftime("%Y-%m-%d %H:%M") if row[4] else None
+                })
+            
+            return models
+
+        except Exception as e:
+            self.logger.error(f"Error retrieving ML models: {str(e)}")
+            return []
+        finally:
+            if cursor:
+                cursor.close()
+
+    def get_latest_training_run(self):
+        """Get info about the latest ML training run"""
+        if not self.connected:
+            return None
+
+        cursor = None
+        try:
+            cursor = self.hana_client.connection.cursor()
+            
+            cursor.execute("""
+                SELECT "RUN_ID", "STATUS", "MODELS_TRAINED", 
+                       "DATA_ROWS_USED", "START_TIME", "END_TIME"
+                FROM "BLOOMBERG_ML"."ML_TRAINING_RUNS"
+                ORDER BY "RUN_ID" DESC
+                LIMIT 1
+            """)
+            
+            row = cursor.fetchone()
+            if row:
+                return {
+                    "run_id": row[0],
+                    "status": row[1],
+                    "models_trained": row[2],
+                    "data_rows": row[3],
+                    "started": row[4].strftime("%Y-%m-%d %H:%M") if row[4] else None,
+                    "ended": row[5].strftime("%Y-%m-%d %H:%M") if row[5] else None
+                }
+            return None
+
+        except Exception as e:
+            self.logger.error(f"Error retrieving training run: {str(e)}")
+            return None
+        finally:
+            if cursor:
+                cursor.close()
+
