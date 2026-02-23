@@ -24,7 +24,14 @@ from utils.advanced_charts import (
     example_treemap,
     example_funnel
 )
-from ml.ml_service import MLService
+# ML Service - optional, app works without it
+try:
+    from ml.ml_service import MLService
+    ML_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"ML Service not available: {e}")
+    MLService = None
+    ML_AVAILABLE = False
 
 # Initialize logging
 setup_logging()
@@ -83,8 +90,11 @@ try:
     hana_client = HanaClient(config)
     if hana_client.connect():
         auth_service = AuthService(hana_client, config['hana']['schema'])
-        ml_service = MLService(hana_client)
-        logger.info("Authentication and ML services initialized successfully")
+        if ML_AVAILABLE and MLService:
+            ml_service = MLService(hana_client)
+            logger.info("Authentication and ML services initialized successfully")
+        else:
+            logger.info("Authentication service initialized (ML not available)")
     else:
         logger.warning("HANA connection failed - authentication will not be available")
 except Exception as e:
