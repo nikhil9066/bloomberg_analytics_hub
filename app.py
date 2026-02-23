@@ -91,7 +91,8 @@ try:
     if hana_client.connect():
         auth_service = AuthService(hana_client, config['hana']['schema'])
         if ML_AVAILABLE and MLService:
-            ml_service = MLService(hana_client)
+            schema = config['hana']['schema']
+            ml_service = MLService(hana_client, ml_schema=schema, data_schema=schema)
             logger.info("Authentication and ML services initialized successfully")
         else:
             logger.info("Authentication service initialized (ML not available)")

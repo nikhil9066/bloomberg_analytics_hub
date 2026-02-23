@@ -18,12 +18,21 @@ logger = logging.getLogger(__name__)
 class MLService:
     """Service for loading and using ML models from HANA"""
     
-    def __init__(self, hana_client):
-        """Initialize ML service with HANA client"""
+    def __init__(self, hana_client, ml_schema: str = None, data_schema: str = None):
+        """
+        Initialize ML service with HANA client
+        
+        Args:
+            hana_client: HANA connection client
+            ml_schema: Schema for ML models (defaults to BLOOMBERG_DATA)
+            data_schema: Schema for financial data (defaults to BLOOMBERG_DATA)
+        """
         self.hana_client = hana_client
-        self.schema = "BLOOMBERG_ML"
-        self.data_schema = "BLOOMBERG_DATA"
+        # Use provided schemas or default to BLOOMBERG_DATA for both
+        self.schema = ml_schema or "BLOOMBERG_DATA"
+        self.data_schema = data_schema or "BLOOMBERG_DATA"
         self._model_cache = {}
+        logger.info(f"MLService initialized with ML schema: {self.schema}, Data schema: {self.data_schema}")
         
     def get_active_models(self) -> List[Dict]:
         """Get list of all active ML models"""
@@ -50,6 +59,7 @@ class MLService:
                     "training_rows": row[4],
                     "trained_at": row[5].strftime("%Y-%m-%d %H:%M") if row[5] else None
                 })
+            logger.info(f"Found {len(models)} active ML models")
             return models
             
         except Exception as e:
@@ -63,6 +73,7 @@ class MLService:
         """
         # Check cache first
         if model_name in self._model_cache:
+            logger.debug(f"Model {model_name} loaded from cache")
             return self._model_cache[model_name]
             
         try:
@@ -75,7 +86,7 @@ class MLService:
             
             row = cursor.fetchone()
             if not row:
-                logger.warning(f"No active model found: {model_name}")
+                logger.warning(f"No active model found: {model_name} in schema {self.schema}")
                 return None, None, [], {}
             
             model_bytes, scaler_bytes, features_json, metrics_json = row
@@ -96,7 +107,7 @@ class MLService:
             # Cache the loaded model
             self._model_cache[model_name] = (model, scaler, feature_columns, metrics)
             
-            logger.info(f"Loaded model: {model_name}")
+            logger.info(f"Loaded model: {model_name} with {len(feature_columns)} features")
             return model, scaler, feature_columns, metrics
             
         except Exception as e:
@@ -159,14 +170,22 @@ class MLService:
             # Normalize ticker column - remove " US Equity" suffix if present
             if 'TICKER' in df.columns:
                 df['TICKER'] = df['TICKER'].str.replace(' US Equity', '', regex=False)
-                logger.info(f"Tickers in DB: {df['TICKER'].unique().tolist()[:10]}")
+                logger.debug(f"Available tickers: {df['TICKER'].unique().tolist()[:10]}")
             
             # Filter by tickers if provided
             if tickers and 'TICKER' in df.columns:
                 # Normalize input tickers too
                 normalized_tickers = [t.replace(' US Equity', '') for t in tickers]
-                df = df[df['TICKER'].isin(normalized_tickers)]
-                logger.info(f"Filtered to {len(df)} rows for tickers: {normalized_tickers[:5]}")
+                df_filtered = df[df['TICKER'].isin(normalized_tickers)]
+                logger.info(f"Filtered to {len(df_filtered)} rows for tickers: {normalized_tickers[:5]}")
+                
+                # Log which tickers weren't found
+                found_tickers = df_filtered['TICKER'].unique().tolist()
+                missing = [t for t in normalized_tickers if t not in found_tickers]
+                if missing:
+                    logger.warning(f"Tickers not found in data: {missing}")
+                
+                return df_filtered
             
             return df
             
@@ -189,9 +208,11 @@ class MLService:
             rows = cursor.fetchall()
             
             df = pd.DataFrame(rows, columns=columns)
+            logger.info(f"Loaded {len(df)} rows from FINANCIAL_DATA_ADVANCED")
             
-            if tickers:
+            if tickers and 'TICKER' in df.columns:
                 df = df[df['TICKER'].isin(tickers)]
+                logger.info(f"Filtered to {len(df)} rows for tickers")
             
             # Convert Decimal to float
             for col in df.columns:
@@ -208,10 +229,14 @@ class MLService:
             return pd.DataFrame()
     
     def _analyze_ratios_without_model(self, df: pd.DataFrame) -> Dict:
-        """Fallback ratio analysis without ML model"""
+        """Fallback ratio analysis without ML model - uses data directly"""
         ratio_metrics = ['CUR_RATIO', 'QUICK_RATIO', 'GROSS_MARGIN', 'EBITDA_MARGIN', 
                         'TOT_DEBT_TO_TOT_ASSET', 'INTEREST_COVERAGE_RATIO']
         available = [m for m in ratio_metrics if m in df.columns]
+        
+        if not available:
+            logger.warning("No ratio metrics available in data")
+            return {"error": "No metrics", "companies": []}
         
         results = []
         for _, row in df.iterrows():
@@ -248,6 +273,8 @@ class MLService:
                 'overall_score': avg_score
             })
         
+        logger.info(f"Analyzed {len(results)} companies using data-only mode")
+        
         return {
             "companies": results,
             "cluster_labels": [
@@ -266,6 +293,8 @@ class MLService:
         Analyze financial ratios for given companies.
         Returns cluster assignments and health scores.
         """
+        logger.info(f"analyze_ratios called with tickers: {tickers}")
+        
         # Get data first
         df = self.get_company_data(tickers)
         if df.empty:
@@ -277,7 +306,7 @@ class MLService:
         
         # If no model, use data-only analysis
         if model is None:
-            logger.warning("Ratio analyzer model not loaded, using data-only mode")
+            logger.info("Ratio analyzer model not loaded, using data-only mode")
             return self._analyze_ratios_without_model(df)
         
         # Get cluster labels
@@ -288,7 +317,8 @@ class MLService:
         available_features = [f for f in features if f in df.columns]
         
         if not available_features:
-            return {"error": "No features available", "companies": []}
+            logger.warning("No matching features in data, falling back to data-only mode")
+            return self._analyze_ratios_without_model(df)
         
         for _, row in df.iterrows():
             ticker = row.get('TICKER', 'Unknown')
@@ -336,6 +366,7 @@ class MLService:
                     'overall_score': 0
                 })
         
+        logger.info(f"Analyzed {len(results)} companies with ML model")
         return {
             "companies": results,
             "cluster_labels": cluster_labels,
@@ -349,16 +380,24 @@ class MLService:
         Detect anomalies in financial metrics.
         Returns anomaly scores for each company/metric.
         """
-        model, scaler, features, metrics = self.load_model('anomaly_detector')
-        if model is None:
-            return {"error": "Model not loaded", "companies": []}
+        logger.info(f"detect_anomalies called with tickers: {tickers}")
         
         df = self.get_company_data(tickers)
         if df.empty:
             return {"error": "No data", "companies": []}
         
+        model, scaler, features, metrics = self.load_model('anomaly_detector')
+        
+        # If model not loaded, use statistical fallback
+        if model is None:
+            logger.info("Anomaly detector model not loaded, using statistical fallback")
+            return self._detect_anomalies_fallback(df)
+        
         results = []
         available_features = [f for f in features if f in df.columns]
+        
+        if not available_features:
+            return self._detect_anomalies_fallback(df)
         
         for _, row in df.iterrows():
             ticker = row.get('TICKER', 'Unknown')
@@ -384,10 +423,9 @@ class MLService:
                 metric_scores = {}
                 for i, feat in enumerate(available_features):
                     val = X[0][i]
-                    # Simplified z-score based anomaly
                     metric_scores[feat] = {
                         'value': float(val),
-                        'score': min(5, abs(anomaly_score))  # 0-5 scale
+                        'score': min(5, abs(anomaly_score))
                     }
                 
                 results.append({
@@ -400,11 +438,45 @@ class MLService:
             except Exception as e:
                 logger.error(f"Error detecting anomalies for {ticker}: {e}")
         
+        logger.info(f"Detected anomalies for {len(results)} companies")
         return {
             "companies": results,
             "features": available_features,
             "threshold": metrics.get('threshold', 0)
         }
+    
+    def _detect_anomalies_fallback(self, df: pd.DataFrame) -> Dict:
+        """Statistical fallback for anomaly detection"""
+        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        features = [c for c in numeric_cols if c not in ['ID', 'DATA_DATE']][:8]
+        
+        results = []
+        for _, row in df.iterrows():
+            ticker = row.get('TICKER', 'Unknown')
+            metric_scores = {}
+            total_score = 0
+            
+            for feat in features:
+                val = float(row[feat]) if pd.notna(row[feat]) else 0
+                col_mean = df[feat].mean()
+                col_std = df[feat].std()
+                if col_std > 0:
+                    z_score = abs(val - col_mean) / col_std
+                    score = min(5, z_score)
+                else:
+                    score = 0
+                metric_scores[feat] = {'value': val, 'score': score}
+                total_score += score
+            
+            avg_score = total_score / len(features) if features else 0
+            results.append({
+                'ticker': ticker,
+                'anomaly_score': avg_score,
+                'is_anomaly': avg_score > 2.5,
+                'metric_scores': metric_scores
+            })
+        
+        return {"companies": results, "features": features, "threshold": 2.5}
     
     # ==================== COMPETITOR BENCHMARK ====================
     def benchmark_competitors(self, tickers: List[str], target_ticker: str = None) -> Dict:
@@ -412,9 +484,7 @@ class MLService:
         Benchmark companies against each other.
         Returns similarity scores and rankings.
         """
-        model, scaler, features, metrics = self.load_model('competitor_benchmark')
-        if model is None:
-            return {"error": "Model not loaded", "companies": []}
+        logger.info(f"benchmark_competitors called with tickers: {tickers}, target: {target_ticker}")
         
         df = self.get_company_data(tickers)
         if df.empty:
@@ -423,12 +493,25 @@ class MLService:
         if target_ticker is None and tickers:
             target_ticker = tickers[0]
         
+        model, scaler, features, metrics = self.load_model('competitor_benchmark')
+        
+        # Use data-driven approach if no model
+        if model is None:
+            logger.info("Competitor benchmark model not loaded, using data-driven approach")
+        
+        # Get available features
+        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        available_features = [c for c in numeric_cols if c not in ['ID', 'DATA_DATE']][:10]
+        
+        if features:
+            available_features = [f for f in features if f in df.columns] or available_features
+        
         results = []
-        available_features = [f for f in features if f in df.columns]
         
         # Get target company data
         target_row = df[df['TICKER'] == target_ticker]
         if target_row.empty:
+            logger.warning(f"Target company {target_ticker} not found")
             return {"error": f"Target company {target_ticker} not found", "companies": []}
         
         target_data = target_row[available_features].fillna(0).values[0]
@@ -477,6 +560,7 @@ class MLService:
         # Sort by similarity
         results.sort(key=lambda x: x['similarity'], reverse=True)
         
+        logger.info(f"Benchmarked {len(results)} companies")
         return {
             "target": target_ticker,
             "companies": results,
@@ -488,51 +572,60 @@ class MLService:
         """
         Get financial forecasts for companies.
         """
-        model, scaler, features, metrics = self.load_model('forecaster')
-        if model is None:
-            return {"error": "Model not loaded", "forecasts": []}
+        logger.info(f"get_forecasts called with tickers: {tickers}")
         
         df = self.get_advanced_data(tickers)
         if df.empty:
-            return {"error": "No data", "forecasts": []}
+            # Try regular company data as fallback
+            df = self.get_company_data(tickers)
+            if df.empty:
+                return {"error": "No data", "companies": []}
+        
+        model, scaler, features, metrics = self.load_model('forecaster')
         
         # Get available forecast metrics
         forecast_metrics = ['SALES_REV_TURN', 'NET_INCOME', 'EBITDA', 'CF_FREE_CASH_FLOW', 
                           'EBITDA_MARGIN', 'GROSS_MARGIN']
+        available_metrics = [m for m in forecast_metrics if m in df.columns]
+        
+        if not available_metrics:
+            logger.warning("No forecast metrics found in data")
+            return {"error": "No forecast metrics", "companies": []}
         
         results = []
         for ticker in tickers:
             ticker_data = df[df['TICKER'] == ticker].head(1)
             if ticker_data.empty:
+                logger.warning(f"No data for ticker {ticker}")
                 continue
             
             ticker_forecasts = {}
-            for metric in forecast_metrics:
-                if metric in ticker_data.columns:
-                    current_val = float(ticker_data[metric].iloc[0]) if pd.notna(ticker_data[metric].iloc[0]) else 0
-                    # Simple growth forecast (placeholder - actual model would be more sophisticated)
-                    growth_rate = 0.05  # 5% default growth
-                    if metric in metrics:
-                        growth_rate = metrics[metric].get('avg_growth', 0.05)
-                    
-                    forecast_1y = current_val * (1 + growth_rate)
-                    forecast_2y = current_val * (1 + growth_rate) ** 2
-                    
-                    ticker_forecasts[metric] = {
-                        'current': current_val,
-                        'forecast_1y': forecast_1y,
-                        'forecast_2y': forecast_2y,
-                        'growth_rate': growth_rate
-                    }
+            for metric in available_metrics:
+                current_val = float(ticker_data[metric].iloc[0]) if pd.notna(ticker_data[metric].iloc[0]) else 0
+                # Simple growth forecast
+                growth_rate = 0.05  # 5% default growth
+                if metrics and metric in metrics:
+                    growth_rate = metrics[metric].get('avg_growth', 0.05)
+                
+                forecast_1y = current_val * (1 + growth_rate)
+                forecast_2y = current_val * (1 + growth_rate) ** 2
+                
+                ticker_forecasts[metric] = {
+                    'current': current_val,
+                    'forecast_1y': forecast_1y,
+                    'forecast_2y': forecast_2y,
+                    'growth_rate': growth_rate
+                }
             
             results.append({
                 'ticker': ticker,
                 'forecasts': ticker_forecasts
             })
         
+        logger.info(f"Generated forecasts for {len(results)} companies")
         return {
             "companies": results,
-            "metrics": forecast_metrics
+            "metrics": available_metrics
         }
     
     # ==================== SCENARIO SIMULATOR ====================
@@ -540,7 +633,7 @@ class MLService:
         """
         Run scenario simulations for a company.
         """
-        model, scaler, features, metrics = self.load_model('scenario_simulator')
+        logger.info(f"simulate_scenarios called for ticker: {ticker}")
         
         df = self.get_company_data([ticker])
         if df.empty:
@@ -559,12 +652,17 @@ class MLService:
             ]
         
         results = []
-        base_revenue = float(company_data.get('SALES_REV_TURN', 1000)) if 'SALES_REV_TURN' in company_data else 1000
-        base_margin = float(company_data.get('GROSS_MARGIN', 30)) if 'GROSS_MARGIN' in company_data else 30
+        base_revenue = float(company_data.get('SALES_REV_TURN', 0)) if 'SALES_REV_TURN' in company_data.index else 0
+        if base_revenue == 0:
+            base_revenue = float(company_data.get('TOT_LIAB_AND_EQY', 1000)) if 'TOT_LIAB_AND_EQY' in company_data.index else 1000
+        
+        base_margin = float(company_data.get('GROSS_MARGIN', 0)) if 'GROSS_MARGIN' in company_data.index else 0
+        if base_margin == 0:
+            base_margin = float(company_data.get('EBITDA_MARGIN', 30)) if 'EBITDA_MARGIN' in company_data.index else 30
         
         for scenario in scenarios:
             new_revenue = base_revenue * (1 + scenario.get('revenue_change', 0))
-            margin_impact = scenario.get('cost_change', 0) * -50  # Cost reduction improves margin
+            margin_impact = scenario.get('cost_change', 0) * -50
             new_margin = base_margin + margin_impact
             new_profit = new_revenue * (new_margin / 100)
             
@@ -577,6 +675,7 @@ class MLService:
                 'margin_change': margin_impact
             })
         
+        logger.info(f"Simulated {len(results)} scenarios for {ticker}")
         return {
             "ticker": ticker,
             "base_revenue": base_revenue,
@@ -589,54 +688,57 @@ class MLService:
         """
         Track progress towards financial goals.
         """
-        model, scaler, features, metrics = self.load_model('goal_tracker')
+        logger.info(f"track_goals called with tickers: {tickers}")
         
         df = self.get_company_data(tickers)
         if df.empty:
-            return {"error": "No data", "goals": []}
+            return {"error": "No data", "companies": []}
         
         # Default goals if none provided
         if goals is None:
             goals = [
-                {"metric": "GROSS_MARGIN", "target": 40, "name": "Gross Margin Target"},
-                {"metric": "CUR_RATIO", "target": 2.0, "name": "Liquidity Ratio"},
-                {"metric": "QUICK_RATIO", "target": 1.5, "name": "Quick Ratio"},
-                {"metric": "EBITDA_MARGIN", "target": 25, "name": "EBITDA Margin Target"},
+                {"metric": "GROSS_MARGIN", "target": 40, "label": "Gross Margin > 40%"},
+                {"metric": "CUR_RATIO", "target": 1.5, "label": "Current Ratio > 1.5"},
+                {"metric": "EBITDA_MARGIN", "target": 20, "label": "EBITDA Margin > 20%"},
+                {"metric": "TOT_DEBT_TO_TOT_ASSET", "target": 50, "label": "Debt/Asset < 50%", "inverse": True},
             ]
         
         results = []
         for _, row in df.iterrows():
             ticker = row.get('TICKER', 'Unknown')
             
-            ticker_goals = []
+            goal_progress = []
             for goal in goals:
                 metric = goal['metric']
                 target = goal['target']
-                current = float(row.get(metric, 0)) if pd.notna(row.get(metric)) else 0
+                inverse = goal.get('inverse', False)
                 
-                if target != 0:
-                    progress = (current / target) * 100
+                current_val = float(row.get(metric, 0)) if pd.notna(row.get(metric)) else 0
+                
+                if inverse:
+                    # Lower is better (e.g., debt ratio)
+                    progress = min(100, max(0, (target - current_val + target) / target * 50)) if target > 0 else 50
+                    on_track = current_val <= target
                 else:
-                    progress = 0
+                    # Higher is better
+                    progress = min(100, (current_val / target * 100)) if target > 0 else 0
+                    on_track = current_val >= target
                 
-                status = 'achieved' if progress >= 100 else ('on_track' if progress >= 75 else 'behind')
-                
-                ticker_goals.append({
-                    'name': goal['name'],
+                goal_progress.append({
+                    'label': goal['label'],
                     'metric': metric,
-                    'current': current,
+                    'current': current_val,
                     'target': target,
-                    'progress': min(100, progress),
-                    'status': status,
-                    'gap': target - current
+                    'progress': progress,
+                    'on_track': on_track
                 })
             
             results.append({
                 'ticker': ticker,
-                'goals': ticker_goals,
-                'overall_progress': np.mean([g['progress'] for g in ticker_goals])
+                'goals': goal_progress
             })
         
+        logger.info(f"Tracked goals for {len(results)} companies")
         return {
             "companies": results,
             "goal_definitions": goals
