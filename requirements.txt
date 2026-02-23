@@ -21,3 +21,7 @@ sendgrid==6.11.0
 
 # Utilities
 python-dotenv==1.0.1
+
+# ML Model Loading
+joblib==1.4.2
+scikit-learn==1.5.2
