@@ -172,10 +172,25 @@ class MLService:
                 df['TICKER'] = df['TICKER'].str.replace(' US Equity', '', regex=False)
                 logger.debug(f"Available tickers: {df['TICKER'].unique().tolist()[:10]}")
             
+            # Deduplicate by TICKER - keep first row per ticker
+            if 'TICKER' in df.columns:
+                df = df.drop_duplicates(subset=['TICKER'], keep='first')
+                logger.info(f"After deduplication: {len(df)} unique tickers")
+            
             # Filter by tickers if provided
             if tickers and 'TICKER' in df.columns:
-                # Normalize input tickers too
-                normalized_tickers = [t.replace(' US Equity', '') for t in tickers]
+                # Normalize input tickers - filter out non-ticker values (like company names)
+                normalized_tickers = []
+                for t in tickers:
+                    t_clean = t.replace(' US Equity', '')
+                    # Only include if it looks like a valid ticker (all caps, reasonable length)
+                    if t_clean.isupper() and len(t_clean) <= 5:
+                        normalized_tickers.append(t_clean)
+                
+                if not normalized_tickers:
+                    logger.warning(f"No valid tickers in input: {tickers}")
+                    return df  # Return all data if no valid tickers
+                
                 df_filtered = df[df['TICKER'].isin(normalized_tickers)]
                 logger.info(f"Filtered to {len(df_filtered)} rows for tickers: {normalized_tickers[:5]}")
                 
