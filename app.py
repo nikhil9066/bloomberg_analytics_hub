@@ -243,6 +243,140 @@ except Exception as e:
     logger.error(f"Failed to load CSV files: {e}")
     csv_data = None
 
+# =============================================================================
+# CSV-BASED FALLBACK FUNCTIONS (when HANA/ML Service unavailable)
+# =============================================================================
+
+def analyze_ratios_csv(tickers: list) -> dict:
+    """Analyze financial ratios using CSV data (fallback for ML service)"""
+    if csv_data is None or csv_data.get('financial_ratios') is None:
+        return {"error": "No data", "companies": []}
+    
+    df = csv_data['financial_ratios'].copy()
+    
+    # Filter by tickers if provided
+    if tickers and 'TICKER' in df.columns:
+        df = df[df['TICKER'].isin(tickers)]
+    
+    if df.empty:
+        return {"error": "No matching companies", "companies": []}
+    
+    # Deduplicate - keep first per ticker
+    df = df.drop_duplicates(subset=['TICKER'], keep='first')
+    
+    # Define ratio columns to analyze
+    ratio_cols = ['GROSS_MARGIN', 'EBITDA_MARGIN', 'CUR_RATIO', 'QUICK_RATIO', 
+                  'TOT_DEBT_TO_TOT_ASSET', 'INTEREST_COVERAGE_RATIO']
+    available_cols = [c for c in ratio_cols if c in df.columns]
+    
+    results = []
+    for _, row in df.iterrows():
+        ticker = row.get('TICKER', 'Unknown')
+        
+        # Calculate ratio scores (normalize to 0-100)
+        ratio_scores = {}
+        for col in available_cols:
+            val = float(row[col]) if pd.notna(row[col]) else 0
+            # Simple normalization
+            if col in ['GROSS_MARGIN', 'EBITDA_MARGIN']:
+                ratio_scores[col] = min(100, max(0, val))  # Already percentage
+            elif col in ['CUR_RATIO', 'QUICK_RATIO']:
+                ratio_scores[col] = min(100, max(0, val * 30))  # Scale up
+            elif col == 'TOT_DEBT_TO_TOT_ASSET':
+                ratio_scores[col] = min(100, max(0, 100 - val * 100))  # Lower is better
+            else:
+                ratio_scores[col] = min(100, max(0, val * 5))
+        
+        # Calculate overall score
+        overall = np.mean(list(ratio_scores.values())) if ratio_scores else 50
+        
+        # Determine health label
+        if overall >= 75:
+            health_label = 'Excellent'
+        elif overall >= 60:
+            health_label = 'Good'
+        elif overall >= 45:
+            health_label = 'Fair'
+        elif overall >= 30:
+            health_label = 'Weak'
+        else:
+            health_label = 'At Risk'
+        
+        results.append({
+            'ticker': ticker,
+            'cluster': 0,
+            'health_label': health_label,
+            'ratio_scores': ratio_scores,
+            'overall_score': overall
+        })
+    
+    # Sort by overall score
+    results.sort(key=lambda x: x['overall_score'], reverse=True)
+    
+    return {
+        "companies": results,
+        "cluster_labels": [
+            {"cluster_id": 0, "label": "All Companies", "sample_count": len(results)}
+        ],
+        "features": available_cols,
+        "model_metrics": {"mode": "csv-fallback"}
+    }
+
+
+def simulate_scenarios_csv(target_company: dict) -> dict:
+    """Simulate financial scenarios using CSV data (fallback for ML service)"""
+    if csv_data is None or csv_data.get('annual_financials') is None:
+        return {"error": "No data", "scenarios": []}
+    
+    df = csv_data['annual_financials'].copy()
+    
+    # Get target company data if available
+    ticker = target_company.get('ticker', 'NVDA') if isinstance(target_company, dict) else target_company
+    company_data = df[df['TICKER'] == ticker]
+    
+    if company_data.empty:
+        company_data = df.head(1)  # Use first company as fallback
+    
+    # Get base values
+    base_revenue = float(company_data['SALES_REV_TURN'].iloc[0]) if 'SALES_REV_TURN' in company_data.columns else 100000
+    base_profit = float(company_data['NET_INCOME'].iloc[0]) if 'NET_INCOME' in company_data.columns else 15000
+    avg_growth = df['SALES_GROWTH'].mean() if 'SALES_GROWTH' in df.columns else 10.0
+    
+    # Create scenarios with revenue/profit in millions
+    scenarios = [
+        {
+            "name": "Base Case",
+            "revenue": base_revenue,
+            "profit": base_profit,
+            "revenue_growth": round(avg_growth, 1),
+            "probability": 50
+        },
+        {
+            "name": "Bull Case",
+            "revenue": base_revenue * 1.15,
+            "profit": base_profit * 1.25,
+            "revenue_growth": round(avg_growth * 1.5, 1),
+            "probability": 25
+        },
+        {
+            "name": "Bear Case",
+            "revenue": base_revenue * 0.9,
+            "profit": base_profit * 0.7,
+            "revenue_growth": round(avg_growth * 0.3, 1),
+            "probability": 25
+        }
+    ]
+    
+    return {
+        "scenarios": scenarios,
+        "base_metrics": {
+            "current_revenue": base_revenue,
+            "current_profit": base_profit
+        },
+        "model_metrics": {"mode": "csv-fallback"}
+    }
+
+
 # Define numeric columns for competitor analysis metrics
 NUMERIC_METRIC_COLUMNS = [
     'TOT_DEBT_TO_TOT_ASSET',
@@ -4070,18 +4204,14 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
     if not selected_competitors:
         selected_competitors = ['NVDA', 'MSFT', 'GOOGL', 'META', 'AAPL']
     
-    # Check if ML service is available
-    if ml_service is None:
-        return html.Div([
-            html.I(className="fas fa-exclamation-triangle", style={"fontSize": "48px", "color": COLORS['warning']}),
-            html.P("ML Service not available. Please check HANA connection.", 
-                   style={"color": text_color, "marginTop": "16px"})
-        ], style={"textAlign": "center", "padding": "60px"})
-
     # ==================== RATIO ANALYZER ====================
     if active_tab == "ratio-analyzer":
         try:
-            data = ml_service.analyze_ratios(selected_competitors)
+            # Use ML service if available, otherwise fallback to CSV
+            if ml_service is not None:
+                data = ml_service.analyze_ratios(selected_competitors)
+            else:
+                data = analyze_ratios_csv(selected_competitors)
             
             if "error" in data or not data.get("companies"):
                 return _render_no_data_message("Ratio Analyzer", dark_mode)
@@ -4190,7 +4320,12 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
     elif active_tab == "scenario-simulator":
         try:
             target = selected_competitors[0] if selected_competitors else 'NVDA'
-            data = ml_service.simulate_scenarios(target)
+            
+            # Use ML service if available, otherwise fallback to CSV
+            if ml_service is not None:
+                data = ml_service.simulate_scenarios(target)
+            else:
+                data = simulate_scenarios_csv({"ticker": target})
             
             if "error" in data:
                 return _render_no_data_message("Scenario Simulator", dark_mode)
