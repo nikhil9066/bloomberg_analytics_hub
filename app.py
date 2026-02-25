@@ -4786,7 +4786,7 @@ if __name__ == '__main__':
     logger.info(f"Authentication service available: {auth_service is not None}")
     logger.info(f"Data service available: {data_service is not None}")
 
-    app.run_server(
+    app.run(
         host='0.0.0.0',
         port=port,
         debug=debug
