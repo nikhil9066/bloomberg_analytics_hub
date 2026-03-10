@@ -4351,93 +4351,69 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
     # ==================== SCENARIO SIMULATOR ====================
     elif active_tab == "scenario-simulator":
         try:
-            target = selected_competitors[0] if selected_competitors else 'NVDA'
-            data = ml_service.simulate_scenarios(target)
+            # FIX #3: Use META as baseline company
+            target = 'META'
+            # FIX #3: Define only 2 scenarios (Current Trend + User Tweaked)
+            custom_scenarios = [
+                {"name": "Current Trend", "revenue_change": 0.05, "cost_change": 0},
+                {"name": "User Tweaked", "revenue_change": 0.12, "cost_change": -0.03},
+            ]
+            data = ml_service.simulate_scenarios(target, scenarios=custom_scenarios)
             
             if "error" in data:
                 return _render_no_data_message("Scenario Simulator", dark_mode)
             
             scenarios = data.get("scenarios", [])
-            base_revenue = scenarios[0].get('revenue', 100000) if scenarios else 100000
-            base_profit = scenarios[0].get('profit', 20000) if scenarios else 20000
+            base_revenue = data.get("base_revenue", 100000)
+            base_margin = data.get("base_margin", 30)
             
-            # Enhanced Scenario Simulator with interactive sliders (Task 5)
+            # FIX #3: Create simple 2-line trend chart (solid + dashed)
+            # Projection: Current year + 3 future years
+            periods = ['2024', '2025', '2026', '2027']
             
-            # Create waterfall chart showing impact of each scenario
-            fig_waterfall = go.Figure()
-            
-            # Base case as starting point
-            waterfall_x = ['Base Case']
-            waterfall_y = [base_revenue]
-            waterfall_measure = ['absolute']
-            
-            for scenario in scenarios[1:]:  # Skip base case
-                rev_change = scenario.get('revenue', base_revenue) - base_revenue
-                waterfall_x.append(scenario['name'])
-                waterfall_y.append(rev_change)
-                waterfall_measure.append('relative')
-            
-            fig_waterfall.add_trace(go.Waterfall(
-                name="Revenue Impact",
-                orientation="v",
-                measure=waterfall_measure,
-                x=waterfall_x,
-                y=waterfall_y,
-                text=[f"${abs(v)/1000:.1f}B" for v in waterfall_y],
-                textposition="outside",
-                connector={"line": {"color": COLORS['gray']['400']}},
-                increasing={"marker": {"color": COLORS['success']}},
-                decreasing={"marker": {"color": COLORS['danger']}},
-                totals={"marker": {"color": COLORS['primary']}}
-            ))
-            
-            fig_waterfall.update_layout(
-                title="Revenue Impact by Scenario",
-                height=350,
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color=text_color),
-                showlegend=False,
-                yaxis=dict(title="Revenue ($M)", gridcolor=COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']),
-                margin=dict(t=60, b=40)
-            )
-            
-            # Create dual-axis line chart for Revenue vs Profit trends
             fig_trends = go.Figure()
             
-            scenario_names = [s['name'] for s in scenarios]
-            revenues = [s['revenue'] for s in scenarios]
-            profits = [s['profit'] for s in scenarios]
+            # Current Trend (solid line)
+            if len(scenarios) >= 1:
+                current_trend = scenarios[0]
+                growth_rate = current_trend.get('revenue_change', 0) / 100
+                trend_values = [base_revenue * ((1 + growth_rate) ** i) for i in range(4)]
+                
+                fig_trends.add_trace(go.Scatter(
+                    name=current_trend['name'],
+                    x=periods,
+                    y=trend_values,
+                    mode='lines+markers',
+                    line=dict(color=COLORS['primary'], width=3),
+                    marker=dict(size=10)
+                ))
             
-            fig_trends.add_trace(go.Scatter(
-                name='Revenue',
-                x=scenario_names,
-                y=revenues,
-                mode='lines+markers',
-                line=dict(color=COLORS['primary'], width=3),
-                marker=dict(size=10)
-            ))
-            
-            fig_trends.add_trace(go.Scatter(
-                name='Profit',
-                x=scenario_names,
-                y=profits,
-                mode='lines+markers',
-                line=dict(color=COLORS['success'], width=3),
-                marker=dict(size=10),
-                yaxis='y2'
-            ))
+            # User Tweaked (dashed line)
+            if len(scenarios) >= 2:
+                user_tweaked = scenarios[1]
+                growth_rate = user_tweaked.get('revenue_change', 0) / 100
+                tweaked_values = [base_revenue * ((1 + growth_rate) ** i) for i in range(4)]
+                
+                fig_trends.add_trace(go.Scatter(
+                    name=user_tweaked['name'],
+                    x=periods,
+                    y=tweaked_values,
+                    mode='lines+markers',
+                    line=dict(color=COLORS['success'], width=3, dash='dash'),
+                    marker=dict(size=10, symbol='diamond')
+                ))
             
             fig_trends.update_layout(
-                title="Scenario Comparison: Revenue & Profit",
-                height=350,
+                title=f"{target} Revenue Scenarios (Baseline: ${base_revenue/1000:.1f}B)",
+                height=400,
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
                 font=dict(color=text_color),
                 legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="center", x=0.5),
-                yaxis=dict(title="Revenue ($M)", gridcolor=COLORS['gray']['700'] if dark_mode else COLORS['gray']['200'], side='left'),
-                yaxis2=dict(title="Profit ($M)", overlaying='y', side='right', showgrid=False),
-                margin=dict(t=80, b=40)
+                yaxis=dict(title="Revenue ($M)", gridcolor=COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']),
+                xaxis=dict(title="Year"),
+                margin=dict(t=80, b=60),
+                hovermode='x unified'
             )
             
             # Interactive scenario cards with gauges
@@ -4535,6 +4511,7 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
                     ], md=3, sm=6, className="mb-3")
                 )
             
+            # FIX #3: Return simplified layout with single chart + 2 scenario cards
             return html.Div([
                 # Header
                 html.Div([
@@ -4542,33 +4519,20 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
                     html.P(f"What-if analysis for {target}", style={"color": COLORS['gray']['400'], "fontSize": "14px", "margin": "4px 0 0 0"})
                 ], style={"marginBottom": "24px"}),
                 
-                # Charts Row
-                dbc.Row([
-                    dbc.Col([
-                        html.Div([
-                            dcc.Graph(figure=fig_waterfall, config={'displayModeBar': False})
-                        ], style={
-                            "backgroundColor": card_bg,
-                            "borderRadius": "12px",
-                            "padding": "16px",
-                            "border": f"1px solid {COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']}"
-                        })
-                    ], md=6),
-                    dbc.Col([
-                        html.Div([
-                            dcc.Graph(figure=fig_trends, config={'displayModeBar': False})
-                        ], style={
-                            "backgroundColor": card_bg,
-                            "borderRadius": "12px",
-                            "padding": "16px",
-                            "border": f"1px solid {COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']}"
-                        })
-                    ], md=6)
-                ], className="mb-4"),
+                # Full-width Trends Chart
+                html.Div([
+                    dcc.Graph(figure=fig_trends, config={'displayModeBar': False})
+                ], style={
+                    "backgroundColor": card_bg,
+                    "borderRadius": "12px",
+                    "padding": "16px",
+                    "border": f"1px solid {COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']}",
+                    "marginBottom": "24px"
+                }),
                 
-                # Scenario Cards
+                # Scenario Cards (only 2)
                 html.H5("Scenario Details", style={"color": text_color, "marginBottom": "16px"}),
-                dbc.Row(scenario_cards)
+                dbc.Row(scenario_cards[:2])  # Show only first 2 cards
             ])
             
         except Exception as e:
