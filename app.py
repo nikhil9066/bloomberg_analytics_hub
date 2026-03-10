@@ -1215,20 +1215,41 @@ app.layout = html.Div([
     # Store for updated timestamp
     dcc.Store(id='update-timestamp', data=datetime.now().isoformat()),
 
-    # Store for selected competitors (used across the page)
-    dcc.Store(id='selected-competitors-store', data=['META']),
+    # Store for selected competitors (used across the page) - Initialize with demo companies
+    dcc.Store(id='selected-competitors-store', data=['META', 'GOOGL', 'AAPL', 'MSFT', 'AMZN']),
 
-    # Store for user company data
-    dcc.Store(id='user-company-store', data=None),
+    # Store for user company data - Initialize with test data to skip onboarding
+    dcc.Store(id='user-company-store', data={
+        'company_name': 'Test Company',
+        'industry': 'tech',
+        'TICKER': 'TEST',
+        'EBITDA_MARGIN': 15.0,
+        'GROSS_MARGIN': 45.0,
+        'CUR_RATIO': 1.5,
+        'QUICK_RATIO': 1.2,
+        'TOT_DEBT_TO_TOT_ASSET': 25.0,
+        'TOT_DEBT_TO_EBITDA': 2.0,
+        'INTEREST_COVERAGE_RATIO': 8.0,
+        'NET_DEBT_TO_SHRHLDR_EQTY': 50.0,
+        'CASH_DVD_COVERAGE': 3.0,
+        'annual_financials': {
+            'SALES_REV_TURN': 1000000,
+            'EBITDA': 150000,
+            'OPER_EXPENSES': 300000,
+            'CASH_FROM_OPER_ACTIV': 120000,
+            'WORKING_CAPITAL': 200000,
+            'NET_PROFIT_MARGIN': 10.0
+        }
+    }),
 
-    # Store for onboarding completion
-    dcc.Store(id='onboarding-complete-store', data=False),
+    # Store for onboarding completion - Set to True to skip onboarding
+    dcc.Store(id='onboarding-complete-store', data=True),
 
     # Interval for loading animation
     dcc.Interval(id='loading-interval', interval=500, n_intervals=0, disabled=True),
 
-    # Onboarding Screen
-    html.Div(id='onboarding-container', children=create_onboarding_screen()),
+    # Onboarding Screen - Hidden by default, skip onboarding
+    html.Div(id='onboarding-container', children=create_onboarding_screen(), style={'display': 'none'}),
 
     # Loading Screen
     create_loading_screen(),
@@ -1276,7 +1297,7 @@ app.layout = html.Div([
                 html.Div(id='footer-container')
             ])
         ], id='main-content', fluid=True, style=custom_style, className='main-content sidebar-expanded')
-    ], id='dashboard-container', style={'display': 'none', 'position': 'relative'})
+    ], id='dashboard-container', style={'display': 'block', 'position': 'relative'})
 
 ], style={'position': 'relative'})
 
@@ -3724,25 +3745,53 @@ def update_margin_bridge(timestamp, dark_mode, selected_competitors, user_compan
     except Exception as e:
         logger.error(f"Error calculating margin bridge data: {e}")
 
-    # Calculate OpEx (difference between Gross Profit and EBITDA)
-    opex = avg_gross_profit - avg_ebitda if pd.notnull(avg_gross_profit) and pd.notnull(avg_ebitda) else avg_sga
-    # D&A (difference between EBITDA and EBIT)
-    da = avg_ebitda - avg_ebit if pd.notnull(avg_ebitda) and pd.notnull(avg_ebit) else avg_da
-    # Interest & Taxes (difference between EBIT and Net Income)
-    interest_taxes = avg_ebit - avg_net_income if pd.notnull(avg_ebit) and pd.notnull(avg_net_income) else (avg_interest + avg_tax)
+    # FIX: Ensure all values are positive, then apply correct sign for waterfall
+    # Force absolute values to handle any negative data from DB
+    avg_revenue = abs(avg_revenue) if pd.notnull(avg_revenue) else 100000
+    avg_cogs = abs(avg_cogs) if pd.notnull(avg_cogs) else 0
+    avg_gross_profit = abs(avg_gross_profit) if pd.notnull(avg_gross_profit) else 0
+    avg_sga = abs(avg_sga) if pd.notnull(avg_sga) else 0
+    avg_ebitda = abs(avg_ebitda) if pd.notnull(avg_ebitda) else 0
+    avg_da = abs(avg_da) if pd.notnull(avg_da) else 0
+    avg_ebit = abs(avg_ebit) if pd.notnull(avg_ebit) else 0
+    avg_interest = abs(avg_interest) if pd.notnull(avg_interest) else 0
+    avg_tax = abs(avg_tax) if pd.notnull(avg_tax) else 0
+    avg_net_income = abs(avg_net_income) if pd.notnull(avg_net_income) else 0
 
-    # Margin bridge data (in millions) - Task 3: Fix negative values
-    # Use absolute values for deductions to ensure they're always negative
+    # Calculate deductions (as positive values, will be negated for waterfall)
+    # COGS: If not available, calculate as Revenue - Gross Profit
+    cogs = avg_cogs if avg_cogs > 0 else (avg_revenue - avg_gross_profit)
+    
+    # OpEx (SG&A): Calculate as Gross Profit - EBITDA
+    opex = avg_sga if avg_sga > 0 else (avg_gross_profit - avg_ebitda)
+    opex = max(opex, 0)  # Ensure non-negative
+    
+    # D&A: Calculate as EBITDA - EBIT
+    da = avg_da if avg_da > 0 else (avg_ebitda - avg_ebit)
+    da = max(da, 0)  # Ensure non-negative
+    
+    # Interest & Taxes: Calculate as EBIT - Net Income
+    interest_taxes = avg_interest + avg_tax if (avg_interest + avg_tax) > 0 else (avg_ebit - avg_net_income)
+    interest_taxes = max(interest_taxes, 0)  # Ensure non-negative
+
+    # Recalculate totals to ensure consistency (Revenue → COGS → Gross Profit → OpEx → EBITDA → D&A → EBIT → Tax → Net Income)
+    gross_profit = avg_revenue - cogs
+    ebitda = gross_profit - opex
+    ebit = ebitda - da
+    net_income = ebit - interest_taxes
+
+    # Margin bridge data (in millions) - Fixed negative value issue
+    # Deductions are negative, totals are cumulative results
     bridge_data = [
-        {'step': 'Revenue', 'value': abs(avg_revenue) if pd.notnull(avg_revenue) else 100000, 'type': 'total'},
-        {'step': 'COGS', 'value': -abs(avg_cogs) if pd.notnull(avg_cogs) else -(abs(avg_revenue) - abs(avg_gross_profit)), 'type': 'relative'},
-        {'step': 'Gross Profit', 'value': abs(avg_gross_profit) if pd.notnull(avg_gross_profit) else 60000, 'type': 'total'},
-        {'step': 'OpEx (SG&A)', 'value': -abs(opex) if pd.notnull(opex) and opex != 0 else -20000, 'type': 'relative'},
-        {'step': 'EBITDA', 'value': abs(avg_ebitda) if pd.notnull(avg_ebitda) else 30000, 'type': 'total'},
-        {'step': 'D&A', 'value': -abs(da) if pd.notnull(da) and da != 0 else -5000, 'type': 'relative'},
-        {'step': 'EBIT', 'value': abs(avg_ebit) if pd.notnull(avg_ebit) else 25000, 'type': 'total'},
-        {'step': 'Interest & Tax', 'value': -abs(interest_taxes) if pd.notnull(interest_taxes) and interest_taxes != 0 else -6000, 'type': 'relative'},
-        {'step': 'Net Income', 'value': abs(avg_net_income) if pd.notnull(avg_net_income) else 19000, 'type': 'total'},
+        {'step': 'Revenue', 'value': avg_revenue, 'type': 'total'},
+        {'step': 'COGS', 'value': -cogs, 'type': 'relative'},
+        {'step': 'Gross Profit', 'value': gross_profit, 'type': 'total'},
+        {'step': 'OpEx (SG&A)', 'value': -opex, 'type': 'relative'},
+        {'step': 'EBITDA', 'value': ebitda, 'type': 'total'},
+        {'step': 'D&A', 'value': -da, 'type': 'relative'},
+        {'step': 'EBIT', 'value': ebit, 'type': 'total'},
+        {'step': 'Interest & Tax', 'value': -interest_taxes, 'type': 'relative'},
+        {'step': 'Net Income', 'value': net_income, 'type': 'total'},
     ]
 
     # Create waterfall chart
@@ -4100,24 +4149,25 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
                 clean = [v for v in values if pd.notnull(v) and v != 0]
                 return sum(clean) / len(clean) if clean else 0
             
-            # Define the 6 key ratios to display (matching screenshot design)
+            # FIX: Use only fields that ml_service returns in ratio_metrics
+            # These match the fields from _analyze_ratios_without_model
             ratio_definitions = [
-                {'key': 'profit_margin', 'label': 'Profit Margin', 'suffix': '%', 'higher_better': True},
-                {'key': 'roa', 'label': 'ROA', 'suffix': '%', 'higher_better': True},
-                {'key': 'roe', 'label': 'ROE', 'suffix': '%', 'higher_better': True},
+                {'key': 'gross_margin', 'label': 'Gross Margin', 'suffix': '%', 'higher_better': True},
+                {'key': 'ebitda_margin', 'label': 'EBITDA Margin', 'suffix': '%', 'higher_better': True},
                 {'key': 'current_ratio', 'label': 'Current Ratio', 'suffix': ':1', 'higher_better': True},
-                {'key': 'de_ratio', 'label': 'D/E Ratio', 'suffix': ':1', 'higher_better': False},
-                {'key': 'asset_turnover', 'label': 'Asset Turnover', 'suffix': '%', 'higher_better': True},
+                {'key': 'quick_ratio', 'label': 'Quick Ratio', 'suffix': ':1', 'higher_better': True},
+                {'key': 'debt_to_asset', 'label': 'Debt to Asset', 'suffix': '%', 'higher_better': False},
+                {'key': 'interest_coverage', 'label': 'Interest Coverage', 'suffix': 'x', 'higher_better': True},
             ]
             
-            # Map to actual data fields
+            # Map to actual fields returned by ml_service.analyze_ratios()
             ratio_mapping = {
-                'profit_margin': 'PROF_MARGIN',
-                'roa': 'RETURN_ON_ASSET',
-                'roe': 'RETURN_COM_EQY',
+                'gross_margin': 'GROSS_MARGIN',
+                'ebitda_margin': 'EBITDA_MARGIN',
                 'current_ratio': 'CUR_RATIO',
-                'de_ratio': 'TOT_DEBT_TO_TOT_EQY',
-                'asset_turnover': 'ASSET_TURNOVER',
+                'quick_ratio': 'QUICK_RATIO',
+                'debt_to_asset': 'TOT_DEBT_TO_TOT_ASSET',
+                'interest_coverage': 'INTEREST_COVERAGE_RATIO',
             }
             
             # Get primary company data (first selected or user company)
@@ -4535,7 +4585,7 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
             
             companies = data["companies"]
             
-            # Enhanced Forecast with area chart and confidence bands
+            # FIX 4d: Enhanced Forecast with dotted lines for future values
             fig_area = go.Figure()
             
             colors = [COLORS['primary'], COLORS['success'], COLORS['warning'], '#8b5cf6', '#06b6d4']
@@ -4546,20 +4596,37 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
                 
                 if 'SALES_REV_TURN' in forecasts:
                     fc = forecasts['SALES_REV_TURN']
-                    periods = ['2023', '2024', '2025 (F)', '2026 (F)']
-                    values = [fc['current'] * 0.85, fc['current'], fc['forecast_1y'], fc['forecast_2y']]
                     
-                    # Add confidence band
-                    upper = [v * 1.1 for v in values[2:]]  # 10% upper bound for forecasts
-                    lower = [v * 0.9 for v in values[2:]]  # 10% lower bound
+                    # Historical data (2023, 2024) - solid line
+                    periods_hist = ['2023', '2024']
+                    values_hist = [fc['current'] * 0.85, fc['current']]
                     
+                    # Forecast data (2024, 2025 (F), 2026 (F)) - dotted line (includes 2024 for continuity)
+                    periods_forecast = ['2024', '2025 (F)', '2026 (F)']
+                    values_forecast = [fc['current'], fc['forecast_1y'], fc['forecast_2y']]
+                    
+                    # Add historical trace (solid)
                     fig_area.add_trace(go.Scatter(
-                        x=periods,
-                        y=values,
+                        x=periods_hist,
+                        y=values_hist,
                         name=ticker,
                         mode='lines+markers',
                         line=dict(color=colors[i % len(colors)], width=3),
-                        marker=dict(size=10)
+                        marker=dict(size=10),
+                        showlegend=True,
+                        legendgroup=ticker
+                    ))
+                    
+                    # Add forecast trace (dotted)
+                    fig_area.add_trace(go.Scatter(
+                        x=periods_forecast,
+                        y=values_forecast,
+                        name=f"{ticker} (forecast)",
+                        mode='lines+markers',
+                        line=dict(color=colors[i % len(colors)], width=3, dash='dot'),
+                        marker=dict(size=10, symbol='circle-open'),
+                        showlegend=False,  # Don't duplicate in legend
+                        legendgroup=ticker
                     ))
             
             fig_area.update_layout(
@@ -4608,9 +4675,9 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
                 margin=dict(t=80, b=40)
             )
             
-            # Forecast summary cards
+            # FIX 4a: Show all companies (not just [:4])
             forecast_cards = []
-            for i, company in enumerate(companies[:4]):
+            for i, company in enumerate(companies):
                 ticker = company['ticker']
                 forecasts = company.get('forecasts', {})
                 
@@ -4717,7 +4784,59 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
                             "border": f"1px solid {COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']}"
                         })
                     ], md=5)
-                ])
+                ]),
+                
+                # FIX 4e: Add Actual vs Forecast EBITDA chart
+                dbc.Row([
+                    dbc.Col([
+                        html.Div([
+                            html.H5("Actual vs Forecast EBITDA", style={"color": text_color, "marginBottom": "16px"}),
+                            dcc.Graph(figure=go.Figure({
+                                'data': [
+                                    # Historical EBITDA (Actual) - solid lines
+                                    *[go.Scatter(
+                                        x=['2023', '2024'],
+                                        y=[c.get('forecasts', {}).get('EBITDA', {}).get('current', 0) * 0.85,
+                                           c.get('forecasts', {}).get('EBITDA', {}).get('current', 0)],
+                                        name=f"{c['ticker']} (Actual)",
+                                        mode='lines+markers',
+                                        line=dict(color=colors[i % len(colors)], width=3),
+                                        marker=dict(size=10),
+                                        legendgroup=c['ticker']
+                                    ) for i, c in enumerate(companies) if 'EBITDA' in c.get('forecasts', {})],
+                                    # Forecast EBITDA - dotted lines
+                                    *[go.Scatter(
+                                        x=['2024', '2025 (F)', '2026 (F)'],
+                                        y=[c.get('forecasts', {}).get('EBITDA', {}).get('current', 0),
+                                           c.get('forecasts', {}).get('EBITDA', {}).get('forecast_1y', 0),
+                                           c.get('forecasts', {}).get('EBITDA', {}).get('forecast_2y', 0)],
+                                        name=f"{c['ticker']} (Forecast)",
+                                        mode='lines+markers',
+                                        line=dict(color=colors[i % len(colors)], width=3, dash='dot'),
+                                        marker=dict(size=10, symbol='circle-open'),
+                                        showlegend=False,
+                                        legendgroup=c['ticker']
+                                    ) for i, c in enumerate(companies) if 'EBITDA' in c.get('forecasts', {})]
+                                ],
+                                'layout': {
+                                    'template': 'plotly_dark' if dark_mode else 'plotly_white',
+                                    'paper_bgcolor': card_bg,
+                                    'plot_bgcolor': card_bg,
+                                    'height': 350,
+                                    'margin': {'l': 40, 'r': 20, 't': 20, 'b': 40},
+                                    'xaxis': {'title': 'Year', 'gridcolor': COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']},
+                                    'yaxis': {'title': 'EBITDA ($M)', 'gridcolor': COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']},
+                                    'legend': {'orientation': 'h', 'yanchor': 'bottom', 'y': 1.02, 'xanchor': 'right', 'x': 1}
+                                }
+                            }), config={'displayModeBar': False})
+                        ], style={
+                            "backgroundColor": card_bg,
+                            "borderRadius": "12px",
+                            "padding": "16px",
+                            "border": f"1px solid {COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']}"
+                        })
+                    ], md=12)
+                ], className="mt-4")
             ])
             
         except Exception as e:

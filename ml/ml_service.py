@@ -607,9 +607,12 @@ class MLService:
             logger.warning("No forecast metrics found in data")
             return {"error": "No forecast metrics", "companies": []}
         
+        # FIX Bug 4b: Calculate company-specific growth rates from historical data
+        # Get multiple years of data for each ticker to calculate historical growth
         results = []
         for ticker in tickers:
-            ticker_data = df[df['TICKER'] == ticker].head(1)
+            ticker_data_all = df[df['TICKER'] == ticker].sort_values('PERIOD_END_DATE', ascending=False) if 'PERIOD_END_DATE' in df.columns else df[df['TICKER'] == ticker]
+            ticker_data = ticker_data_all.head(1)
             if ticker_data.empty:
                 logger.warning(f"No data for ticker {ticker}")
                 continue
@@ -617,9 +620,18 @@ class MLService:
             ticker_forecasts = {}
             for metric in available_metrics:
                 current_val = float(ticker_data[metric].iloc[0]) if pd.notna(ticker_data[metric].iloc[0]) else 0
-                # Simple growth forecast
-                growth_rate = 0.05  # 5% default growth
-                if metrics and metric in metrics:
+                
+                # Calculate company-specific growth rate from historical data (if available)
+                growth_rate = 0.05  # Default 5% growth
+                if len(ticker_data_all) >= 2:
+                    # Calculate year-over-year growth from most recent 2 periods
+                    prev_val = float(ticker_data_all[metric].iloc[1]) if pd.notna(ticker_data_all[metric].iloc[1]) else 0
+                    if prev_val > 0 and current_val > 0:
+                        growth_rate = (current_val - prev_val) / prev_val
+                        # Cap growth rate between -50% and +100% to avoid outliers
+                        growth_rate = max(-0.5, min(1.0, growth_rate))
+                elif metrics and metric in metrics:
+                    # Fallback to model metrics if available
                     growth_rate = metrics[metric].get('avg_growth', 0.05)
                 
                 forecast_1y = current_val * (1 + growth_rate)
