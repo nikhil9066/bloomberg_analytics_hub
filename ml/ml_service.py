@@ -258,12 +258,15 @@ class MLService:
             ticker = row.get('TICKER', 'Unknown')
             
             ratio_scores = {}
-            total_score = 0
+            score_for_health = 0
             count = 0
             
             for feat in available:
                 val = float(row[feat]) if pd.notna(row[feat]) else 0
-                # Normalize to 0-100 scale
+                # Store actual values, not normalized
+                ratio_scores[feat] = val
+                
+                # Calculate health score separately for classification only
                 if feat in ['CUR_RATIO', 'QUICK_RATIO']:
                     score = min(100, val * 40)  # Target ~2.5
                 elif feat in ['GROSS_MARGIN', 'EBITDA_MARGIN']:
@@ -273,11 +276,10 @@ class MLService:
                 else:
                     score = min(100, max(0, val * 5))
                 
-                ratio_scores[feat] = score
-                total_score += score
+                score_for_health += score
                 count += 1
             
-            avg_score = total_score / count if count > 0 else 50
+            avg_score = score_for_health / count if count > 0 else 50
             health_label = 'Excellent' if avg_score >= 80 else ('Good' if avg_score >= 60 else ('Fair' if avg_score >= 40 else 'Weak'))
             
             results.append({
@@ -356,12 +358,12 @@ class MLService:
                     cluster = 0
                     health_label = 'N/A'
                 
-                # Calculate individual ratio scores
+                # Get actual ratio values from HANA (no normalization)
                 ratio_scores = {}
                 for feat in available_features:
                     val = float(row[feat]) if pd.notna(row[feat]) else 0
-                    # Normalize to 0-100 scale (simplified)
-                    ratio_scores[feat] = min(100, max(0, val * 10)) if val > 0 else 50
+                    # Use actual values from HANA, not normalized scores
+                    ratio_scores[feat] = val
                 
                 results.append({
                     'ticker': ticker,
@@ -617,10 +619,26 @@ class MLService:
             ticker_forecasts = {}
             for metric in available_metrics:
                 current_val = float(ticker_data[metric].iloc[0]) if pd.notna(ticker_data[metric].iloc[0]) else 0
-                # Simple growth forecast
-                growth_rate = 0.05  # 5% default growth
-                if metrics and metric in metrics:
-                    growth_rate = metrics[metric].get('avg_growth', 0.05)
+                
+                # Calculate company-specific growth rate based on company characteristics
+                # Use ROE, profit margin, and industry factors to estimate realistic growth
+                growth_rate = 0.05  # baseline
+                
+                if 'RETURN_COM_EQY' in ticker_data.columns and pd.notna(ticker_data['RETURN_COM_EQY'].iloc[0]):
+                    roe = float(ticker_data['RETURN_COM_EQY'].iloc[0])
+                    # Higher ROE suggests higher growth potential
+                    growth_rate = min(0.25, max(-0.05, roe / 100 * 0.5))
+                
+                # Adjust based on margin efficiency
+                if 'EBITDA_MARGIN' in ticker_data.columns and pd.notna(ticker_data['EBITDA_MARGIN'].iloc[0]):
+                    margin = float(ticker_data['EBITDA_MARGIN'].iloc[0])
+                    if margin > 20:  # High margin companies can invest more in growth
+                        growth_rate *= 1.2
+                    elif margin < 10:  # Low margin companies may struggle
+                        growth_rate *= 0.8
+                
+                # Ensure reasonable bounds
+                growth_rate = min(0.30, max(-0.10, growth_rate))
                 
                 forecast_1y = current_val * (1 + growth_rate)
                 forecast_2y = current_val * (1 + growth_rate) ** 2
