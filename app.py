@@ -1245,6 +1245,9 @@ app.layout = html.Div([
     # Store for onboarding completion - Set to True to skip onboarding
     dcc.Store(id='onboarding-complete-store', data=True),
 
+    # Store for premium unlock status (set to True for demo, False for real paywall)
+    dcc.Store(id='premium-unlock-store', data=False),
+
     # Interval for loading animation
     dcc.Interval(id='loading-interval', interval=500, n_intervals=0, disabled=True),
 
@@ -1297,7 +1300,41 @@ app.layout = html.Div([
                 html.Div(id='footer-container')
             ])
         ], id='main-content', fluid=True, style=custom_style, className='main-content sidebar-expanded')
-    ], id='dashboard-container', style={'display': 'block', 'position': 'relative'})
+    ], id='dashboard-container', style={'display': 'block', 'position': 'relative'}),
+
+    # Payment Modal for Premium Features
+    dbc.Modal([
+        dbc.ModalHeader(dbc.ModalTitle("🔒 Unlock Pro Analytics"), close_button=True),
+        dbc.ModalBody([
+            html.Div([
+                html.H5("Premium Features Included:", className="mb-3"),
+                html.Ul([
+                    html.Li("💰 Cash Conversion Cycle Analysis"),
+                    html.Li("📊 Margin Decomposition Waterfall"),
+                    html.Li("🎯 DuPont ROE Breakdown"),
+                    html.Li("📈 Working Capital Efficiency Matrix"),
+                ], style={"fontSize": "16px", "lineHeight": "2"}),
+                html.Hr(),
+                html.Div([
+                    html.Label("Card Number", className="form-label"),
+                    dbc.Input(id="card-number-input", placeholder="1234 5678 9012 3456", type="text", className="mb-3"),
+                    dbc.Row([
+                        dbc.Col([
+                            html.Label("Expiry", className="form-label"),
+                            dbc.Input(id="card-expiry-input", placeholder="MM/YY", type="text"),
+                        ], md=6),
+                        dbc.Col([
+                            html.Label("CVV", className="form-label"),
+                            dbc.Input(id="card-cvv-input", placeholder="123", type="password"),
+                        ], md=6),
+                    ], className="mb-3"),
+                    html.H4("$49/month", className="text-center my-4", style={"color": "#10b981"}),
+                    dbc.Button("🚀 Unlock Premium", id="unlock-premium-btn", color="success", size="lg", className="w-100"),
+                ]),
+                html.Div(id="payment-status", className="mt-3 text-center"),
+            ])
+        ]),
+    ], id="premium-modal", is_open=False, centered=True, size="md"),
 
 ], style={'position': 'relative'})
 
@@ -4096,9 +4133,10 @@ def update_tabbed_analytics(timestamp, dark_mode):
             dbc.Tab(label="Ratio Analyzer", tab_id="ratio-analyzer"),
             dbc.Tab(label="Scenario Simulator", tab_id="scenario-simulator"),
             dbc.Tab(label="Forecast & Trends", tab_id="forecast"),
-            dbc.Tab(label="Anomaly Heatmap", tab_id="heatmap"),
-            dbc.Tab(label="Competitor Benchmark", tab_id="competitor"),
-            dbc.Tab(label="Goal Tracker", tab_id="goals")
+            dbc.Tab(label="🔒 Cash Conversion Cycle", tab_id="premium-ccc", disabled=False),
+            dbc.Tab(label="🔒 Margin Decomposition", tab_id="premium-margin", disabled=False),
+            dbc.Tab(label="🔒 DuPont ROE Analysis", tab_id="premium-dupont", disabled=False),
+            dbc.Tab(label="🔒 Working Capital Matrix", tab_id="premium-wcm", disabled=False)
         ], id="analytics-tabs", active_tab="ratio-analyzer", style={
             "borderBottom": f"2px solid {COLORS['gray']['200']}"
         }),
@@ -5326,6 +5364,75 @@ def update_advanced_charts(timestamp, dark_mode):
             ])
         ], style=card_style)
     ])
+
+# ==================== PREMIUM FEATURES CALLBACKS ====================
+
+@app.callback(
+    Output('premium-modal', 'is_open'),
+    [Input('analytics-tabs', 'active_tab'),
+     Input('unlock-premium-btn', 'n_clicks'),
+     Input('open-premium-modal-btn', 'n_clicks'),
+     Input('open-premium-modal-btn-2', 'n_clicks'),
+     Input('open-premium-modal-btn-3', 'n_clicks'),
+     Input('open-premium-modal-btn-4', 'n_clicks')],
+    [State('premium-unlock-store', 'data'),
+     State('premium-modal', 'is_open')]
+)
+def toggle_premium_modal(active_tab, unlock_clicks, open_btn1, open_btn2, open_btn3, open_btn4, 
+                         is_unlocked, is_open):
+    """Show/hide payment modal"""
+    ctx = dash.callback_context
+    
+    if not ctx.triggered:
+        return False
+    
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    
+    # Premium tab IDs
+    premium_tabs = ['premium-ccc', 'premium-margin', 'premium-dupont', 'premium-wcm']
+    
+    # If premium tab clicked and not unlocked, show modal
+    if trigger_id == 'analytics-tabs' and active_tab in premium_tabs and not is_unlocked:
+        return True
+    
+    # If any "Unlock Now" button clicked, open modal
+    if trigger_id in ['open-premium-modal-btn', 'open-premium-modal-btn-2', 
+                      'open-premium-modal-btn-3', 'open-premium-modal-btn-4']:
+        return True
+    
+    # If unlock button in modal clicked, close modal (actual unlock handled in next callback)
+    if trigger_id == 'unlock-premium-btn':
+        return False
+    
+    return is_open
+
+
+@app.callback(
+    [Output('premium-unlock-store', 'data'),
+     Output('payment-status', 'children')],
+    [Input('unlock-premium-btn', 'n_clicks')],
+    [State('card-number-input', 'value'),
+     State('card-expiry-input', 'value'),
+     State('card-cvv-input', 'value')]
+)
+def process_payment(n_clicks, card_number, expiry, cvv):
+    """Process payment and unlock premium (demo mode: any card works)"""
+    if not n_clicks:
+        return dash.no_update, ""
+    
+    # Validate inputs
+    if not card_number or not expiry or not cvv:
+        return False, html.Div("❌ Please fill all fields", style={"color": "#ef4444"})
+    
+    # Demo mode: Any card unlocks premium
+    if len(card_number.replace(" ", "")) >= 13:
+        return True, html.Div([
+            html.I(className="fas fa-check-circle", style={"fontSize": "48px", "color": "#10b981"}),
+            html.P("✅ Premium Unlocked! Enjoy Pro Analytics.", style={"marginTop": "12px", "color": "#10b981"})
+        ])
+    
+    return False, html.Div("❌ Invalid card number", style={"color": "#ef4444"})
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
