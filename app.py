@@ -543,7 +543,7 @@ def create_sidebar(collapsed=False, dark_mode=False):
         {"id": "nav-insights", "icon": "fas fa-lightbulb", "text": "AI Insights", "target": "ai-insights-container"},
         {"id": "nav-competitor", "icon": "fas fa-users", "text": "Competitor Analysis", "target": "competitor-analysis-container"},
         {"id": "nav-comparative", "icon": "fas fa-balance-scale", "text": "Comparative Analysis", "target": "comparative-analysis-container"},
-        {"id": "nav-margin", "icon": "fas fa-chart-bar", "text": "Margin Bridge", "target": "margin-bridge-container"},  # Task 5.2: Fixed icon (waterfall is Pro-only)
+        {"id": "nav-margin", "icon": "fas fa-chart-waterfall", "text": "Margin Bridge", "target": "margin-bridge-container"},
         {"id": "nav-analytics", "icon": "fas fa-chart-bar", "text": "Analytics", "target": "tabbed-analytics-container"},
         {"id": "nav-advanced-charts", "icon": "fas fa-chart-line", "text": "Advanced Charts", "target": "advanced-charts-container"},
     ]
@@ -576,9 +576,180 @@ def create_sidebar(collapsed=False, dark_mode=False):
             ])
         ], className="sidebar-nav"),
 
-        # Task 5.2: Removed Data Refresh Status and System Status sections
-        # Help and Settings (footer)
+        # Data Refresh Status Section (Collapsible)
         html.Div([
+            # Toggle button
+            html.Div([
+                html.Div([
+                    html.I(className="fas fa-sync-alt sidebar-footer-item-icon"),
+                    html.Span("Data Refresh Status", className="sidebar-footer-item-text")
+                ], style={"flex": "1"}),
+                html.I(id="data-refresh-toggle-icon", className="fas fa-chevron-down", style={
+                    "fontSize": "12px",
+                    "transition": "transform 0.3s ease",
+                    "color": COLORS['gray']['400']
+                })
+            ], id="data-refresh-toggle", className="sidebar-footer-item", style={
+                "display": "flex",
+                "alignItems": "center",
+                "justifyContent": "space-between",
+                "cursor": "pointer"
+            }),
+
+            # Collapsible content
+            html.Div([
+                html.Div([
+                    # Last Sync (from DB timestamp)
+                    html.Div([
+                        html.Div([
+                            html.I(className="fas fa-check-circle", style={
+                                "fontSize": "10px",
+                                "color": COLORS['success'],
+                                "marginRight": "6px"
+                            }),
+                            html.Span("Last Sync", className="sidebar-footer-item-text", style={"fontSize": "11px"})
+                        ], style={"marginBottom": "4px"}),
+                        html.Div(id="sidebar-last-sync", children="Loading...", style={
+                            "fontSize": "11px",
+                            "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600'],
+                            "marginLeft": "16px"
+                        })
+                    ], style={"marginBottom": "12px"}),
+
+                    # Total Records (from DB)
+                    html.Div([
+                        html.Div([
+                            html.I(className="fas fa-database", style={
+                                "fontSize": "10px",
+                                "color": COLORS['primary'],
+                                "marginRight": "6px"
+                            }),
+                            html.Span("Total Records", className="sidebar-footer-item-text", style={"fontSize": "11px"})
+                        ], style={"marginBottom": "4px"}),
+                        html.Div(id="sidebar-total-records", children="Loading...", style={
+                            "fontSize": "11px",
+                            "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600'],
+                            "marginLeft": "16px"
+                        })
+                    ], style={"marginBottom": "12px"}),
+
+                    # Unique Tickers (from DB)
+                    html.Div([
+                        html.Div([
+                            html.I(className="fas fa-building", style={
+                                "fontSize": "10px",
+                                "color": COLORS['info'],
+                                "marginRight": "6px"
+                            }),
+                            html.Span("Unique Tickers", className="sidebar-footer-item-text", style={"fontSize": "11px"})
+                        ], style={"marginBottom": "4px"}),
+                        html.Div(id="sidebar-unique-tickers", children="Loading...", style={
+                            "fontSize": "11px",
+                            "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600'],
+                            "marginLeft": "16px"
+                        })
+                    ])
+                ], style={
+                    "padding": "12px 16px",
+                    "backgroundColor": COLORS['gray']['700'] if dark_mode else COLORS['gray']['50'],
+                    "borderRadius": "8px",
+                    "border": f"1px solid {COLORS['gray']['600'] if dark_mode else COLORS['gray']['200']}"
+                })
+            ], id="data-refresh-content", style={"padding": "8px 8px 0 8px", "display": "block"}),
+        ], style={"marginBottom": "8px"}),
+
+        # System Status Section (Collapsible)
+        html.Div([
+            # Toggle button
+            html.Div([
+                html.Div([
+                    html.I(className="fas fa-server sidebar-footer-item-icon"),
+                    html.Span("System Status", className="sidebar-footer-item-text")
+                ], style={"flex": "1"}),
+                html.I(id="system-status-toggle-icon", className="fas fa-chevron-down", style={
+                    "fontSize": "12px",
+                    "transition": "transform 0.3s ease",
+                    "color": COLORS['gray']['400']
+                })
+            ], id="system-status-toggle", className="sidebar-footer-item", style={
+                "display": "flex",
+                "alignItems": "center",
+                "justifyContent": "space-between",
+                "cursor": "pointer"
+            }),
+
+            # Collapsible content
+            html.Div([
+                html.Div([
+                    # Data Quality (from DB)
+                    html.Div([
+                        html.Div([
+                            html.I(className="fas fa-check-circle", style={
+                                "fontSize": "10px",
+                                "color": COLORS['success'],
+                                "marginRight": "6px"
+                            }),
+                            html.Span("Data Quality", className="sidebar-footer-item-text", style={"fontSize": "11px"})
+                        ], style={"marginBottom": "4px"}),
+                        html.Div(id="sidebar-data-quality", children="Loading...", style={
+                            "fontSize": "16px",
+                            "fontWeight": "700",
+                            "color": COLORS['success'],
+                            "marginLeft": "16px"
+                        })
+                    ], style={"marginBottom": "12px"}),
+
+                    # Connection Status (from DB)
+                    html.Div([
+                        html.Div([
+                            html.I(className="fas fa-database", style={
+                                "fontSize": "10px",
+                                "color": COLORS['primary'],
+                                "marginRight": "6px"
+                            }),
+                            html.Span("SAP HANA Cloud", className="sidebar-footer-item-text", style={"fontSize": "11px"})
+                        ], style={"marginBottom": "4px"}),
+                        html.Div(id="sidebar-connection-status", children=[
+                            html.Div(id="sidebar-connection-indicator", style={
+                                "width": "6px",
+                                "height": "6px",
+                                "borderRadius": "50%",
+                                "backgroundColor": COLORS['gray']['400'],
+                                "marginRight": "6px",
+                                "marginLeft": "16px"
+                            }),
+                            html.Span(id="sidebar-connection-text", children="Checking...", style={
+                                "fontSize": "11px",
+                                "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600']
+                            })
+                        ], style={"display": "flex", "alignItems": "center"})
+                    ], style={"marginBottom": "12px"}),
+
+                    # Annual Records Count (from DB)
+                    html.Div([
+                        html.Div([
+                            html.I(className="fas fa-file-alt", style={
+                                "fontSize": "10px",
+                                "color": COLORS['warning'],
+                                "marginRight": "6px"
+                            }),
+                            html.Span("Annual Records", className="sidebar-footer-item-text", style={"fontSize": "11px"})
+                        ], style={"marginBottom": "4px"}),
+                        html.Div(id="sidebar-annual-records", children="Loading...", style={
+                            "fontSize": "11px",
+                            "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600'],
+                            "marginLeft": "16px"
+                        })
+                    ])
+                ], style={
+                    "padding": "12px 16px",
+                    "backgroundColor": COLORS['gray']['700'] if dark_mode else COLORS['gray']['50'],
+                    "borderRadius": "8px",
+                    "border": f"1px solid {COLORS['gray']['600'] if dark_mode else COLORS['gray']['200']}"
+                })
+            ], id="system-status-content", style={"padding": "8px 8px 0 8px", "display": "block"}),
+
+            # Help and Settings
             html.Div([
                 html.I(className="fas fa-question-circle sidebar-footer-item-icon"),
                 html.Span("Help Center", className="sidebar-footer-item-text")
@@ -1315,7 +1486,95 @@ def update_main_content_class(collapsed, dark_mode):
 def update_dashboard_class(dark_mode):
     return "dark-mode" if dark_mode else ""
 
-# Task 5.2: Removed system status and data refresh toggle callbacks (sections deleted)
+# System status toggle callback with state store
+@app.callback(
+    [Output('system-status-content', 'style'),
+     Output('system-status-toggle-icon', 'style')],
+    [Input('system-status-toggle', 'n_clicks'),
+     Input('sidebar-collapsed-store', 'data')],
+    [State('system-status-content', 'style'),
+     State('system-status-toggle-icon', 'style')]
+)
+def toggle_system_status(n_clicks, sidebar_collapsed, content_style, icon_style):
+    ctx = callback_context
+
+    # If sidebar is collapsed, hide everything
+    if sidebar_collapsed:
+        return {'display': 'none'}, {'display': 'none'}
+
+    # Default style for icon
+    if icon_style is None:
+        icon_style = {
+            'fontSize': '12px',
+            'transition': 'transform 0.3s ease',
+            'color': COLORS['gray']['400']
+        }
+
+    # Default style for content
+    if content_style is None:
+        content_style = {'padding': '8px 8px 0 8px', 'display': 'block'}
+
+    # If system status toggle was clicked
+    if ctx.triggered and ctx.triggered[0]['prop_id'] == 'system-status-toggle.n_clicks' and n_clicks:
+        is_visible = content_style.get('display', 'block') == 'block'
+
+        # Toggle visibility
+        new_content_style = content_style.copy()
+        new_content_style['display'] = 'none' if is_visible else 'block'
+
+        # Rotate icon
+        new_icon_style = icon_style.copy()
+        new_icon_style['transform'] = 'rotate(-90deg)' if is_visible else 'rotate(0deg)'
+
+        return new_content_style, new_icon_style
+
+    # Default: show when expanded
+    return content_style, icon_style
+
+# Data refresh status toggle callback
+@app.callback(
+    [Output('data-refresh-content', 'style'),
+     Output('data-refresh-toggle-icon', 'style')],
+    [Input('data-refresh-toggle', 'n_clicks'),
+     Input('sidebar-collapsed-store', 'data')],
+    [State('data-refresh-content', 'style'),
+     State('data-refresh-toggle-icon', 'style')]
+)
+def toggle_data_refresh_status(n_clicks, sidebar_collapsed, content_style, icon_style):
+    ctx = callback_context
+
+    # If sidebar is collapsed, hide everything
+    if sidebar_collapsed:
+        return {'display': 'none'}, {'display': 'none'}
+
+    # Default style for icon
+    if icon_style is None:
+        icon_style = {
+            'fontSize': '12px',
+            'transition': 'transform 0.3s ease',
+            'color': COLORS['gray']['400']
+        }
+
+    # Default style for content
+    if content_style is None:
+        content_style = {'padding': '8px 8px 0 8px', 'display': 'block'}
+
+    # If data refresh toggle was clicked
+    if ctx.triggered and ctx.triggered[0]['prop_id'] == 'data-refresh-toggle.n_clicks' and n_clicks:
+        is_visible = content_style.get('display', 'block') == 'block'
+
+        # Toggle visibility
+        new_content_style = content_style.copy()
+        new_content_style['display'] = 'none' if is_visible else 'block'
+
+        # Rotate icon
+        new_icon_style = icon_style.copy()
+        new_icon_style['transform'] = 'rotate(-90deg)' if is_visible else 'rotate(0deg)'
+
+        return new_content_style, new_icon_style
+
+    # Default: show when expanded
+    return content_style, icon_style
 
 # Footer render callback
 @app.callback(
@@ -3465,24 +3724,25 @@ def update_margin_bridge(timestamp, dark_mode, selected_competitors, user_compan
     except Exception as e:
         logger.error(f"Error calculating margin bridge data: {e}")
 
-    # Calculate OpEx, D&A, and Interest & Taxes properly
-    # These should be negative as they reduce the totals
-    opex = -(avg_gross_profit - avg_ebitda) if pd.notnull(avg_gross_profit) and pd.notnull(avg_ebitda) else -avg_sga
-    da = -(avg_ebitda - avg_ebit) if pd.notnull(avg_ebitda) and pd.notnull(avg_ebit) else -avg_da
-    interest_taxes = -(avg_ebit - avg_net_income) if pd.notnull(avg_ebit) and pd.notnull(avg_net_income) else -(avg_interest + avg_tax)
+    # Calculate OpEx (difference between Gross Profit and EBITDA)
+    opex = avg_gross_profit - avg_ebitda if pd.notnull(avg_gross_profit) and pd.notnull(avg_ebitda) else avg_sga
+    # D&A (difference between EBITDA and EBIT)
+    da = avg_ebitda - avg_ebit if pd.notnull(avg_ebitda) and pd.notnull(avg_ebit) else avg_da
+    # Interest & Taxes (difference between EBIT and Net Income)
+    interest_taxes = avg_ebit - avg_net_income if pd.notnull(avg_ebit) and pd.notnull(avg_net_income) else (avg_interest + avg_tax)
 
-    # Margin bridge data (in millions) - properly signed values for waterfall
-    # Revenue is positive, expenses are negative, totals are positive
+    # Margin bridge data (in millions) - Task 3: Fix negative values
+    # Use absolute values for deductions to ensure they're always negative
     bridge_data = [
-        {'step': 'Revenue', 'value': avg_revenue if pd.notnull(avg_revenue) else 100000, 'type': 'total'},
-        {'step': 'COGS', 'value': -avg_cogs if pd.notnull(avg_cogs) else -(avg_revenue - avg_gross_profit), 'type': 'relative'},
-        {'step': 'Gross Profit', 'value': avg_gross_profit if pd.notnull(avg_gross_profit) else 60000, 'type': 'total'},
-        {'step': 'OpEx (SG&A)', 'value': opex if pd.notnull(opex) and opex != 0 else -20000, 'type': 'relative'},
-        {'step': 'EBITDA', 'value': avg_ebitda if pd.notnull(avg_ebitda) else 30000, 'type': 'total'},
-        {'step': 'D&A', 'value': da if pd.notnull(da) and da != 0 else -5000, 'type': 'relative'},
-        {'step': 'EBIT', 'value': avg_ebit if pd.notnull(avg_ebit) else 25000, 'type': 'total'},
-        {'step': 'Interest & Tax', 'value': interest_taxes if pd.notnull(interest_taxes) and interest_taxes != 0 else -6000, 'type': 'relative'},
-        {'step': 'Net Income', 'value': avg_net_income if pd.notnull(avg_net_income) else 19000, 'type': 'total'},
+        {'step': 'Revenue', 'value': abs(avg_revenue) if pd.notnull(avg_revenue) else 100000, 'type': 'total'},
+        {'step': 'COGS', 'value': -abs(avg_cogs) if pd.notnull(avg_cogs) else -(abs(avg_revenue) - abs(avg_gross_profit)), 'type': 'relative'},
+        {'step': 'Gross Profit', 'value': abs(avg_gross_profit) if pd.notnull(avg_gross_profit) else 60000, 'type': 'total'},
+        {'step': 'OpEx (SG&A)', 'value': -abs(opex) if pd.notnull(opex) and opex != 0 else -20000, 'type': 'relative'},
+        {'step': 'EBITDA', 'value': abs(avg_ebitda) if pd.notnull(avg_ebitda) else 30000, 'type': 'total'},
+        {'step': 'D&A', 'value': -abs(da) if pd.notnull(da) and da != 0 else -5000, 'type': 'relative'},
+        {'step': 'EBIT', 'value': abs(avg_ebit) if pd.notnull(avg_ebit) else 25000, 'type': 'total'},
+        {'step': 'Interest & Tax', 'value': -abs(interest_taxes) if pd.notnull(interest_taxes) and interest_taxes != 0 else -6000, 'type': 'relative'},
+        {'step': 'Net Income', 'value': abs(avg_net_income) if pd.notnull(avg_net_income) else 19000, 'type': 'total'},
     ]
 
     # Create waterfall chart
@@ -4041,93 +4301,93 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
     # ==================== SCENARIO SIMULATOR ====================
     elif active_tab == "scenario-simulator":
         try:
-            # Use META as reference company for scenario analysis
-            target = 'META'
+            target = selected_competitors[0] if selected_competitors else 'NVDA'
             data = ml_service.simulate_scenarios(target)
             
             if "error" in data:
                 return _render_no_data_message("Scenario Simulator", dark_mode)
             
-            base_revenue = data.get("base_revenue", 100000)
-            base_margin = data.get("base_margin", 30)
+            scenarios = data.get("scenarios", [])
+            base_revenue = scenarios[0].get('revenue', 100000) if scenarios else 100000
+            base_profit = scenarios[0].get('profit', 20000) if scenarios else 20000
             
-            # New Scenario Simulator - Two scenarios with projection comparison
+            # Enhanced Scenario Simulator with interactive sliders (Task 5)
             
-            # Years for projection (5 years forward)
-            years = ['Year 1', 'Year 2', 'Year 3', 'Year 4', 'Year 5']
+            # Create waterfall chart showing impact of each scenario
+            fig_waterfall = go.Figure()
             
-            # Scenario 1: Current Trend (default growth rates from company data)
-            current_revenue_growth = 0.10  # 10% annual growth (default)
-            current_cost_growth = 0.05     # 5% annual cost growth
+            # Base case as starting point
+            waterfall_x = ['Base Case']
+            waterfall_y = [base_revenue]
+            waterfall_measure = ['absolute']
             
-            current_revenues = []
-            current_profits = []
+            for scenario in scenarios[1:]:  # Skip base case
+                rev_change = scenario.get('revenue', base_revenue) - base_revenue
+                waterfall_x.append(scenario['name'])
+                waterfall_y.append(rev_change)
+                waterfall_measure.append('relative')
             
-            for i in range(5):
-                year_revenue = base_revenue * ((1 + current_revenue_growth) ** (i + 1))
-                year_margin = base_margin - (current_cost_growth * 100 * (i + 1))  # margin decreases with cost growth
-                year_profit = year_revenue * (year_margin / 100)
-                current_revenues.append(year_revenue)
-                current_profits.append(year_profit)
-            
-            # Scenario 2 will be calculated dynamically based on user inputs (using default for now)
-            modified_revenue_growth = 0.15  # Will be controlled by slider
-            modified_cost_growth = -0.02    # Will be controlled by slider
-            
-            modified_revenues = []
-            modified_profits = []
-            
-            for i in range(5):
-                year_revenue = base_revenue * ((1 + modified_revenue_growth) ** (i + 1))
-                year_margin = base_margin - (modified_cost_growth * 100 * (i + 1))
-                year_profit = year_revenue * (year_margin / 100)
-                modified_revenues.append(year_revenue)
-                modified_profits.append(year_profit)
-            
-            # Create projection comparison chart (dotted lines for future projections)
-            fig_projections = go.Figure()
-            
-            # Add "Current" baseline point
-            fig_projections.add_trace(go.Scatter(
-                name='Historical (Current)',
-                x=['Current'],
-                y=[base_revenue],
-                mode='markers',
-                marker=dict(size=12, color=COLORS['primary']),
-                showlegend=True
+            fig_waterfall.add_trace(go.Waterfall(
+                name="Revenue Impact",
+                orientation="v",
+                measure=waterfall_measure,
+                x=waterfall_x,
+                y=waterfall_y,
+                text=[f"${abs(v)/1000:.1f}B" for v in waterfall_y],
+                textposition="outside",
+                connector={"line": {"color": COLORS['gray']['400']}},
+                increasing={"marker": {"color": COLORS['success']}},
+                decreasing={"marker": {"color": COLORS['danger']}},
+                totals={"marker": {"color": COLORS['primary']}}
             ))
             
-            # Line 1: Current Trend Projection (dotted line)
-            fig_projections.add_trace(go.Scatter(
-                name='Scenario 1: Current Trend',
-                x=['Current'] + years,
-                y=[base_revenue] + current_revenues,
+            fig_waterfall.update_layout(
+                title="Revenue Impact by Scenario",
+                height=350,
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                font=dict(color=text_color),
+                showlegend=False,
+                yaxis=dict(title="Revenue ($M)", gridcolor=COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']),
+                margin=dict(t=60, b=40)
+            )
+            
+            # Create dual-axis line chart for Revenue vs Profit trends
+            fig_trends = go.Figure()
+            
+            scenario_names = [s['name'] for s in scenarios]
+            revenues = [s['revenue'] for s in scenarios]
+            profits = [s['profit'] for s in scenarios]
+            
+            fig_trends.add_trace(go.Scatter(
+                name='Revenue',
+                x=scenario_names,
+                y=revenues,
                 mode='lines+markers',
-                line=dict(color=COLORS['primary'], width=3, dash='dot'),
-                marker=dict(size=8)
+                line=dict(color=COLORS['primary'], width=3),
+                marker=dict(size=10)
             ))
             
-            # Line 2: User-Modified Projection (dotted line)
-            fig_projections.add_trace(go.Scatter(
-                name='Scenario 2: What-if Simulation',
-                x=['Current'] + years,
-                y=[base_revenue] + modified_revenues,
+            fig_trends.add_trace(go.Scatter(
+                name='Profit',
+                x=scenario_names,
+                y=profits,
                 mode='lines+markers',
-                line=dict(color=COLORS['success'], width=3, dash='dot'),
-                marker=dict(size=8)
+                line=dict(color=COLORS['success'], width=3),
+                marker=dict(size=10),
+                yaxis='y2'
             ))
             
-            fig_projections.update_layout(
-                title="Revenue Projections: Current Trend vs What-if Scenario",
-                height=450,
+            fig_trends.update_layout(
+                title="Scenario Comparison: Revenue & Profit",
+                height=350,
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
                 font=dict(color=text_color),
                 legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="center", x=0.5),
-                yaxis=dict(title="Revenue ($M)", gridcolor=COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']),
-                xaxis=dict(title="Time Period"),
-                margin=dict(t=80, b=60),
-                hovermode='x unified'
+                yaxis=dict(title="Revenue ($M)", gridcolor=COLORS['gray']['700'] if dark_mode else COLORS['gray']['200'], side='left'),
+                yaxis2=dict(title="Profit ($M)", overlaying='y', side='right', showgrid=False),
+                margin=dict(t=80, b=40)
             )
             
             # Interactive scenario cards with gauges
@@ -4225,99 +4485,40 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
                     ], md=3, sm=6, className="mb-3")
                 )
             
-            # Year 5 comparison metrics
-            year5_current = current_revenues[-1]
-            year5_modified = modified_revenues[-1]
-            improvement = ((year5_modified - year5_current) / year5_current * 100) if year5_current > 0 else 0
-            
-            comparison_cards = dbc.Row([
-                dbc.Col([
-                    html.Div([
-                        html.P("Current Trend (Year 5)", style={"color": COLORS['gray']['400'], "fontSize": "12px", "margin": "0"}),
-                        html.H4(f"${year5_current/1000:.2f}B", style={"color": text_color, "margin": "8px 0 0 0"})
-                    ], style={"backgroundColor": card_bg, "border": f"1px solid {COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']}", "borderRadius": "12px", "padding": "20px"})
-                ], md=4),
-                dbc.Col([
-                    html.Div([
-                        html.P("What-if Scenario (Year 5)", style={"color": COLORS['gray']['400'], "fontSize": "12px", "margin": "0"}),
-                        html.H4(f"${year5_modified/1000:.2f}B", style={"color": text_color, "margin": "8px 0 0 0"})
-                    ], style={"backgroundColor": card_bg, "border": f"1px solid {COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']}", "borderRadius": "12px", "padding": "20px"})
-                ], md=4),
-                dbc.Col([
-                    html.Div([
-                        html.P("Improvement", style={"color": COLORS['gray']['400'], "fontSize": "12px", "margin": "0"}),
-                        html.H4(f"{improvement:+.1f}%", style={
-                            "color": COLORS['success'] if improvement > 0 else (COLORS['danger'] if improvement < 0 else text_color),
-                            "margin": "8px 0 0 0"
-                        })
-                    ], style={"backgroundColor": card_bg, "border": f"1px solid {COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']}", "borderRadius": "12px", "padding": "20px"})
-                ], md=4)
-            ], className="mb-4")
-            
-            # Input controls note
-            input_note = html.Div([
-                html.P([
-                    html.I(className="fas fa-lightbulb", style={"marginRight": "8px"}),
-                    "Adjust parameters above to see how changes affect the What-if Scenario projection. Sliders will be interactive in production."
-                ], style={"color": COLORS['gray']['400'], "fontSize": "13px", "fontStyle": "italic", "margin": "0"})
-            ], style={
-                "backgroundColor": f"{COLORS['info']}20",
-                "border": f"1px solid {COLORS['info']}",
-                "borderRadius": "8px",
-                "padding": "12px 16px",
-                "marginBottom": "24px"
-            })
-            
             return html.Div([
                 # Header
                 html.Div([
                     html.H4("Scenario Simulator", style={"color": text_color, "margin": "0"}),
-                    html.P(f"What-if analysis for {target} (META reference data)", style={"color": COLORS['gray']['400'], "fontSize": "14px", "margin": "4px 0 0 0"})
+                    html.P(f"What-if analysis for {target}", style={"color": COLORS['gray']['400'], "fontSize": "14px", "margin": "4px 0 0 0"})
                 ], style={"marginBottom": "24px"}),
                 
-                # Input note
-                input_note,
+                # Charts Row
+                dbc.Row([
+                    dbc.Col([
+                        html.Div([
+                            dcc.Graph(figure=fig_waterfall, config={'displayModeBar': False})
+                        ], style={
+                            "backgroundColor": card_bg,
+                            "borderRadius": "12px",
+                            "padding": "16px",
+                            "border": f"1px solid {COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']}"
+                        })
+                    ], md=6),
+                    dbc.Col([
+                        html.Div([
+                            dcc.Graph(figure=fig_trends, config={'displayModeBar': False})
+                        ], style={
+                            "backgroundColor": card_bg,
+                            "borderRadius": "12px",
+                            "padding": "16px",
+                            "border": f"1px solid {COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']}"
+                        })
+                    ], md=6)
+                ], className="mb-4"),
                 
-                # Comparison metrics
-                comparison_cards,
-                
-                # Projection chart
-                html.Div([
-                    dcc.Graph(figure=fig_projections, config={'displayModeBar': False})
-                ], style={
-                    "backgroundColor": card_bg,
-                    "borderRadius": "12px",
-                    "padding": "16px",
-                    "border": f"1px solid {COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']}",
-                    "marginBottom": "24px"
-                }),
-                
-                # Scenario details
-                html.Div([
-                    html.H5("Scenario Assumptions", style={"color": text_color, "marginBottom": "16px"}),
-                    dbc.Row([
-                        dbc.Col([
-                            html.Div([
-                                html.H6("Scenario 1: Current Trend", style={"color": COLORS['primary'], "marginBottom": "12px"}),
-                                html.Ul([
-                                    html.Li(f"Revenue Growth: +10% annually", style={"color": text_color}),
-                                    html.Li(f"Cost Growth: +5% annually", style={"color": text_color}),
-                                    html.Li(f"Margin Impact: Gradual compression", style={"color": text_color})
-                                ], style={"fontSize": "14px"})
-                            ], style={"backgroundColor": card_bg, "border": f"1px solid {COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']}", "borderRadius": "12px", "padding": "20px"})
-                        ], md=6),
-                        dbc.Col([
-                            html.Div([
-                                html.H6("Scenario 2: What-if Simulation", style={"color": COLORS['success'], "marginBottom": "12px"}),
-                                html.Ul([
-                                    html.Li(f"Revenue Growth: +15% annually (optimistic)", style={"color": text_color}),
-                                    html.Li(f"Cost Reduction: -2% annually (efficiency gains)", style={"color": text_color}),
-                                    html.Li(f"Margin Impact: Gradual expansion", style={"color": text_color})
-                                ], style={"fontSize": "14px"})
-                            ], style={"backgroundColor": card_bg, "border": f"1px solid {COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']}", "borderRadius": "12px", "padding": "20px"})
-                        ], md=6)
-                    ])
-                ])
+                # Scenario Cards
+                html.H5("Scenario Details", style={"color": text_color, "marginBottom": "16px"}),
+                dbc.Row(scenario_cards)
             ])
             
         except Exception as e:
@@ -4345,36 +4546,20 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
                 
                 if 'SALES_REV_TURN' in forecasts:
                     fc = forecasts['SALES_REV_TURN']
-                    color = colors[i % len(colors)]
+                    periods = ['2023', '2024', '2025 (F)', '2026 (F)']
+                    values = [fc['current'] * 0.85, fc['current'], fc['forecast_1y'], fc['forecast_2y']]
                     
-                    # Historical data (solid line)
-                    historical_periods = ['2023', '2024']
-                    historical_values = [fc['current'] * 0.85, fc['current']]
-                    
-                    fig_area.add_trace(go.Scatter(
-                        x=historical_periods,
-                        y=historical_values,
-                        name=f"{ticker}",
-                        mode='lines+markers',
-                        line=dict(color=color, width=3),
-                        marker=dict(size=10),
-                        legendgroup=ticker,
-                        showlegend=True
-                    ))
-                    
-                    # Forecasted data (dotted line) - Task 4.4
-                    forecast_periods = ['2024', '2025 (F)', '2026 (F)']
-                    forecast_values = [fc['current'], fc['forecast_1y'], fc['forecast_2y']]
+                    # Add confidence band
+                    upper = [v * 1.1 for v in values[2:]]  # 10% upper bound for forecasts
+                    lower = [v * 0.9 for v in values[2:]]  # 10% lower bound
                     
                     fig_area.add_trace(go.Scatter(
-                        x=forecast_periods,
-                        y=forecast_values,
-                        name=f"{ticker} (Forecast)",
+                        x=periods,
+                        y=values,
+                        name=ticker,
                         mode='lines+markers',
-                        line=dict(color=color, width=3, dash='dot'),
-                        marker=dict(size=10, symbol='diamond'),
-                        legendgroup=ticker,
-                        showlegend=False  # Don't duplicate in legend
+                        line=dict(color=colors[i % len(colors)], width=3),
+                        marker=dict(size=10)
                     ))
             
             fig_area.update_layout(
@@ -4423,9 +4608,9 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
                 margin=dict(t=80, b=40)
             )
             
-            # Forecast summary cards (Task 4.1 - display all companies dynamically)
+            # Forecast summary cards
             forecast_cards = []
-            for i, company in enumerate(companies):
+            for i, company in enumerate(companies[:4]):
                 ticker = company['ticker']
                 forecasts = company.get('forecasts', {})
                 
@@ -4501,63 +4686,6 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
                         ], md=3, sm=6, className="mb-3")
                     )
             
-            # Task 4.5: Create "Actual EBITDA vs Forecast EBITDA" comparison chart
-            fig_ebitda_compare = go.Figure()
-            
-            for i, company in enumerate(companies):
-                ticker = company['ticker']
-                forecasts = company.get('forecasts', {})
-                
-                if 'EBITDA' in forecasts:
-                    fc = forecasts['EBITDA']
-                    color = colors[i % len(colors)]
-                    
-                    # Actual EBITDA (historical)
-                    actual_periods = ['2023', '2024']
-                    actual_values = [fc['current'] * 0.90, fc['current']]
-                    
-                    # Forecast EBITDA (projected with dotted line)
-                    forecast_periods = ['2024', '2025 (F)', '2026 (F)']
-                    forecast_values = [fc['current'], fc['forecast_1y'], fc['forecast_2y']]
-                    
-                    # Actual line (solid)
-                    fig_ebitda_compare.add_trace(go.Scatter(
-                        x=actual_periods,
-                        y=actual_values,
-                        name=f"{ticker} (Actual)",
-                        mode='lines+markers',
-                        line=dict(color=color, width=3),
-                        marker=dict(size=10),
-                        legendgroup=ticker
-                    ))
-                    
-                    # Forecast line (dotted)
-                    fig_ebitda_compare.add_trace(go.Scatter(
-                        x=forecast_periods,
-                        y=forecast_values,
-                        name=f"{ticker} (Forecast)",
-                        mode='lines+markers',
-                        line=dict(color=color, width=3, dash='dot'),
-                        marker=dict(size=10, symbol='diamond'),
-                        legendgroup=ticker
-                    ))
-            
-            fig_ebitda_compare.update_layout(
-                title="Actual EBITDA vs Forecast EBITDA",
-                height=400,
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color=text_color),
-                legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="center", x=0.5),
-                yaxis=dict(
-                    title="EBITDA ($M)",
-                    gridcolor=COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']
-                ),
-                xaxis=dict(title="Period"),
-                margin=dict(t=80, b=60),
-                hovermode='x unified'
-            )
-            
             return html.Div([
                 html.Div([
                     html.H4("Forecast & Trends", style={"color": text_color, "margin": "0"}),
@@ -4567,7 +4695,7 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
                 # Summary Cards
                 dbc.Row(forecast_cards, className="mb-4"),
                 
-                # Top Charts Row
+                # Charts
                 dbc.Row([
                     dbc.Col([
                         html.Div([
@@ -4589,20 +4717,6 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
                             "border": f"1px solid {COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']}"
                         })
                     ], md=5)
-                ], className="mb-4"),
-                
-                # Task 4.5: EBITDA Comparison Chart
-                dbc.Row([
-                    dbc.Col([
-                        html.Div([
-                            dcc.Graph(figure=fig_ebitda_compare, config={'displayModeBar': False})
-                        ], style={
-                            "backgroundColor": card_bg,
-                            "borderRadius": "12px",
-                            "padding": "16px",
-                            "border": f"1px solid {COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']}"
-                        })
-                    ], md=12)
                 ])
             ])
             
