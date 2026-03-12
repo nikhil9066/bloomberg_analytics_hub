@@ -1256,3 +1256,76 @@ footer a:hover {
 .ratio-vs-target-value.bad {
     color: #ef4444;
 }
+
+/* ============================================================
+   PRO ANALYTICS — Blur overlay & Payment Modal
+   ============================================================ */
+
+/* Unlock button (in blur overlay) */
+.pro-unlock-btn {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+    background-size: 200% 200%;
+    color: white;
+    border: none;
+    border-radius: 14px;
+    padding: 15px 36px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    width: 100%;
+    letter-spacing: 0.02em;
+    box-shadow: 0 6px 24px rgba(99, 102, 241, 0.55);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    animation: proShimmer 3s ease infinite;
+}
+.pro-unlock-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px rgba(99, 102, 241, 0.7);
+}
+.pro-unlock-btn:active {
+    transform: translateY(0);
+}
+
+/* Payment submit button */
+.payment-submit-btn {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+    background-size: 200% 200%;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 16px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    width: 100%;
+    letter-spacing: 0.02em;
+    box-shadow: 0 4px 20px rgba(99, 102, 241, 0.45);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    animation: proShimmer 3s ease infinite;
+    margin-top: 4px;
+}
+.payment-submit-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(99, 102, 241, 0.65);
+}
+.payment-submit-btn:active {
+    transform: translateY(0);
+}
+
+@keyframes proShimmer {
+    0%   { background-position: 0%   50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0%   50%; }
+}
+
+/* Modal entrance animation */
+@keyframes proModalIn {
+    from { opacity: 0; transform: scale(0.82) translateY(36px); }
+    to   { opacity: 1; transform: scale(1)    translateY(0);    }
+}
+
+/* Pro unlock overlay card entrance */
+@keyframes proCardIn {
+    from { opacity: 0; transform: scale(0.88) translateY(24px); }
+    to   { opacity: 1; transform: scale(1)    translateY(0);    }
+}

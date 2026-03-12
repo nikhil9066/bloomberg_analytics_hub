@@ -1054,6 +1054,12 @@ def create_loading_screen():
 #==============================================================================
 
 app.layout = html.Div([
+    # Store for PRO analytics unlock state
+    dcc.Store(id='pro-unlocked-store', data=False),
+
+    # Store for payment modal visibility
+    dcc.Store(id='payment-modal-open', data=False),
+
     # Store for dark mode state
     dcc.Store(id='dark-mode-store', data=False),
 
@@ -1147,7 +1153,127 @@ app.layout = html.Div([
                 html.Div(id='footer-container')
             ])
         ], id='main-content', fluid=True, style=custom_style, className='main-content sidebar-expanded')
-    ], id='dashboard-container', style={'display': 'block', 'position': 'relative'})
+    ], id='dashboard-container', style={'display': 'block', 'position': 'relative'}),
+
+    # ── PRO Payment Modal — fixed overlay, always in DOM ──────────────────
+    html.Div(id='pro-payment-modal', style={'display': 'none'}, children=[
+        html.Div([  # backdrop
+            html.Div([  # card
+                # Close button
+                html.Button("✕", id='pro-payment-close', style={
+                    "position": "absolute", "top": "14px", "right": "18px",
+                    "background": "none", "border": "none", "color": "rgba(255,255,255,0.6)",
+                    "fontSize": "20px", "cursor": "pointer", "lineHeight": "1",
+                }),
+                # Header
+                html.Div([
+                    html.Div("⚡ PRO", style={
+                        "display": "inline-block", "background": "linear-gradient(135deg,#fbbf24,#f59e0b)",
+                        "color": "#1c1917", "padding": "3px 12px", "borderRadius": "20px",
+                        "fontSize": "11px", "fontWeight": "800", "letterSpacing": "0.12em",
+                        "marginBottom": "14px", "boxShadow": "0 2px 10px rgba(251,191,36,0.5)",
+                    }),
+                    html.H3("Unlock Pro Analytics", style={
+                        "color": "white", "margin": "0 0 6px", "fontWeight": "800", "fontSize": "24px"
+                    }),
+                    html.P("Access premium financial intelligence charts", style={
+                        "color": "rgba(255,255,255,0.65)", "fontSize": "13px", "margin": 0
+                    }),
+                    # Feature list
+                    html.Div([
+                        html.Div([html.Span("✓ ", style={"color": "#34d399"}), f], style={
+                            "color": "rgba(255,255,255,0.8)", "fontSize": "12px",
+                            "marginBottom": "4px"
+                        })
+                        for f in ["Profitability Quadrant Analysis",
+                                  "Cost Structure DNA Breakdown",
+                                  "Capital Efficiency Matrix",
+                                  "Multi-Metric Health Radar"]
+                    ], style={"marginTop": "16px", "textAlign": "left"}),
+                ], style={
+                    "background": "linear-gradient(135deg,#1e1b4b,#4c1d95,#6d28d9)",
+                    "padding": "28px 28px 24px", "position": "relative",
+                }),
+                # Body — payment form
+                html.Div([
+                    html.Div("$99 / month  ·  Cancel anytime", style={
+                        "textAlign": "center", "color": "#6b7280",
+                        "fontSize": "13px", "marginBottom": "20px", "fontWeight": "500"
+                    }),
+                    # Card number
+                    html.Div([
+                        html.Label("Card Number", style={"fontSize": "12px", "fontWeight": "600",
+                                                          "color": "#374151", "display": "block",
+                                                          "marginBottom": "6px"}),
+                        dcc.Input(id='pro-payment-card', type='text', placeholder='1234  5678  9012  3456',
+                                  maxLength=19, style={
+                                      "width": "100%", "padding": "11px 14px",
+                                      "border": "2px solid #e5e7eb", "borderRadius": "10px",
+                                      "fontSize": "14px", "outline": "none", "boxSizing": "border-box"
+                                  }),
+                    ], style={"marginBottom": "14px"}),
+                    # Expiry + CVV
+                    html.Div([
+                        html.Div([
+                            html.Label("Expiry", style={"fontSize": "12px", "fontWeight": "600",
+                                                         "color": "#374151", "display": "block",
+                                                         "marginBottom": "6px"}),
+                            dcc.Input(id='pro-payment-expiry', type='text', placeholder='MM / YY',
+                                      maxLength=7, style={
+                                          "width": "100%", "padding": "11px 14px",
+                                          "border": "2px solid #e5e7eb", "borderRadius": "10px",
+                                          "fontSize": "14px", "outline": "none", "boxSizing": "border-box"
+                                      }),
+                        ], style={"flex": "1"}),
+                        html.Div([
+                            html.Label("CVV", style={"fontSize": "12px", "fontWeight": "600",
+                                                      "color": "#374151", "display": "block",
+                                                      "marginBottom": "6px"}),
+                            dcc.Input(id='pro-payment-cvv', type='text', placeholder='•••',
+                                      maxLength=4, style={
+                                          "width": "100%", "padding": "11px 14px",
+                                          "border": "2px solid #e5e7eb", "borderRadius": "10px",
+                                          "fontSize": "14px", "outline": "none", "boxSizing": "border-box"
+                                      }),
+                        ], style={"flex": "1"}),
+                    ], style={"display": "flex", "gap": "12px", "marginBottom": "14px"}),
+                    # Name
+                    html.Div([
+                        html.Label("Name on Card", style={"fontSize": "12px", "fontWeight": "600",
+                                                           "color": "#374151", "display": "block",
+                                                           "marginBottom": "6px"}),
+                        dcc.Input(id='pro-payment-name', type='text', placeholder='Jane Smith',
+                                  style={
+                                      "width": "100%", "padding": "11px 14px",
+                                      "border": "2px solid #e5e7eb", "borderRadius": "10px",
+                                      "fontSize": "14px", "outline": "none", "boxSizing": "border-box"
+                                  }),
+                    ], style={"marginBottom": "20px"}),
+                    # Submit
+                    html.Button([
+                        html.I(className="fas fa-lock-open", style={"marginRight": "8px"}),
+                        "Unlock Pro Analytics  →"
+                    ], id='pro-payment-submit', className="payment-submit-btn"),
+                    html.P("🔒 Secured · 256-bit encryption · No charge today", style={
+                        "textAlign": "center", "color": "#9ca3af", "fontSize": "11px",
+                        "marginTop": "12px"
+                    }),
+                ], style={"padding": "24px 28px 28px"}),
+            ], style={
+                "background": "white", "borderRadius": "20px", "overflow": "hidden",
+                "width": "460px", "maxWidth": "95vw",
+                "boxShadow": "0 40px 80px rgba(0,0,0,0.55)",
+                "position": "relative",
+                "animation": "proModalIn 0.4s cubic-bezier(0.34,1.56,0.64,1)",
+            }),
+        ], style={
+            "position": "fixed", "top": 0, "left": 0, "right": 0, "bottom": 0,
+            "background": "rgba(0,0,0,0.72)", "backdropFilter": "blur(6px)",
+            "WebkitBackdropFilter": "blur(6px)",
+            "display": "flex", "alignItems": "center", "justifyContent": "center",
+            "zIndex": 9999,
+        }),
+    ]),
 
 ], style={'position': 'relative'})
 
@@ -5217,140 +5343,537 @@ def _render_error_message(section_name, error, dark_mode):
     ], style={"textAlign": "center", "padding": "60px"})
 
 #==============================================================================
-# ADVANCED CHARTS SECTION
+# PRO ANALYTICS SECTION  (replaces generic Advanced Charts)
 #==============================================================================
+
+# ── Fallback dataset — real public financials (latest fiscal year, $M) ──────
+_PRO_FALLBACK = {
+    'NVDA':  {'rev': 130497, 'ebitda_m': 60.45, 'gross_m': 74.99, 'oper_m': 62.42,
+              'net_m': 55.85, 'rev_growth': 114.2, 'fcf_m': 46.6,
+              'int_cov': 329.77, 'cur_ratio': 4.44, 'debt_asset': 9.2,
+              'roe': 115.7, 'cogs_pct': 25.01, 'sga_pct': 3.0,  'rd_pct': 9.5},
+    'MSFT':  {'rev': 281724, 'ebitda_m': 62.61, 'gross_m': 68.82, 'oper_m': 45.62,
+              'net_m': 36.15, 'rev_growth': 14.93, 'fcf_m': 25.4,
+              'int_cov': 53.89,  'cur_ratio': 1.35, 'debt_asset': 18.12,
+              'roe': 39.0,  'cogs_pct': 31.18, 'sga_pct': 10.5, 'rd_pct': 13.2},
+    'GOOGL': {'rev': 350018, 'ebitda_m': 38.15, 'gross_m': 58.20, 'oper_m': 32.11,
+              'net_m': 28.60, 'rev_growth': 13.87, 'fcf_m': 20.8,
+              'int_cov': 419.37, 'cur_ratio': 1.84, 'debt_asset': 5.71,
+              'roe': 34.0,  'cogs_pct': 41.80, 'sga_pct': 9.5,  'rd_pct': 14.1},
+    'META':  {'rev': 164500, 'ebitda_m': 49.10, 'gross_m': 85.90, 'oper_m': 41.90,
+              'net_m': 37.90, 'rev_growth': 21.90, 'fcf_m': 28.5,
+              'int_cov': 80.0,   'cur_ratio': 2.80, 'debt_asset': 8.0,
+              'roe': 34.8,  'cogs_pct': 14.10, 'sga_pct': 12.0, 'rd_pct': 29.0},
+    'AAPL':  {'rev': 391000, 'ebitda_m': 33.00, 'gross_m': 46.50, 'oper_m': 31.50,
+              'net_m': 25.30, 'rev_growth': 6.00,  'fcf_m': 25.0,
+              'int_cov': 30.0,   'cur_ratio': 1.02, 'debt_asset': 32.0,
+              'roe': 147.0, 'cogs_pct': 53.50, 'sga_pct': 6.5,  'rd_pct': 8.0},
+    'AMZN':  {'rev': 638000, 'ebitda_m': 14.50, 'gross_m': 49.00, 'oper_m': 10.80,
+              'net_m': 5.90,  'rev_growth': 12.00, 'fcf_m': 5.5,
+              'int_cov': 12.0,   'cur_ratio': 1.08, 'debt_asset': 29.0,
+              'roe': 22.0,  'cogs_pct': 51.00, 'sga_pct': 22.0, 'rd_pct': 16.2},
+}
+
+_PRO_PALETTE = ['#6366f1', '#22c55e', '#f59e0b', '#ec4899', '#06b6d4', '#f97316']
+
+
+def _load_pro_data():
+    """Pull latest snapshot from HANA; fall back to _PRO_FALLBACK."""
+    if ml_service is None:
+        return _PRO_FALLBACK
+    try:
+        df = ml_service.get_advanced_data()
+        if df.empty:
+            df = ml_service.get_company_data()
+        if df.empty:
+            return _PRO_FALLBACK
+
+        # Keep only valid tickers
+        if 'TICKER' in df.columns:
+            df['TICKER'] = df['TICKER'].str.replace(' US Equity', '', regex=False).str.strip()
+            df = df.drop_duplicates(subset=['TICKER'], keep='first')
+
+        needed = ['SALES_REV_TURN', 'EBITDA_MARGIN', 'GROSS_MARGIN', 'PROF_MARGIN',
+                  'SALES_GROWTH', 'CF_FREE_CASH_FLOW', 'CUR_RATIO',
+                  'TOT_DEBT_TO_TOT_ASSET', 'INTEREST_COVERAGE_RATIO']
+        if not all(c in df.columns for c in ['TICKER', 'SALES_REV_TURN']):
+            return _PRO_FALLBACK
+
+        result = {}
+        for _, row in df.iterrows():
+            t = row.get('TICKER', '')
+            if not t:
+                continue
+            rev = float(row.get('SALES_REV_TURN', 0) or 0)
+            if rev <= 0:
+                continue
+            # Scale to $M if stored in raw dollars
+            if rev > 1e9:
+                rev /= 1e6
+            fcf_raw = float(row.get('CF_FREE_CASH_FLOW', 0) or 0)
+            if fcf_raw > 1e9:
+                fcf_raw /= 1e6
+            fcf_m = (fcf_raw / rev * 100) if rev > 0 else 0
+            result[t] = {
+                'rev': rev,
+                'ebitda_m': float(row.get('EBITDA_MARGIN', 0) or 0),
+                'gross_m':  float(row.get('GROSS_MARGIN', 0) or 0),
+                'oper_m':   float(row.get('OPER_MARGIN', 0) or 0),
+                'net_m':    float(row.get('PROF_MARGIN', 0) or 0),
+                'rev_growth': float(row.get('SALES_GROWTH', 0) or 0),
+                'fcf_m':    fcf_m,
+                'int_cov':  float(row.get('INTEREST_COVERAGE_RATIO', 0) or 0),
+                'cur_ratio': float(row.get('CUR_RATIO', 0) or 0),
+                'debt_asset': float(row.get('TOT_DEBT_TO_TOT_ASSET', 0) or 0),
+                # fallback items not always available in snapshot
+                'roe':      _PRO_FALLBACK.get(t, {}).get('roe', 20),
+                'cogs_pct': round(100 - float(row.get('GROSS_MARGIN', 0) or 0), 2),
+                'sga_pct':  _PRO_FALLBACK.get(t, {}).get('sga_pct', 10),
+                'rd_pct':   _PRO_FALLBACK.get(t, {}).get('rd_pct', 10),
+            }
+        return result if result else _PRO_FALLBACK
+    except Exception as e:
+        logger.error(f"_load_pro_data error: {e}")
+        return _PRO_FALLBACK
+
+
+def _build_pro_charts(data: dict, dark_mode: bool):
+    """Build 4 premium analytical charts from the company dataset."""
+    tickers  = list(data.keys())
+    text_col = COLORS['gray']['100'] if dark_mode else COLORS['gray']['900']
+    sub_col  = COLORS['gray']['400']
+    bg       = COLORS['gray']['800'] if dark_mode else '#ffffff'
+    gc       = COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']
+    bdr      = COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']
+    pb       = 'rgba(0,0,0,0)'
+
+    def card(title, icon, subtitle, graph_fig, height=420):
+        return html.Div([
+            html.Div([
+                html.Div([
+                    html.I(className=f"fas {icon}", style={
+                        "fontSize": "16px", "color": _PRO_PALETTE[0],
+                        "marginRight": "10px"
+                    }),
+                    html.Span(title, style={"fontWeight": "700", "fontSize": "15px",
+                                            "color": text_col}),
+                    html.Span(" PRO", style={
+                        "fontSize": "10px", "fontWeight": "800",
+                        "background": "linear-gradient(135deg,#fbbf24,#f59e0b)",
+                        "color": "#1c1917", "padding": "1px 7px",
+                        "borderRadius": "10px", "marginLeft": "8px",
+                        "verticalAlign": "middle", "letterSpacing": "0.08em"
+                    }),
+                ], style={"display": "flex", "alignItems": "center"}),
+                html.P(subtitle, style={"color": sub_col, "fontSize": "12px",
+                                        "margin": "4px 0 0 26px"}),
+            ], style={"padding": "16px 20px 0"}),
+            dcc.Graph(figure=graph_fig, config={'displayModeBar': False},
+                      style={'height': f'{height}px'}),
+        ], style={
+            "backgroundColor": bg, "borderRadius": "14px",
+            "border": f"1px solid {bdr}",
+            "overflow": "hidden", "marginBottom": "0",
+        })
+
+    # ── Chart 1: Profitability Quadrant — EBITDA Margin vs Revenue Growth ──
+    fig1 = go.Figure()
+    revs = [d['rev'] for d in data.values()]
+    max_rev = max(revs) if revs else 1
+    medX = float(np.median([d['rev_growth'] for d in data.values()]))
+    medY = float(np.median([d['ebitda_m'] for d in data.values()]))
+
+    # Quadrant backgrounds
+    for (x0, x1, y0, y1, lbl, col) in [
+        (medX, 200, medY, 90, "⭐ Stars",      "rgba(99,102,241,0.06)"),
+        (-60,  medX, medY, 90, "🐄 Cash Cows", "rgba(34,197,94,0.06)"),
+        (medX, 200, -20, medY, "🚀 Growth Mode","rgba(245,158,11,0.06)"),
+        (-60,  medX, -20, medY, "⚠ Turnaround", "rgba(239,68,68,0.05)"),
+    ]:
+        fig1.add_shape(type="rect", x0=x0, x1=x1, y0=y0, y1=y1,
+                       fillcolor=col, line_width=0, layer="below")
+        fig1.add_annotation(x=(x0+x1)/2, y=y1-3, text=lbl,
+                             showarrow=False, font=dict(size=11, color=sub_col),
+                             xanchor='center')
+
+    for i, (t, d) in enumerate(data.items()):
+        sz = 30 + (d['rev'] / max_rev) * 70
+        fig1.add_trace(go.Scatter(
+            x=[d['rev_growth']], y=[d['ebitda_m']],
+            mode='markers+text',
+            name=t,
+            marker=dict(size=sz, color=_PRO_PALETTE[i % len(_PRO_PALETTE)],
+                        opacity=0.85, line=dict(width=2, color='white')),
+            text=[t], textposition='middle center',
+            textfont=dict(color='white', size=10, family='Inter, sans-serif'),
+            hovertemplate=(f"<b>{t}</b><br>Revenue Growth: %{{x:.1f}}%"
+                           f"<br>EBITDA Margin: %{{y:.1f}}%"
+                           f"<br>Revenue: ${d['rev']:,.0f}M<extra></extra>"),
+            showlegend=False,
+        ))
+
+    fig1.add_hline(y=medY, line_dash='dash', line_color=COLORS['gray']['500'],
+                   line_width=1, opacity=0.6)
+    fig1.add_vline(x=medX, line_dash='dash', line_color=COLORS['gray']['500'],
+                   line_width=1, opacity=0.6)
+    fig1.update_layout(
+        height=440, plot_bgcolor=pb, paper_bgcolor=pb,
+        font=dict(color=text_col, size=12),
+        xaxis=dict(title="Revenue Growth YoY (%)", showgrid=True, gridcolor=gc,
+                   zeroline=False, ticksuffix='%'),
+        yaxis=dict(title="EBITDA Margin (%)", showgrid=True, gridcolor=gc,
+                   zeroline=False, ticksuffix='%'),
+        margin=dict(l=60, r=30, t=30, b=60), hovermode='closest',
+    )
+    c1 = card("Profitability Quadrant", "fa-crosshairs",
+              "EBITDA Margin vs Revenue Growth — bubble size = revenue. "
+              "Dashes = sector medians.", fig1, 480)
+
+    # ── Chart 2: Cost Structure DNA — horizontal stacked 100% bar ──────────
+    fig2 = go.Figure()
+    segs = [
+        ('COGS',               'cogs_pct', '#ef4444'),
+        ('SG&A',               'sga_pct',  '#f97316'),
+        ('R&D',                'rd_pct',   '#eab308'),
+        ('Operating Income',   None,        '#6366f1'),  # computed residual
+        ('Net Margin',         'net_m',    '#22c55e'),
+    ]
+    labels = list(data.keys())
+
+    # Build stacked segments; operating income = oper_m - sga - rd; adjusted
+    for (seg_name, key, color) in segs:
+        vals = []
+        for d in data.values():
+            if key is not None:
+                vals.append(round(d.get(key, 0), 2))
+            else:
+                # Operating income = gross_m - sga_pct - rd_pct
+                v = max(0, round(d['gross_m'] - d['sga_pct'] - d['rd_pct'] - d.get('net_m', 0), 2))
+                vals.append(v)
+        fig2.add_trace(go.Bar(
+            name=seg_name, y=labels, x=vals, orientation='h',
+            marker_color=color,
+            hovertemplate=f"<b>%{{y}}</b><br>{seg_name}: %{{x:.1f}}%<extra></extra>",
+            texttemplate='%{x:.1f}%', textposition='inside',
+            insidetextanchor='middle', textfont=dict(size=10, color='white'),
+        ))
+
+    fig2.update_layout(
+        barmode='stack', height=360, plot_bgcolor=pb, paper_bgcolor=pb,
+        font=dict(color=text_col, size=12),
+        xaxis=dict(title="% of Revenue", showgrid=True, gridcolor=gc,
+                   ticksuffix='%', range=[0, 105]),
+        yaxis=dict(showgrid=False),
+        legend=dict(orientation='h', yanchor='bottom', y=1.02,
+                    xanchor='center', x=0.5, bgcolor='rgba(0,0,0,0)'),
+        margin=dict(l=70, r=30, t=40, b=60),
+    )
+    c2 = card("Cost Structure DNA", "fa-dna",
+              "How each dollar of revenue is consumed — costs vs margins per company.",
+              fig2, 400)
+
+    # ── Chart 3: Capital Efficiency Matrix — FCF Margin vs Interest Coverage ─
+    fig3 = go.Figure()
+    valid3 = {t: d for t, d in data.items() if d['int_cov'] > 0 and d['fcf_m'] > 0}
+    if not valid3:
+        valid3 = data
+
+    med3X = float(np.median([d['fcf_m']  for d in valid3.values()]))
+    med3Y = float(np.median([min(d['int_cov'], 150) for d in valid3.values()]))
+
+    for (x0, x1, y0, y1, lbl, col) in [
+        (med3X, 60,   med3Y, 200, "💎 Elite",          "rgba(99,102,241,0.07)"),
+        (-5,    med3X, med3Y, 200, "🏦 Debt Shield",    "rgba(34,197,94,0.07)"),
+        (med3X, 60,  -5,    med3Y, "💸 Cash Generator", "rgba(245,158,11,0.07)"),
+        (-5,    med3X, -5,  med3Y, "⚡ Leverage Play",  "rgba(239,68,68,0.05)"),
+    ]:
+        fig3.add_shape(type="rect", x0=x0, x1=x1, y0=y0, y1=y1,
+                       fillcolor=col, line_width=0, layer="below")
+        fig3.add_annotation(x=(x0+x1)/2, y=y1-8, text=lbl,
+                             showarrow=False, font=dict(size=11, color=sub_col),
+                             xanchor='center')
+
+    for i, (t, d) in enumerate(valid3.items()):
+        ic = min(d['int_cov'], 150)
+        sz = 26 + (d['rev'] / max_rev) * 60
+        fig3.add_trace(go.Scatter(
+            x=[d['fcf_m']], y=[ic],
+            mode='markers+text', name=t,
+            marker=dict(size=sz, color=_PRO_PALETTE[i % len(_PRO_PALETTE)],
+                        opacity=0.85, line=dict(width=2, color='white')),
+            text=[t], textposition='middle center',
+            textfont=dict(color='white', size=10, family='Inter, sans-serif'),
+            hovertemplate=(f"<b>{t}</b><br>FCF Margin: %{{x:.1f}}%"
+                           f"<br>Interest Coverage: {d['int_cov']:.0f}x"
+                           f"<br>Revenue: ${d['rev']:,.0f}M<extra></extra>"),
+            showlegend=False,
+        ))
+
+    fig3.add_hline(y=med3Y, line_dash='dash', line_color=COLORS['gray']['500'],
+                   line_width=1, opacity=0.6)
+    fig3.add_vline(x=med3X, line_dash='dash', line_color=COLORS['gray']['500'],
+                   line_width=1, opacity=0.6)
+    fig3.update_layout(
+        height=440, plot_bgcolor=pb, paper_bgcolor=pb,
+        font=dict(color=text_col, size=12),
+        xaxis=dict(title="Free Cash Flow Margin (%)", showgrid=True,
+                   gridcolor=gc, zeroline=False, ticksuffix='%'),
+        yaxis=dict(title="Interest Coverage Ratio (×)", showgrid=True,
+                   gridcolor=gc, zeroline=False),
+        margin=dict(l=60, r=30, t=30, b=60), hovermode='closest',
+    )
+    c3 = card("Capital Efficiency Matrix", "fa-gem",
+              "FCF Margin vs Debt Coverage — bubble size = revenue. "
+              "Top-right = highest capital quality.", fig3, 480)
+
+    # ── Chart 4: Multi-Metric Health Radar ──────────────────────────────────
+    radar_metrics = ['Gross Margin', 'EBITDA Margin', 'FCF Margin',
+                     'Revenue Growth', 'Liquidity (CR)', 'Debt Safety']
+
+    def _norm(val, lo, hi):
+        """Normalise val to 0-100 within [lo, hi]."""
+        if hi == lo:
+            return 50.0
+        return float(max(0, min(100, (val - lo) / (hi - lo) * 100)))
+
+    ranges = {
+        'Gross Margin':   (0,  100),
+        'EBITDA Margin':  (0,   80),
+        'FCF Margin':     (-10, 55),
+        'Revenue Growth': (-10, 120),
+        'Liquidity (CR)': (0,    5),
+        'Debt Safety':    (0,   40),   # lower debt = higher score → inverted below
+    }
+
+    fig4 = go.Figure()
+    for i, (t, d) in enumerate(data.items()):
+        raw = [
+            d['gross_m'],
+            d['ebitda_m'],
+            d['fcf_m'],
+            d['rev_growth'],
+            d['cur_ratio'],
+            max(0, 40 - d['debt_asset']),  # invert: less debt = higher
+        ]
+        normed = [_norm(v, ranges[m][0], ranges[m][1])
+                  for v, m in zip(raw, radar_metrics)]
+        normed.append(normed[0])  # close the polygon
+
+        fig4.add_trace(go.Scatterpolar(
+            r=normed,
+            theta=radar_metrics + [radar_metrics[0]],
+            fill='toself',
+            name=t,
+            line=dict(color=_PRO_PALETTE[i % len(_PRO_PALETTE)], width=2),
+            fillcolor=_PRO_PALETTE[i % len(_PRO_PALETTE)].replace('#', 'rgba(').replace(
+                'rgba(', '') + ',0.12)',
+            opacity=0.9,
+            hovertemplate=(f"<b>{t}</b><br>%{{theta}}: %{{r:.0f}} / 100"
+                           "<extra></extra>"),
+        ))
+
+    fig4.update_layout(
+        polar=dict(
+            bgcolor=pb,
+            radialaxis=dict(visible=True, range=[0, 100],
+                            gridcolor=gc, tickfont=dict(size=9, color=sub_col),
+                            ticksuffix='', showticklabels=True, ticks=''),
+            angularaxis=dict(gridcolor=gc,
+                             tickfont=dict(size=11, color=text_col)),
+        ),
+        showlegend=True,
+        legend=dict(orientation='h', yanchor='bottom', y=-0.12,
+                    xanchor='center', x=0.5, bgcolor='rgba(0,0,0,0)',
+                    font=dict(size=11, color=text_col)),
+        height=440, plot_bgcolor=pb, paper_bgcolor=pb,
+        font=dict(color=text_col, size=12),
+        margin=dict(l=50, r=50, t=30, b=60),
+    )
+    c4 = card("Multi-Metric Health Radar", "fa-spider",
+              "6-axis normalised comparison: 100 = best-in-class across all dimensions.",
+              fig4, 480)
+
+    return [c1, c2, c3, c4]
+
 
 @app.callback(
     Output('advanced-charts-container', 'children'),
     [Input('update-timestamp', 'data'),
-     Input('dark-mode-store', 'data')]
+     Input('dark-mode-store', 'data'),
+     Input('pro-unlocked-store', 'data')]
 )
-def update_advanced_charts(timestamp, dark_mode):
-    """Create advanced charts visualization section"""
+def update_advanced_charts(timestamp, dark_mode, pro_unlocked):
+    """Render 4 PRO analytics charts with blur/unlock overlay for free users."""
 
-    # Initialize advanced charts
-    advanced_charts = AdvancedCharts(colors=COLORS)
-    config = advanced_charts.create_responsive_config()
+    text_col = COLORS['gray']['100'] if dark_mode else COLORS['gray']['900']
+    sub_col  = COLORS['gray']['400']
+    bg       = COLORS['gray']['800'] if dark_mode else '#ffffff'
+    bdr      = COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']
 
-    # Create example charts
-    waterfall = example_waterfall()
-    sankey = example_sankey()
-    heatmap = example_heatmap()
-    treemap = example_treemap()
-    funnel = example_funnel()
+    data = _load_pro_data()
+    charts = _build_pro_charts(data, dark_mode)
 
-    card_style = {
-        "backgroundColor": COLORS['gray']['800'] if dark_mode else "#ffffff",
-        "border": f"1px solid {COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']}",
-        "borderRadius": "12px",
-        "marginBottom": "24px"
-    }
-
-    header_style = {
-        "backgroundColor": COLORS['gray']['700'] if dark_mode else COLORS['gray']['50'],
-        "color": COLORS['gray']['100'] if dark_mode else COLORS['gray']['800'],
-        "padding": "16px 24px",
-        "borderBottom": f"1px solid {COLORS['gray']['600'] if dark_mode else COLORS['gray']['200']}",
-        "borderRadius": "12px 12px 0 0"
-    }
-
-    description_style = {
-        "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600'],
-        "marginBottom": "16px",
-        "fontSize": "14px"
-    }
-
-    return html.Div([
-        html.H2("Advanced Charts", style={
-            "marginBottom": "16px",
-            "color": COLORS['gray']['100'] if dark_mode else COLORS['gray']['900']
-        }),
-        html.P("Professional financial visualizations with responsive design", style={
-            "marginBottom": "32px",
-            "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600']
-        }),
-
-        # Waterfall Chart
-        dbc.Card([
-            html.Div([
-                html.H4([
-                    html.I(className="fas fa-chart-waterfall", style={"marginRight": "12px"}),
-                    "Waterfall Chart - Revenue Bridge Analysis"
-                ], style={"margin": 0})
-            ], style=header_style),
-            dbc.CardBody([
-                html.P("Perfect for showing how values change from one period to another. "
-                      "Great for variance analysis and explaining revenue/profit changes.",
-                      style=description_style),
-                dcc.Graph(figure=waterfall, config=config, style={'height': '450px'})
-            ])
-        ], style=card_style),
-
-        # Sankey Diagram
-        dbc.Card([
-            html.Div([
-                html.H4([
-                    html.I(className="fas fa-project-diagram", style={"marginRight": "12px"}),
-                    "Sankey Diagram - Flow Analysis"
-                ], style={"margin": 0})
-            ], style=header_style),
-            dbc.CardBody([
-                html.P("Shows flow of revenue/costs through different channels. "
-                      "Ideal for understanding distribution patterns.",
-                      style=description_style),
-                dcc.Graph(figure=sankey, config=config, style={'height': '550px'})
-            ])
-        ], style=card_style),
-
-        # Heatmap
-        dbc.Card([
-            html.Div([
-                html.H4([
-                    html.I(className="fas fa-th", style={"marginRight": "12px"}),
-                    "Heatmap - Performance Matrix"
-                ], style={"margin": 0})
-            ], style=header_style),
-            dbc.CardBody([
-                html.P("Visualizes performance scores across products and time periods. "
-                      "Quick way to spot high/low performers.",
-                      style=description_style),
-                dcc.Graph(figure=heatmap, config=config, style={'height': '450px'})
-            ])
-        ], style=card_style),
-
-        # Treemap
-        dbc.Card([
-            html.Div([
-                html.H4([
-                    html.I(className="fas fa-layer-group", style={"marginRight": "12px"}),
-                    "Treemap - Hierarchical Breakdown"
-                ], style={"margin": 0})
-            ], style=header_style),
-            dbc.CardBody([
-                html.P("Shows proportional distribution in a space-efficient way. "
-                      "Perfect for revenue/cost breakdowns.",
-                      style=description_style),
-                dcc.Graph(figure=treemap, config=config, style={'height': '550px'})
-            ])
-        ], style=card_style),
-
-        # Funnel Chart
-        dbc.Card([
-            html.Div([
-                html.H4([
-                    html.I(className="fas fa-filter", style={"marginRight": "12px"}),
-                    "Funnel Chart - Conversion Analysis"
-                ], style={"margin": 0})
-            ], style=header_style),
-            dbc.CardBody([
-                html.P("Tracks conversion rates through stages. "
-                      "Ideal for sales pipelines and customer journeys.",
-                      style=description_style),
-                dcc.Graph(figure=funnel, config=config, style={'height': '450px'})
-            ])
-        ], style=card_style)
+    charts_grid = html.Div([
+        dbc.Row([
+            dbc.Col(charts[0], md=6, className="mb-4"),
+            dbc.Col(charts[1], md=6, className="mb-4"),
+        ]),
+        dbc.Row([
+            dbc.Col(charts[2], md=6, className="mb-4"),
+            dbc.Col(charts[3], md=6, className="mb-4"),
+        ]),
     ])
 
+    if pro_unlocked:
+        charts_section = charts_grid
+    else:
+        # Blur the charts and show an unlock overlay on top
+        charts_section = html.Div([
+            # Blurred charts layer
+            html.Div(charts_grid, style={
+                "filter": "blur(7px)",
+                "pointerEvents": "none",
+                "userSelect": "none",
+                "transition": "filter 0.5s ease",
+            }),
+            # Overlay with Unlock card
+            html.Div([
+                html.Div([
+                    # Gold PRO badge
+                    html.Div("⚡ PRO FEATURE", style={
+                        "display": "inline-block",
+                        "background": "linear-gradient(135deg,#fbbf24,#f59e0b)",
+                        "color": "#1c1917", "padding": "4px 14px",
+                        "borderRadius": "20px", "fontSize": "11px",
+                        "fontWeight": "800", "letterSpacing": "0.12em",
+                        "marginBottom": "16px",
+                        "boxShadow": "0 4px 16px rgba(251,191,36,0.5)",
+                    }),
+                    html.H3("Premium Analytics", style={
+                        "color": "white", "margin": "0 0 8px",
+                        "fontWeight": "800", "fontSize": "26px",
+                    }),
+                    html.P("4 high-value analytical views used by top-tier investors "
+                           "and CFOs to evaluate performance.", style={
+                        "color": "rgba(255,255,255,0.65)", "fontSize": "14px",
+                        "margin": "0 0 20px", "maxWidth": "340px",
+                        "lineHeight": "1.6",
+                    }),
+                    # Feature pills
+                    html.Div([
+                        html.Span(f, style={
+                            "background": "rgba(255,255,255,0.1)",
+                            "color": "rgba(255,255,255,0.8)",
+                            "padding": "5px 12px", "borderRadius": "20px",
+                            "fontSize": "12px", "margin": "3px",
+                            "border": "1px solid rgba(255,255,255,0.15)",
+                            "display": "inline-block",
+                        }) for f in [
+                            "🎯 Profitability Quadrant",
+                            "🧬 Cost Structure DNA",
+                            "💎 Capital Efficiency",
+                            "🕸 Health Radar",
+                        ]
+                    ], style={"marginBottom": "28px"}),
+                    # Unlock button
+                    html.Button([
+                        html.I(className="fas fa-lock-open",
+                               style={"marginRight": "8px"}),
+                        "Unlock Pro  ·  $99/month",
+                    ], id='unlock-pro-btn', className="pro-unlock-btn"),
+                    html.P("Cancel anytime · 7-day free trial", style={
+                        "color": "rgba(255,255,255,0.45)",
+                        "fontSize": "11px", "marginTop": "10px",
+                    }),
+                ], style={
+                    "background": "linear-gradient(145deg,#1e1b4b,#312e81,#4c1d95)",
+                    "borderRadius": "20px", "padding": "40px 44px",
+                    "textAlign": "center", "maxWidth": "480px", "width": "90%",
+                    "boxShadow": ("0 30px 60px rgba(0,0,0,0.45),"
+                                  "0 0 80px rgba(99,102,241,0.25)"),
+                }),
+            ], style={
+                "position": "absolute", "top": 0, "left": 0,
+                "right": 0, "bottom": 0,
+                "display": "flex", "alignItems": "center",
+                "justifyContent": "center",
+                "background": "radial-gradient(ellipse at center,"
+                              "rgba(99,102,241,0.08) 0%, transparent 70%)",
+                "zIndex": 10,
+            }),
+        ], style={"position": "relative"})
+
+    return html.Div([
+        # Section header
+        html.Div([
+            html.Div([
+                html.H3("Pro Analytics", style={
+                    "color": text_col, "margin": "0 0 4px", "fontWeight": "800",
+                    "fontSize": "20px",
+                }),
+                html.P("Advanced financial intelligence — institutional-grade insights",
+                       style={"color": sub_col, "fontSize": "13px", "margin": 0}),
+            ]),
+            html.Div([
+                html.Span("⚡ PRO", style={
+                    "background": "linear-gradient(135deg,#fbbf24,#f59e0b)",
+                    "color": "#1c1917", "padding": "4px 14px",
+                    "borderRadius": "20px", "fontSize": "11px",
+                    "fontWeight": "800", "letterSpacing": "0.1em",
+                    "boxShadow": "0 2px 10px rgba(251,191,36,0.4)",
+                }),
+            ]),
+        ], style={
+            "display": "flex", "justifyContent": "space-between",
+            "alignItems": "center", "marginBottom": "20px",
+        }),
+        charts_section,
+    ])
+
+
+
+# ── PRO Payment Modal Callbacks ──────────────────────────────────────────────
+
+@app.callback(
+    Output('payment-modal-open', 'data'),
+    Input('unlock-pro-btn', 'n_clicks'),
+    prevent_initial_call=True
+)
+def open_payment_modal(n):
+    if n:
+        return True
+    return False
+
+@app.callback(
+    Output('payment-modal-open', 'data', allow_duplicate=True),
+    Input('pro-payment-close', 'n_clicks'),
+    prevent_initial_call=True
+)
+def close_payment_modal(n):
+    if n:
+        return False
+    return dash.no_update
+
+@app.callback(
+    [Output('pro-unlocked-store', 'data'),
+     Output('payment-modal-open', 'data', allow_duplicate=True)],
+    Input('pro-payment-submit', 'n_clicks'),
+    prevent_initial_call=True
+)
+def submit_payment(n):
+    """Simulate payment acceptance — unlock PRO and close modal."""
+    if n:
+        return True, False
+    return dash.no_update, dash.no_update
+
+@app.callback(
+    Output('pro-payment-modal', 'style'),
+    Input('payment-modal-open', 'data')
+)
+def toggle_payment_modal(is_open):
+    if is_open:
+        return {'display': 'block'}
+    return {'display': 'none'}
 
 
 # ==================== SCENARIO SIMULATOR CALLBACK ====================
