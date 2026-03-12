@@ -583,121 +583,374 @@ class MLService:
         }
     
     # ==================== FORECASTER ====================
+    def _get_annual_historicals(self, tickers: List[str] = None) -> pd.DataFrame:
+        """
+        Query ANNUAL_FINANCIALS_10K and aggregate quarterly rows into annual figures.
+        Revenue / EBITDA / Net Income are summed per fiscal year.
+        Margin metrics are averaged per fiscal year.
+        """
+        try:
+            cursor = self.hana_client.connection.cursor()
+
+            # Normalise tickers - strip ' US Equity' suffix, keep only valid symbols
+            if tickers:
+                normalized = []
+                for t in tickers:
+                    t_clean = t.replace(' US Equity', '').strip()
+                    if t_clean.isupper() and len(t_clean) <= 5:
+                        normalized.append(t_clean)
+                if not normalized:
+                    normalized = [t.replace(' US Equity', '').strip() for t in tickers]
+
+                placeholders = ', '.join(['?' for _ in normalized])
+                query = f"""
+                    SELECT "TICKER", "FISCAL_YEAR",
+                           SUM("SALES_REV_TURN")  AS "SALES_REV_TURN",
+                           SUM("EBITDA")           AS "EBITDA",
+                           SUM("NET_INCOME")       AS "NET_INCOME",
+                           AVG("EBITDA_MARGIN")    AS "EBITDA_MARGIN",
+                           AVG("GROSS_MARGIN")     AS "GROSS_MARGIN"
+                    FROM "{self.data_schema}"."ANNUAL_FINANCIALS_10K"
+                    WHERE "TICKER" IN ({placeholders})
+                    GROUP BY "TICKER", "FISCAL_YEAR"
+                    ORDER BY "TICKER", "FISCAL_YEAR"
+                """
+                cursor.execute(query, normalized)
+            else:
+                query = f"""
+                    SELECT "TICKER", "FISCAL_YEAR",
+                           SUM("SALES_REV_TURN")  AS "SALES_REV_TURN",
+                           SUM("EBITDA")           AS "EBITDA",
+                           SUM("NET_INCOME")       AS "NET_INCOME",
+                           AVG("EBITDA_MARGIN")    AS "EBITDA_MARGIN",
+                           AVG("GROSS_MARGIN")     AS "GROSS_MARGIN"
+                    FROM "{self.data_schema}"."ANNUAL_FINANCIALS_10K"
+                    GROUP BY "TICKER", "FISCAL_YEAR"
+                    ORDER BY "TICKER", "FISCAL_YEAR"
+                """
+                cursor.execute(query)
+
+            columns = [desc[0] for desc in cursor.description]
+            rows = cursor.fetchall()
+            df = pd.DataFrame(rows, columns=columns)
+
+            for col in ['SALES_REV_TURN', 'EBITDA', 'NET_INCOME', 'EBITDA_MARGIN', 'GROSS_MARGIN']:
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], errors='coerce')
+
+            logger.info(
+                f"ANNUAL_FINANCIALS_10K: {len(df)} annual records, "
+                f"{df['TICKER'].nunique() if not df.empty else 0} companies"
+            )
+            return df
+
+        except Exception as e:
+            logger.error(f"Error fetching annual historicals: {e}")
+            return pd.DataFrame()
+
+    def _compute_cagr_forecast(self, series_vals: list, series_years: list) -> Dict:
+        """
+        Given a list of annual values and their fiscal years, compute CAGR-based
+        1Y and 2Y projections.  Blends long-term CAGR with recent 2-year trend.
+        Returns a dict with historical, current, forecast_1y, forecast_2y, growth_rate, cagr.
+        """
+        if len(series_vals) < 1:
+            return {}
+
+        current = float(series_vals[-1])
+        current_year = int(series_years[-1])
+        hist_dict = {int(y): float(v) for y, v in zip(series_years, series_vals)}
+
+        if len(series_vals) == 1:
+            return {
+                'historical': hist_dict,
+                'current': current,
+                'current_year': current_year,
+                'forecast_1y': current * 1.05,
+                'forecast_2y': current * 1.1025,
+                'growth_rate': 0.05,
+                'cagr': 0.05,
+            }
+
+        # Long-term CAGR
+        oldest = float(series_vals[0])
+        n_years = len(series_vals) - 1
+        if oldest > 0 and current > 0 and n_years > 0:
+            cagr = (current / oldest) ** (1.0 / n_years) - 1
+            cagr = max(-0.40, min(0.60, cagr))
+        else:
+            cagr = 0.05
+
+        # Recent 2-year trend (more responsive)
+        if len(series_vals) >= 3:
+            recent_base = float(series_vals[-3])
+            if recent_base > 0 and current > 0:
+                recent_cagr = (current / recent_base) ** (1.0 / 2) - 1
+                recent_cagr = max(-0.40, min(0.70, recent_cagr))
+                # Blend 60% recent + 40% long-term
+                growth_rate = 0.60 * recent_cagr + 0.40 * cagr
+            else:
+                growth_rate = cagr
+        else:
+            growth_rate = cagr
+
+        return {
+            'historical': hist_dict,
+            'current': current,
+            'current_year': current_year,
+            'forecast_1y': current * (1 + growth_rate),
+            'forecast_2y': current * (1 + growth_rate) ** 2,
+            'growth_rate': growth_rate,
+            'cagr': cagr,
+        }
+
     def get_forecasts(self, tickers: List[str]) -> Dict:
         """
-        Get financial forecasts for companies.
+        Get financial forecasts for all provided companies.
+
+        Uses ANNUAL_FINANCIALS_10K (multi-year quarterly data aggregated to annual)
+        to compute a per-company CAGR-based projection.  Falls back to the snapshot
+        tables if historical data is unavailable.
+
+        Fixes addressed:
+        - No company cap: all tickers are processed (not just top 5)
+        - Per-company growth rate derived from real historical CAGR (no flat 5%)
+        - Returns historical series so the chart can split actual vs projected
         """
         logger.info(f"get_forecasts called with tickers: {tickers}")
-        
+
+        # ── Primary path: multi-year annual history ──────────────────────────
+        hist_df = self._get_annual_historicals(tickers)
+
+        if not hist_df.empty:
+            forecast_metrics = ['SALES_REV_TURN', 'EBITDA', 'NET_INCOME',
+                                 'EBITDA_MARGIN', 'GROSS_MARGIN']
+
+            results = []
+            all_years = sorted(hist_df['FISCAL_YEAR'].unique())
+
+            # Normalise tickers for matching
+            normalized_tickers = [t.replace(' US Equity', '').strip() for t in tickers]
+
+            for ticker in normalized_tickers:
+                ticker_hist = hist_df[hist_df['TICKER'] == ticker].sort_values('FISCAL_YEAR')
+                if ticker_hist.empty:
+                    logger.warning(f"No annual history for ticker: {ticker}")
+                    continue
+
+                ticker_forecasts = {}
+                for metric in forecast_metrics:
+                    if metric not in ticker_hist.columns:
+                        continue
+                    valid = ticker_hist[['FISCAL_YEAR', metric]].dropna()
+                    if valid.empty:
+                        continue
+                    vals = valid[metric].tolist()
+                    years = valid['FISCAL_YEAR'].tolist()
+                    fc = self._compute_cagr_forecast(vals, years)
+                    if fc:
+                        ticker_forecasts[metric] = fc
+
+                if ticker_forecasts:
+                    results.append({
+                        'ticker': ticker,
+                        'forecasts': ticker_forecasts,
+                        'historical_years': [int(y) for y in ticker_hist['FISCAL_YEAR'].tolist()],
+                    })
+
+            if results:
+                logger.info(f"Generated CAGR forecasts for {len(results)} companies")
+                return {
+                    "companies": results,
+                    "all_years": [int(y) for y in all_years],
+                    "metrics": forecast_metrics,
+                    "mode": "cagr_historical",
+                }
+
+        # ── Fallback: snapshot tables (single data point per ticker) ─────────
+        logger.warning("Annual history unavailable — falling back to snapshot data")
         df = self.get_advanced_data(tickers)
         if df.empty:
-            # Try regular company data as fallback
             df = self.get_company_data(tickers)
-            if df.empty:
-                return {"error": "No data", "companies": []}
-        
-        model, scaler, features, metrics = self.load_model('forecaster')
-        
-        # Get available forecast metrics
-        forecast_metrics = ['SALES_REV_TURN', 'NET_INCOME', 'EBITDA', 'CF_FREE_CASH_FLOW', 
-                          'EBITDA_MARGIN', 'GROSS_MARGIN']
-        available_metrics = [m for m in forecast_metrics if m in df.columns]
-        
+        if df.empty:
+            return {"error": "No data", "companies": []}
+
+        snapshot_metrics = ['SALES_REV_TURN', 'NET_INCOME', 'EBITDA',
+                            'CF_FREE_CASH_FLOW', 'EBITDA_MARGIN', 'GROSS_MARGIN']
+        available_metrics = [m for m in snapshot_metrics if m in df.columns]
+
         if not available_metrics:
-            logger.warning("No forecast metrics found in data")
             return {"error": "No forecast metrics", "companies": []}
-        
+
         results = []
         for ticker in tickers:
-            ticker_data = df[df['TICKER'] == ticker].head(1)
-            if ticker_data.empty:
-                logger.warning(f"No data for ticker {ticker}")
+            t_clean = ticker.replace(' US Equity', '').strip()
+            row = df[df['TICKER'] == t_clean].head(1)
+            if row.empty:
                 continue
-            
+
             ticker_forecasts = {}
             for metric in available_metrics:
-                current_val = float(ticker_data[metric].iloc[0]) if pd.notna(ticker_data[metric].iloc[0]) else 0
-                # Simple growth forecast
-                growth_rate = 0.05  # 5% default growth
-                if metrics and metric in metrics:
-                    growth_rate = metrics[metric].get('avg_growth', 0.05)
-                
-                forecast_1y = current_val * (1 + growth_rate)
-                forecast_2y = current_val * (1 + growth_rate) ** 2
-                
+                current_val = float(row[metric].iloc[0]) if pd.notna(row[metric].iloc[0]) else 0
+                # Without history use a modest 5 % default but make it clear it is a fallback
+                growth_rate = 0.05
                 ticker_forecasts[metric] = {
+                    'historical': {},
                     'current': current_val,
-                    'forecast_1y': forecast_1y,
-                    'forecast_2y': forecast_2y,
-                    'growth_rate': growth_rate
+                    'current_year': 2024,
+                    'forecast_1y': current_val * (1 + growth_rate),
+                    'forecast_2y': current_val * (1 + growth_rate) ** 2,
+                    'growth_rate': growth_rate,
+                    'cagr': growth_rate,
                 }
-            
-            results.append({
-                'ticker': ticker,
-                'forecasts': ticker_forecasts
-            })
-        
-        logger.info(f"Generated forecasts for {len(results)} companies")
+
+            results.append({'ticker': t_clean, 'forecasts': ticker_forecasts})
+
+        logger.info(f"Generated snapshot forecasts for {len(results)} companies")
         return {
             "companies": results,
-            "metrics": available_metrics
+            "metrics": available_metrics,
+            "mode": "snapshot_fallback",
         }
     
     # ==================== SCENARIO SIMULATOR ====================
-    def simulate_scenarios(self, ticker: str, scenarios: List[Dict] = None) -> Dict:
+    # META real historical financials (2020-2024) used as reference dataset
+    META_HISTORICAL = {
+        'years':         [2020,   2021,    2022,    2023,    2024],
+        'revenue':       [85965,  117929,  116609,  134902,  164500],   # $M
+        'gross_profit':  [69273,  97322,   88134,   114451,  141218],
+        'ebitda':        [29528,  47440,   40489,   58998,   80765],
+        'net_income':    [29146,  39370,   23200,   39098,   62360],
+        'gross_margin':  [80.6,   82.5,    75.6,    84.8,    85.9],
+        'ebitda_margin': [34.3,   40.2,    34.7,    43.7,    49.1],
+        'net_margin':    [33.9,   33.4,    19.9,    29.0,    37.9],
+    }
+
+    def _get_meta_base_data(self) -> dict:
+        """Return META historical data - from HANA if available, else hardcoded reference."""
+        try:
+            cursor = self.hana_client.connection.cursor()
+            cursor.execute(f"""
+                SELECT "DATA_DATE", "SALES_REV_TURN", "GROSS_PROFIT", "EBITDA",
+                       "NET_INCOME", "GROSS_MARGIN", "EBITDA_MARGIN", "PROF_MARGIN"
+                FROM "{self.data_schema}"."FINANCIAL_DATA_ADVANCED"
+                WHERE "TICKER" LIKE '%META%'
+                ORDER BY "DATA_DATE" ASC
+            """)
+            rows = cursor.fetchall()
+            if rows and len(rows) >= 2:
+                years  = [int(str(r[0])[:4]) for r in rows]
+                return {
+                    'years':         years,
+                    'revenue':       [float(r[1] or 0) for r in rows],
+                    'gross_profit':  [float(r[2] or 0) for r in rows],
+                    'ebitda':        [float(r[3] or 0) for r in rows],
+                    'net_income':    [float(r[4] or 0) for r in rows],
+                    'gross_margin':  [float(r[5] or 0) for r in rows],
+                    'ebitda_margin': [float(r[6] or 0) for r in rows],
+                    'net_margin':    [float(r[7] or 0) for r in rows],
+                }
+        except Exception as e:
+            logger.warning(f"Could not fetch META from HANA: {e} — using reference dataset")
+        return dict(self.META_HISTORICAL)
+
+    def simulate_scenarios(self, ticker: str = 'META', what_if_params: Dict = None) -> Dict:
         """
-        Run scenario simulations for a company.
+        Scenario Simulator using META as reference dataset.
+
+        Returns
+        -------
+        dict with keys:
+          historical        – actual yearly financials (Scenario 1 – solid line)
+          projection_base   – extrapolated trend from last known year (Scenario 1 – dashed)
+          projection_whatif – user-adjusted projection        (Scenario 2 – dashed orange)
+          years_hist        – x-axis labels for historical
+          years_proj        – x-axis labels for projected (2025-2027)
+          base_revenue, base_margin – latest actuals
         """
-        logger.info(f"simulate_scenarios called for ticker: {ticker}")
-        
-        df = self.get_company_data([ticker])
-        if df.empty:
-            return {"error": "No data", "scenarios": []}
-        
-        company_data = df.iloc[0]
-        
-        # Default scenarios if none provided
-        if scenarios is None:
-            scenarios = [
-                {"name": "Base Case", "revenue_change": 0, "cost_change": 0},
-                {"name": "Optimistic", "revenue_change": 0.15, "cost_change": -0.05},
-                {"name": "Pessimistic", "revenue_change": -0.10, "cost_change": 0.10},
-                {"name": "Cost Reduction", "revenue_change": 0, "cost_change": -0.15},
-                {"name": "Growth Investment", "revenue_change": 0.20, "cost_change": 0.10},
-            ]
-        
-        results = []
-        base_revenue = float(company_data.get('SALES_REV_TURN', 0)) if 'SALES_REV_TURN' in company_data.index else 0
-        if base_revenue == 0:
-            base_revenue = float(company_data.get('TOT_LIAB_AND_EQY', 1000)) if 'TOT_LIAB_AND_EQY' in company_data.index else 1000
-        
-        base_margin = float(company_data.get('GROSS_MARGIN', 0)) if 'GROSS_MARGIN' in company_data.index else 0
-        if base_margin == 0:
-            base_margin = float(company_data.get('EBITDA_MARGIN', 30)) if 'EBITDA_MARGIN' in company_data.index else 30
-        
-        for scenario in scenarios:
-            new_revenue = base_revenue * (1 + scenario.get('revenue_change', 0))
-            margin_impact = scenario.get('cost_change', 0) * -50
-            new_margin = base_margin + margin_impact
-            new_profit = new_revenue * (new_margin / 100)
-            
-            results.append({
-                'name': scenario['name'],
-                'revenue': new_revenue,
-                'margin': new_margin,
-                'profit': new_profit,
-                'revenue_change': scenario.get('revenue_change', 0) * 100,
-                'margin_change': margin_impact
-            })
-        
-        logger.info(f"Simulated {len(results)} scenarios for {ticker}")
+        logger.info(f"simulate_scenarios called (META reference, what_if={what_if_params})")
+
+        hist = self._get_meta_base_data()
+
+        # ── Derive average growth rates from history ──────────────────
+        rev = hist['revenue']
+        n   = len(rev)
+        avg_rev_growth = ((rev[-1] / rev[0]) ** (1 / (n - 1)) - 1) if rev[0] else 0.12
+
+        margins_ebitda = hist['ebitda_margin']
+        avg_margin     = sum(margins_ebitda) / len(margins_ebitda)
+        last_margin    = margins_ebitda[-1]
+        last_revenue   = rev[-1]
+
+        proj_years = [hist['years'][-1] + i for i in range(1, 4)]  # 2025, 2026, 2027
+
+        # ── Scenario 1: base trend projection ─────────────────────────
+        base_proj_revenue = []
+        base_proj_ebitda  = []
+        base_proj_net     = []
+        r = last_revenue
+        for _ in proj_years:
+            r = r * (1 + avg_rev_growth)
+            base_proj_revenue.append(round(r, 1))
+            base_proj_ebitda.append(round(r * last_margin / 100, 1))
+            base_proj_net.append(round(r * hist['net_margin'][-1] / 100, 1))
+
+        # ── Scenario 2: what-if projection ────────────────────────────
+        if what_if_params is None:
+            what_if_params = {}
+
+        rev_growth_adj   = what_if_params.get('revenue_growth', avg_rev_growth * 100) / 100
+        cost_change_pct  = what_if_params.get('cost_change', 0) / 100       # e.g. -5 → cost drops 5 %
+        margin_adj_pct   = what_if_params.get('margin_adj', 0)               # direct % point addition
+
+        # Cost change affects margin inversely
+        whatif_margin = last_margin - (cost_change_pct * 100) + margin_adj_pct
+
+        whatif_proj_revenue = []
+        whatif_proj_ebitda  = []
+        whatif_proj_net     = []
+        r = last_revenue
+        for _ in proj_years:
+            r = r * (1 + rev_growth_adj)
+            whatif_proj_revenue.append(round(r, 1))
+            whatif_proj_ebitda.append(round(r * whatif_margin / 100, 1))
+            whatif_proj_net.append(round(r * (hist['net_margin'][-1] + margin_adj_pct) / 100, 1))
+
+        logger.info(f"Scenario sim complete: base_rev_growth={avg_rev_growth:.1%}, whatif={what_if_params}")
         return {
-            "ticker": ticker,
-            "base_revenue": base_revenue,
-            "base_margin": base_margin,
-            "scenarios": results
+            "ticker": "META",
+            "source": "META Reference Dataset",
+            "years_hist":  hist['years'],
+            "years_proj":  proj_years,
+            "historical": {
+                "revenue":       hist['revenue'],
+                "ebitda":        hist['ebitda'],
+                "net_income":    hist['net_income'],
+                "gross_margin":  hist['gross_margin'],
+                "ebitda_margin": hist['ebitda_margin'],
+                "net_margin":    hist['net_margin'],
+            },
+            "projection_base": {
+                "revenue":    base_proj_revenue,
+                "ebitda":     base_proj_ebitda,
+                "net_income": base_proj_net,
+            },
+            "projection_whatif": {
+                "revenue":    whatif_proj_revenue,
+                "ebitda":     whatif_proj_ebitda,
+                "net_income": whatif_proj_net,
+            },
+            "base_revenue":    last_revenue,
+            "base_margin":     last_margin,
+            "avg_rev_growth":  round(avg_rev_growth * 100, 2),
+            "what_if_params":  what_if_params,
+            # legacy scenario list (kept for backward compat)
+            "scenarios": [
+                {"name": "Current Trend",   "revenue": base_proj_revenue[0],   "margin": last_margin,   "profit": base_proj_ebitda[0]},
+                {"name": "What-if Year 1",  "revenue": whatif_proj_revenue[0], "margin": whatif_margin, "profit": whatif_proj_ebitda[0]},
+            ],
         }
-    
+
     # ==================== GOAL TRACKER ====================
     def track_goals(self, tickers: List[str], goals: List[Dict] = None) -> Dict:
         """
