@@ -16,14 +16,7 @@ import logging
 from datetime import datetime, timedelta
 from utils.config import load_config, setup_logging
 from db.data_service import FinancialDataService
-from utils.advanced_charts import (
-    AdvancedCharts,
-    example_waterfall,
-    example_sankey,
-    example_heatmap,
-    example_treemap,
-    example_funnel
-)
+from utils.advanced_charts import AdvancedCharts  # example_* removed (PRO charts replace them)
 # ML Service - optional, app works without it
 try:
     from ml.ml_service import MLService
