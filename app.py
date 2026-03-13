@@ -1201,7 +1201,6 @@ app.layout = html.Div([
                     placeholder='Ask about your financials…',
                     value='',
                     rows=1,
-                    debounce=False,
                 ),
                 html.Button(
                     html.I(className="fas fa-paper-plane", style={"fontSize": "16px"}),
