@@ -1155,11 +1155,7 @@ app.layout = html.Div([
     # Toggle button (fixed bottom-right)
     html.Button(
         [
-            html.Svg(
-                html.Path(d="M20 2H4C2.9 2 2 2.9 2 4v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"),
-                viewBox="0 0 24 24",
-                xmlns="http://www.w3.org/2000/svg",
-            ),
+            html.I(className="fas fa-comments", style={"fontSize": "22px"}),
             html.Div(id='chatbot-unread-badge'),
         ],
         id='chatbot-toggle-btn',
@@ -1208,11 +1204,7 @@ app.layout = html.Div([
                     debounce=False,
                 ),
                 html.Button(
-                    html.Svg(
-                        html.Path(d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"),
-                        viewBox="0 0 24 24",
-                        xmlns="http://www.w3.org/2000/svg",
-                    ),
+                    html.I(className="fas fa-paper-plane", style={"fontSize": "16px"}),
                     id='chatbot-send-btn',
                     n_clicks=0,
                     title='Send',
