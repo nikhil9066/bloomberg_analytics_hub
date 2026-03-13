@@ -1148,6 +1148,84 @@ app.layout = html.Div([
         ], id='main-content', fluid=True, style=custom_style, className='main-content sidebar-expanded')
     ], id='dashboard-container', style={'display': 'block', 'position': 'relative'}),
 
+    # ── Floating Chatbot ──────────────────────────────────────────────────
+    # Toggle button (fixed bottom-right)
+    html.Button(
+        [
+            html.Svg(
+                html.Path(d="M20 2H4C2.9 2 2 2.9 2 4v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"),
+                viewBox="0 0 24 24",
+                xmlns="http://www.w3.org/2000/svg",
+            ),
+            html.Div(id='chatbot-unread-badge'),
+        ],
+        id='chatbot-toggle-btn',
+        title='Open AI Assistant',
+        n_clicks=0,
+    ),
+
+    # Chat panel
+    html.Div(
+        id='chatbot-panel',
+        className='chat-hidden',
+        children=[
+            # Header
+            html.Div([
+                html.Div("🤖", className='chat-header-avatar'),
+                html.Div([
+                    html.Div("CFO AI Assistant", className='chat-header-name'),
+                    html.Div("Online · powered by AI", className='chat-header-status'),
+                ], className='chat-header-info'),
+                html.Button("✕", id='chatbot-close-btn', className='chat-close-btn', n_clicks=0),
+            ], className='chat-header'),
+
+            # Messages area
+            html.Div([
+                html.Div([
+                    html.Div([
+                        html.Div("👋 Hi! I'm your CFO AI Assistant. Ask me anything about your financial data, KPIs, or competitors.", className='chat-bubble'),
+                    ], className='chat-msg bot'),
+                ]),
+            ], id='chatbot-messages', className='chat-messages'),
+
+            # Suggested prompts
+            html.Div([
+                html.Span("How's my EBITDA?", className='chat-suggestion-chip', id='chip-1'),
+                html.Span("Top competitor?", className='chat-suggestion-chip', id='chip-2'),
+                html.Span("Cash flow risk?", className='chat-suggestion-chip', id='chip-3'),
+            ], className='chat-suggestions'),
+
+            # Input area
+            html.Div([
+                dcc.Textarea(
+                    id='chatbot-input',
+                    placeholder='Ask about your financials…',
+                    value='',
+                    rows=1,
+                    debounce=False,
+                ),
+                html.Button(
+                    html.Svg(
+                        html.Path(d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"),
+                        viewBox="0 0 24 24",
+                        xmlns="http://www.w3.org/2000/svg",
+                    ),
+                    id='chatbot-send-btn',
+                    n_clicks=0,
+                    title='Send',
+                ),
+            ], className='chat-input-area'),
+        ],
+    ),
+
+    # Store for chat open/closed state
+    dcc.Store(id='chatbot-open-store', data=False),
+
+    # Store for chat messages history
+    dcc.Store(id='chatbot-messages-store', data=[
+        {'role': 'bot', 'text': '👋 Hi! I\'m your CFO AI Assistant. Ask me anything about your financial data, KPIs, or competitors.'}
+    ]),
+
     # ── PRO Payment Modal — fixed overlay, always in DOM ──────────────────
     html.Div(id='pro-payment-modal', style={'display': 'none'}, children=[
         html.Div([  # backdrop
@@ -6200,6 +6278,110 @@ def update_scenario_charts(rev_ch, cost_ch, n_simulate, dark_mode):
         ], style={"textAlign": "center", "fontSize": "12px",
                   "color": COLORS['gray']['400'], "marginTop": "12px"}),
     ]
+
+# ══════════════════════════════════════════════════════════════════════════
+# CHATBOT CALLBACKS
+# ══════════════════════════════════════════════════════════════════════════
+
+@app.callback(
+    Output('chatbot-open-store', 'data'),
+    [Input('chatbot-toggle-btn', 'n_clicks'),
+     Input('chatbot-close-btn', 'n_clicks')],
+    State('chatbot-open-store', 'data'),
+    prevent_initial_call=True,
+)
+def toggle_chatbot(toggle_clicks, close_clicks, is_open):
+    """Toggle the chat panel open/closed."""
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return is_open
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    if trigger_id == 'chatbot-close-btn':
+        return False
+    # toggle button flips state
+    return not is_open
+
+
+@app.callback(
+    Output('chatbot-panel', 'className'),
+    Input('chatbot-open-store', 'data'),
+)
+def update_panel_class(is_open):
+    """Show or hide the chat panel with animation class."""
+    return 'chat-visible' if is_open else 'chat-hidden'
+
+
+@app.callback(
+    [Output('chatbot-messages', 'children'),
+     Output('chatbot-messages-store', 'data'),
+     Output('chatbot-input', 'value')],
+    [Input('chatbot-send-btn', 'n_clicks'),
+     Input('chip-1', 'n_clicks'),
+     Input('chip-2', 'n_clicks'),
+     Input('chip-3', 'n_clicks')],
+    [State('chatbot-input', 'value'),
+     State('chatbot-messages-store', 'data')],
+    prevent_initial_call=True,
+)
+def handle_chat_message(send_clicks, c1, c2, c3, input_value, messages):
+    """
+    Handle sending a message.
+    Front-end only for now — bot replies with a placeholder response.
+    Back-end LLM integration can be added later.
+    """
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        raise dash.exceptions.PreventUpdate
+
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    # Determine the user text
+    chip_map = {
+        'chip-1': 'How is my EBITDA performing?',
+        'chip-2': 'Who is my top competitor right now?',
+        'chip-3': 'What are my cash flow risks?',
+    }
+    if trigger_id in chip_map:
+        user_text = chip_map[trigger_id]
+    else:
+        user_text = (input_value or '').strip()
+
+    if not user_text:
+        raise dash.exceptions.PreventUpdate
+
+    # Append user message
+    messages = list(messages)
+    messages.append({'role': 'user', 'text': user_text})
+
+    # ── Placeholder bot response (swap this for a real LLM call later) ──
+    bot_replies = {
+        'How is my EBITDA performing?':
+            '📊 Your EBITDA margin is 15.0% vs. an industry median of 18.2%. '
+            'You are slightly below benchmark — cost optimisation in OpEx could close the gap.',
+        'Who is my top competitor right now?':
+            '🏆 Based on current data, META leads with the highest similarity score '
+            'to your financial profile among selected peers.',
+        'What are my cash flow risks?':
+            '⚠️ Working capital of $800M looks adequate, but your interest coverage ratio '
+            'of 8× should be monitored if rates rise. Cash from operations ($1.7B) is healthy.',
+    }
+    bot_text = bot_replies.get(
+        user_text,
+        f'🤖 Got it! You asked: *"{user_text}"*. '
+        'Full LLM integration coming soon — this response is a placeholder.'
+    )
+    messages.append({'role': 'bot', 'text': bot_text})
+
+    # Render all messages as Dash components
+    def render_msg(m):
+        role = m['role']
+        return html.Div([
+            html.Div(m['text'], className='chat-bubble'),
+        ], className=f'chat-msg {role}')
+
+    rendered = [render_msg(m) for m in messages]
+    return rendered, messages, ''
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
