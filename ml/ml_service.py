@@ -111,7 +111,13 @@ class MLService:
             return model, scaler, feature_columns, metrics
             
         except Exception as e:
-            logger.error(f"Error loading model {model_name}: {e}")
+            # Downgrade to WARNING for known "table not found" — it's expected when
+            # ML_MODELS hasn't been deployed yet; don't flood the log with ERROR.
+            msg = str(e)
+            if "ML_MODELS" in msg or "table not found" in msg.lower() or "invalid table name" in msg.lower():
+                logger.warning(f"ML_MODELS table unavailable ({model_name}): model will run in fallback mode")
+            else:
+                logger.error(f"Error loading model {model_name}: {e}")
             return None, None, [], {}
     
     def get_cluster_labels(self, model_name: str) -> List[Dict]:
@@ -827,31 +833,59 @@ class MLService:
     }
 
     def _get_meta_base_data(self) -> dict:
-        """Return META historical data - from HANA if available, else hardcoded reference."""
+        """Return META annual historical data — from HANA if usable, else hardcoded reference.
+
+        HANA stores revenue in raw dollars; we scale to $M so the reference dataset
+        (also in $M) can be used interchangeably.  We also de-duplicate by fiscal year
+        (taking the latest row per year) so repeated quarterly snapshots don't collapse
+        the CAGR to zero.
+        """
         try:
             cursor = self.hana_client.connection.cursor()
+            # Pull one row per fiscal year (latest snapshot for that year)
             cursor.execute(f"""
-                SELECT "DATA_DATE", "SALES_REV_TURN", "GROSS_PROFIT", "EBITDA",
-                       "NET_INCOME", "GROSS_MARGIN", "EBITDA_MARGIN", "PROF_MARGIN"
-                FROM "{self.data_schema}"."FINANCIAL_DATA_ADVANCED"
-                WHERE "TICKER" LIKE '%META%'
-                ORDER BY "DATA_DATE" ASC
+                SELECT "FISCAL_YEAR",
+                       LAST_VALUE("SALES_REV_TURN") OVER (PARTITION BY "FISCAL_YEAR" ORDER BY "REPORT_DATE") AS "REV",
+                       LAST_VALUE("GROSS_PROFIT")   OVER (PARTITION BY "FISCAL_YEAR" ORDER BY "REPORT_DATE") AS "GP",
+                       LAST_VALUE("EBITDA")          OVER (PARTITION BY "FISCAL_YEAR" ORDER BY "REPORT_DATE") AS "EBITDA",
+                       LAST_VALUE("NET_INCOME")      OVER (PARTITION BY "FISCAL_YEAR" ORDER BY "REPORT_DATE") AS "NI",
+                       LAST_VALUE("GROSS_MARGIN")    OVER (PARTITION BY "FISCAL_YEAR" ORDER BY "REPORT_DATE") AS "GM",
+                       LAST_VALUE("EBITDA_MARGIN")   OVER (PARTITION BY "FISCAL_YEAR" ORDER BY "REPORT_DATE") AS "EM",
+                       LAST_VALUE("PROF_MARGIN")     OVER (PARTITION BY "FISCAL_YEAR" ORDER BY "REPORT_DATE") AS "PM"
+                FROM "{self.data_schema}"."ANNUAL_FINANCIALS_10K"
+                WHERE "TICKER" = 'META'
+                ORDER BY "FISCAL_YEAR" ASC
             """)
             rows = cursor.fetchall()
+
             if rows and len(rows) >= 2:
-                years  = [int(str(r[0])[:4]) for r in rows]
-                return {
-                    'years':         years,
-                    'revenue':       [float(r[1] or 0) for r in rows],
-                    'gross_profit':  [float(r[2] or 0) for r in rows],
-                    'ebitda':        [float(r[3] or 0) for r in rows],
-                    'net_income':    [float(r[4] or 0) for r in rows],
-                    'gross_margin':  [float(r[5] or 0) for r in rows],
-                    'ebitda_margin': [float(r[6] or 0) for r in rows],
-                    'net_margin':    [float(r[7] or 0) for r in rows],
-                }
+                years = [int(r[0]) for r in rows]
+
+                def _scale(v):
+                    """Convert raw dollars → $M; handle None."""
+                    val = float(v or 0)
+                    return round(val / 1e6, 1) if val > 1e8 else round(val, 1)
+
+                rev_list = [_scale(r[1]) for r in rows]
+
+                # Sanity-check: CAGR must be non-zero (> 0.5 % p.a.) to be useful
+                if rev_list[0] > 0 and rev_list[-1] != rev_list[0]:
+                    logger.info(f"META from HANA ANNUAL_FINANCIALS_10K: {len(rows)} years")
+                    return {
+                        'years':         years,
+                        'revenue':       rev_list,
+                        'gross_profit':  [_scale(r[2]) for r in rows],
+                        'ebitda':        [_scale(r[3]) for r in rows],
+                        'net_income':    [_scale(r[4]) for r in rows],
+                        'gross_margin':  [float(r[5] or 0) for r in rows],
+                        'ebitda_margin': [float(r[6] or 0) for r in rows],
+                        'net_margin':    [float(r[7] or 0) for r in rows],
+                    }
+
         except Exception as e:
             logger.warning(f"Could not fetch META from HANA: {e} — using reference dataset")
+
+        logger.info("META: using hardcoded reference dataset")
         return dict(self.META_HISTORICAL)
 
     def simulate_scenarios(self, ticker: str = 'META', what_if_params: Dict = None) -> Dict:

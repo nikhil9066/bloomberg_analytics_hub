@@ -4337,11 +4337,16 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
             hist      = sim_data.get("historical", {})
             proj_base = sim_data.get("projection_base", {})
             proj_wi   = sim_data.get("projection_whatif", {})
-            yh        = sim_data.get("years_hist", [])
-            yp        = sim_data.get("years_proj", [])
-            avg_rg    = sim_data.get("avg_rev_growth", 11.5)
-            base_rev  = sim_data.get("base_revenue", 164500)
-            base_marg = sim_data.get("base_margin", 49.1)
+            # Ensure years are plain Python ints for safe arithmetic & string ops
+            yh        = [int(y) for y in sim_data.get("years_hist", [])]
+            yp        = [int(y) for y in sim_data.get("years_proj", [])]
+            avg_rg    = float(sim_data.get("avg_rev_growth", 11.5) or 11.5)
+            base_rev  = float(sim_data.get("base_revenue", 164500) or 164500)
+            base_marg = float(sim_data.get("base_margin", 49.1) or 49.1)
+            # Ensure all historical series contain plain floats
+            hist = {k: [float(v) for v in vals] for k, vals in hist.items()}
+            proj_base = {k: [float(v) for v in vals] for k, vals in proj_base.items()}
+            proj_wi   = {k: [float(v) for v in vals] for k, vals in proj_wi.items()}
 
             # ── Build dual-line chart (Revenue) ───────────────────────
             def make_scenario_chart(metric_key, metric_label, unit="$M", dark=False):
@@ -5652,14 +5657,16 @@ def _build_pro_charts(data: dict, dark_mode: bool):
                   for v, m in zip(raw, radar_metrics)]
         normed.append(normed[0])  # close the polygon
 
+        hex_c = _PRO_PALETTE[i % len(_PRO_PALETTE)].lstrip('#')
+        r_c, g_c, b_c = int(hex_c[0:2], 16), int(hex_c[2:4], 16), int(hex_c[4:6], 16)
+        fill_rgba = f'rgba({r_c},{g_c},{b_c},0.12)'
         fig4.add_trace(go.Scatterpolar(
             r=normed,
             theta=radar_metrics + [radar_metrics[0]],
             fill='toself',
             name=t,
             line=dict(color=_PRO_PALETTE[i % len(_PRO_PALETTE)], width=2),
-            fillcolor=_PRO_PALETTE[i % len(_PRO_PALETTE)].replace('#', 'rgba(').replace(
-                'rgba(', '') + ',0.12)',
+            fillcolor=fill_rgba,
             opacity=0.9,
             hovertemplate=(f"<b>{t}</b><br>%{{theta}}: %{{r:.0f}} / 100"
                            "<extra></extra>"),
@@ -5913,11 +5920,14 @@ def update_scenario_charts(revenue_growth, cost_change, margin_adj, dark_mode):
             "projection_whatif": {"revenue": [183000, 203500, 226000], "ebitda_margin": [49.5, 50.0, 50.5]},
         }
 
-    hist      = sim.get("historical", {})
-    proj_base = sim.get("projection_base", {})
-    proj_wi   = sim.get("projection_whatif", {})
-    yh        = [str(y) for y in sim.get("years_hist", [])]
-    yp        = [str(y) for y in sim.get("years_proj", [])]
+    _hist_raw  = sim.get("historical", {})
+    _base_raw  = sim.get("projection_base", {})
+    _wi_raw    = sim.get("projection_whatif", {})
+    hist       = {k: [float(v) for v in vals] for k, vals in _hist_raw.items()}
+    proj_base  = {k: [float(v) for v in vals] for k, vals in _base_raw.items()}
+    proj_wi    = {k: [float(v) for v in vals] for k, vals in _wi_raw.items()}
+    yh        = [str(int(y)) for y in sim.get("years_hist", [])]
+    yp        = [str(int(y)) for y in sim.get("years_proj", [])]
 
     def make_chart(metric_key, label, unit):
         fig = go.Figure()
@@ -5938,7 +5948,7 @@ def update_scenario_charts(revenue_growth, cost_change, margin_adj, dark_mode):
                 line=dict(color=COLORS['warning'], width=2, dash='dot'), marker=dict(size=7, symbol='triangle-up'),
                 hovertemplate=f'%{{x}}: %{{y:,.1f}} {unit}<extra>Scenario 2</extra>'))
         if yh:
-            fig.add_vline(x=yh[-1], line_dash="solid", line_color=COLORS['gray']['400'],
+            fig.add_vline(x=str(yh[-1]), line_dash="solid", line_color=COLORS['gray']['400'],
                           line_width=1, annotation_text="Forecast →",
                           annotation_position="top right",
                           annotation_font_color=COLORS['gray']['400'])
