@@ -1148,6 +1148,9 @@ app.layout = html.Div([
         ], id='main-content', fluid=True, style=custom_style, className='main-content sidebar-expanded')
     ], id='dashboard-container', style={'display': 'block', 'position': 'relative'}),
 
+    # ── Floating UI wrapper (chatbot + PRO modal) — dark-mode class toggled via callback ──
+    html.Div(id='floating-ui-wrapper', children=[
+
     # ── Floating Chatbot ──────────────────────────────────────────────────
     # Toggle button (fixed bottom-right)
     html.Button(
@@ -1303,6 +1306,8 @@ app.layout = html.Div([
             ], className='pro-modal-card'),
         ], className='pro-modal-inner'),
     ]),
+
+    ]),  # end #floating-ui-wrapper
 
 ], style={'position': 'relative'})
 
@@ -6236,6 +6241,20 @@ def update_scenario_charts(rev_ch, cost_ch, n_simulate, dark_mode):
         ], style={"textAlign": "center", "fontSize": "12px",
                   "color": COLORS['gray']['400'], "marginTop": "12px"}),
     ]
+
+# ══════════════════════════════════════════════════════════════════════════
+# FLOATING UI DARK MODE SYNC
+# ══════════════════════════════════════════════════════════════════════════
+
+@app.callback(
+    Output('floating-ui-wrapper', 'className'),
+    Input('dark-mode-store', 'data'),
+)
+def sync_floating_dark_mode(dark_mode):
+    """Mirror the dashboard dark-mode class onto the floating UI wrapper
+    so chatbot + PRO modal CSS rules can respond via parent selector."""
+    return 'dark-mode' if dark_mode else ''
+
 
 # ══════════════════════════════════════════════════════════════════════════
 # CHATBOT CALLBACKS
