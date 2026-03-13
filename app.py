@@ -1148,125 +1148,166 @@ app.layout = html.Div([
         ], id='main-content', fluid=True, style=custom_style, className='main-content sidebar-expanded')
     ], id='dashboard-container', style={'display': 'block', 'position': 'relative'}),
 
+    # ── Floating UI wrapper (chatbot + PRO modal) — dark-mode class toggled via callback ──
+    html.Div(id='floating-ui-wrapper', children=[
+
+    # ── Floating Chatbot ──────────────────────────────────────────────────
+    # Toggle button (fixed bottom-right)
+    html.Button(
+        [
+            html.Svg(
+                html.Path(d="M20 2H4C2.9 2 2 2.9 2 4v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"),
+                viewBox="0 0 24 24",
+                xmlns="http://www.w3.org/2000/svg",
+            ),
+            html.Div(id='chatbot-unread-badge'),
+        ],
+        id='chatbot-toggle-btn',
+        title='Open AI Assistant',
+        n_clicks=0,
+    ),
+
+    # Chat panel
+    html.Div(
+        id='chatbot-panel',
+        className='chat-hidden',
+        children=[
+            # Header
+            html.Div([
+                html.Div("🤖", className='chat-header-avatar'),
+                html.Div([
+                    html.Div("CFO AI Assistant", className='chat-header-name'),
+                    html.Div("Online · powered by AI", className='chat-header-status'),
+                ], className='chat-header-info'),
+                html.Button("✕", id='chatbot-close-btn', className='chat-close-btn', n_clicks=0),
+            ], className='chat-header'),
+
+            # Messages area
+            html.Div([
+                html.Div([
+                    html.Div([
+                        html.Div("👋 Hi! I'm your CFO AI Assistant. Ask me anything about your financial data, KPIs, or competitors.", className='chat-bubble'),
+                    ], className='chat-msg bot'),
+                ]),
+            ], id='chatbot-messages', className='chat-messages'),
+
+            # Suggested prompts
+            html.Div([
+                html.Span("How's my EBITDA?", className='chat-suggestion-chip', id='chip-1'),
+                html.Span("Top competitor?", className='chat-suggestion-chip', id='chip-2'),
+                html.Span("Cash flow risk?", className='chat-suggestion-chip', id='chip-3'),
+            ], className='chat-suggestions'),
+
+            # Input area
+            html.Div([
+                dcc.Textarea(
+                    id='chatbot-input',
+                    placeholder='Ask about your financials…',
+                    value='',
+                    rows=1,
+                    debounce=False,
+                ),
+                html.Button(
+                    html.Svg(
+                        html.Path(d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"),
+                        viewBox="0 0 24 24",
+                        xmlns="http://www.w3.org/2000/svg",
+                    ),
+                    id='chatbot-send-btn',
+                    n_clicks=0,
+                    title='Send',
+                ),
+            ], className='chat-input-area'),
+        ],
+    ),
+
+    # Store for chat open/closed state
+    dcc.Store(id='chatbot-open-store', data=False),
+
+    # Store for chat messages history
+    dcc.Store(id='chatbot-messages-store', data=[
+        {'role': 'bot', 'text': '👋 Hi! I\'m your CFO AI Assistant. Ask me anything about your financial data, KPIs, or competitors.'}
+    ]),
+
     # ── PRO Payment Modal — fixed overlay, always in DOM ──────────────────
-    html.Div(id='pro-payment-modal', style={'display': 'none'}, children=[
-        html.Div([  # backdrop
+    html.Div(id='pro-payment-modal', className='pro-modal-overlay', children=[
+        html.Div([  # backdrop click-to-close area
             html.Div([  # card
                 # Close button
-                html.Button("✕", id='pro-payment-close', style={
-                    "position": "absolute", "top": "14px", "right": "18px",
-                    "background": "none", "border": "none", "color": "rgba(255,255,255,0.6)",
-                    "fontSize": "20px", "cursor": "pointer", "lineHeight": "1",
-                }),
-                # Header
+                html.Button("✕", id='pro-payment-close', className='pro-modal-close'),
+
+                # ── Header ─────────────────────────────────────────────
                 html.Div([
-                    html.Div("⚡ PRO", style={
-                        "display": "inline-block", "background": "linear-gradient(135deg,#fbbf24,#f59e0b)",
-                        "color": "#1c1917", "padding": "3px 12px", "borderRadius": "20px",
-                        "fontSize": "11px", "fontWeight": "800", "letterSpacing": "0.12em",
-                        "marginBottom": "14px", "boxShadow": "0 2px 10px rgba(251,191,36,0.5)",
-                    }),
-                    html.H3("Unlock Pro Analytics", style={
-                        "color": "white", "margin": "0 0 6px", "fontWeight": "800", "fontSize": "24px"
-                    }),
-                    html.P("Access premium financial intelligence charts", style={
-                        "color": "rgba(255,255,255,0.65)", "fontSize": "13px", "margin": 0
-                    }),
-                    # Feature list
                     html.Div([
-                        html.Div([html.Span("✓ ", style={"color": "#34d399"}), f], style={
-                            "color": "rgba(255,255,255,0.8)", "fontSize": "12px",
-                            "marginBottom": "4px"
-                        })
+                        html.Span("⚡", style={"marginRight": "5px"}),
+                        html.Span("PRO"),
+                    ], className='pro-badge'),
+                    html.H3("Unlock Pro Analytics", className='pro-modal-title'),
+                    html.P("Access premium financial intelligence charts", className='pro-modal-subtitle'),
+                    html.Div([
+                        html.Div([
+                            html.Span("✓ ", className='pro-check'),
+                            f,
+                        ], className='pro-feature-item')
                         for f in ["Profitability Quadrant Analysis",
                                   "Cost Structure DNA Breakdown",
                                   "Capital Efficiency Matrix",
                                   "Multi-Metric Health Radar"]
-                    ], style={"marginTop": "16px", "textAlign": "left"}),
-                ], style={
-                    "background": "linear-gradient(135deg,#1e1b4b,#4c1d95,#6d28d9)",
-                    "padding": "28px 28px 24px", "position": "relative",
-                }),
-                # Body — payment form
+                    ], className='pro-feature-list'),
+                ], className='pro-modal-header'),
+
+                # ── Body — payment form ─────────────────────────────────
                 html.Div([
-                    html.Div("$99 / month  ·  Cancel anytime", style={
-                        "textAlign": "center", "color": "#6b7280",
-                        "fontSize": "13px", "marginBottom": "20px", "fontWeight": "500"
-                    }),
+                    html.Div("$99 / month  ·  Cancel anytime", className='pro-price-tag'),
+
                     # Card number
                     html.Div([
-                        html.Label("Card Number", style={"fontSize": "12px", "fontWeight": "600",
-                                                          "color": "#374151", "display": "block",
-                                                          "marginBottom": "6px"}),
-                        dcc.Input(id='pro-payment-card', type='text', placeholder='1234  5678  9012  3456',
-                                  maxLength=19, style={
-                                      "width": "100%", "padding": "11px 14px",
-                                      "border": "2px solid #e5e7eb", "borderRadius": "10px",
-                                      "fontSize": "14px", "outline": "none", "boxSizing": "border-box"
-                                  }),
-                    ], style={"marginBottom": "14px"}),
+                        html.Label("Card Number", className='pro-field-label'),
+                        dcc.Input(
+                            id='pro-payment-card', type='text',
+                            placeholder='1234  5678  9012  3456',
+                            maxLength=19, className='pro-input',
+                        ),
+                    ], className='pro-field'),
+
                     # Expiry + CVV
                     html.Div([
                         html.Div([
-                            html.Label("Expiry", style={"fontSize": "12px", "fontWeight": "600",
-                                                         "color": "#374151", "display": "block",
-                                                         "marginBottom": "6px"}),
-                            dcc.Input(id='pro-payment-expiry', type='text', placeholder='MM / YY',
-                                      maxLength=7, style={
-                                          "width": "100%", "padding": "11px 14px",
-                                          "border": "2px solid #e5e7eb", "borderRadius": "10px",
-                                          "fontSize": "14px", "outline": "none", "boxSizing": "border-box"
-                                      }),
+                            html.Label("Expiry", className='pro-field-label'),
+                            dcc.Input(id='pro-payment-expiry', type='text',
+                                      placeholder='MM / YY', maxLength=7,
+                                      className='pro-input'),
                         ], style={"flex": "1"}),
                         html.Div([
-                            html.Label("CVV", style={"fontSize": "12px", "fontWeight": "600",
-                                                      "color": "#374151", "display": "block",
-                                                      "marginBottom": "6px"}),
-                            dcc.Input(id='pro-payment-cvv', type='text', placeholder='•••',
-                                      maxLength=4, style={
-                                          "width": "100%", "padding": "11px 14px",
-                                          "border": "2px solid #e5e7eb", "borderRadius": "10px",
-                                          "fontSize": "14px", "outline": "none", "boxSizing": "border-box"
-                                      }),
+                            html.Label("CVV", className='pro-field-label'),
+                            dcc.Input(id='pro-payment-cvv', type='text',
+                                      placeholder='•••', maxLength=4,
+                                      className='pro-input'),
                         ], style={"flex": "1"}),
-                    ], style={"display": "flex", "gap": "12px", "marginBottom": "14px"}),
+                    ], className='pro-field-row'),
+
                     # Name
                     html.Div([
-                        html.Label("Name on Card", style={"fontSize": "12px", "fontWeight": "600",
-                                                           "color": "#374151", "display": "block",
-                                                           "marginBottom": "6px"}),
-                        dcc.Input(id='pro-payment-name', type='text', placeholder='Jane Smith',
-                                  style={
-                                      "width": "100%", "padding": "11px 14px",
-                                      "border": "2px solid #e5e7eb", "borderRadius": "10px",
-                                      "fontSize": "14px", "outline": "none", "boxSizing": "border-box"
-                                  }),
-                    ], style={"marginBottom": "20px"}),
+                        html.Label("Name on Card", className='pro-field-label'),
+                        dcc.Input(id='pro-payment-name', type='text',
+                                  placeholder='Jane Smith', className='pro-input'),
+                    ], className='pro-field', style={"marginBottom": "22px"}),
+
                     # Submit
                     html.Button([
                         html.I(className="fas fa-lock-open", style={"marginRight": "8px"}),
-                        "Unlock Pro Analytics  →"
-                    ], id='pro-payment-submit', className="payment-submit-btn"),
-                    html.P("🔒 Secured · 256-bit encryption · No charge today", style={
-                        "textAlign": "center", "color": "#9ca3af", "fontSize": "11px",
-                        "marginTop": "12px"
-                    }),
-                ], style={"padding": "24px 28px 28px"}),
-            ], style={
-                "background": "white", "borderRadius": "20px", "overflow": "hidden",
-                "width": "460px", "maxWidth": "95vw",
-                "boxShadow": "0 40px 80px rgba(0,0,0,0.55)",
-                "position": "relative",
-                "animation": "proModalIn 0.4s cubic-bezier(0.34,1.56,0.64,1)",
-            }),
-        ], style={
-            "position": "fixed", "top": 0, "left": 0, "right": 0, "bottom": 0,
-            "background": "rgba(0,0,0,0.72)", "backdropFilter": "blur(6px)",
-            "WebkitBackdropFilter": "blur(6px)",
-            "display": "flex", "alignItems": "center", "justifyContent": "center",
-            "zIndex": 9999,
-        }),
+                        "Unlock Pro Analytics  →",
+                    ], id='pro-payment-submit', className='pro-submit-btn'),
+
+                    html.P("🔒 Secured · 256-bit encryption · No charge today",
+                           className='pro-secure-note'),
+                ], className='pro-modal-body'),
+
+            ], className='pro-modal-card'),
+        ], className='pro-modal-inner'),
     ]),
+
+    ]),  # end #floating-ui-wrapper
 
 ], style={'position': 'relative'})
 
@@ -6200,6 +6241,124 @@ def update_scenario_charts(rev_ch, cost_ch, n_simulate, dark_mode):
         ], style={"textAlign": "center", "fontSize": "12px",
                   "color": COLORS['gray']['400'], "marginTop": "12px"}),
     ]
+
+# ══════════════════════════════════════════════════════════════════════════
+# FLOATING UI DARK MODE SYNC
+# ══════════════════════════════════════════════════════════════════════════
+
+@app.callback(
+    Output('floating-ui-wrapper', 'className'),
+    Input('dark-mode-store', 'data'),
+)
+def sync_floating_dark_mode(dark_mode):
+    """Mirror the dashboard dark-mode class onto the floating UI wrapper
+    so chatbot + PRO modal CSS rules can respond via parent selector."""
+    return 'dark-mode' if dark_mode else ''
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# CHATBOT CALLBACKS
+# ══════════════════════════════════════════════════════════════════════════
+
+@app.callback(
+    Output('chatbot-open-store', 'data'),
+    [Input('chatbot-toggle-btn', 'n_clicks'),
+     Input('chatbot-close-btn', 'n_clicks')],
+    State('chatbot-open-store', 'data'),
+    prevent_initial_call=True,
+)
+def toggle_chatbot(toggle_clicks, close_clicks, is_open):
+    """Toggle the chat panel open/closed."""
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return is_open
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    if trigger_id == 'chatbot-close-btn':
+        return False
+    # toggle button flips state
+    return not is_open
+
+
+@app.callback(
+    Output('chatbot-panel', 'className'),
+    Input('chatbot-open-store', 'data'),
+)
+def update_panel_class(is_open):
+    """Show or hide the chat panel with animation class."""
+    return 'chat-visible' if is_open else 'chat-hidden'
+
+
+@app.callback(
+    [Output('chatbot-messages', 'children'),
+     Output('chatbot-messages-store', 'data'),
+     Output('chatbot-input', 'value')],
+    [Input('chatbot-send-btn', 'n_clicks'),
+     Input('chip-1', 'n_clicks'),
+     Input('chip-2', 'n_clicks'),
+     Input('chip-3', 'n_clicks')],
+    [State('chatbot-input', 'value'),
+     State('chatbot-messages-store', 'data')],
+    prevent_initial_call=True,
+)
+def handle_chat_message(send_clicks, c1, c2, c3, input_value, messages):
+    """
+    Handle sending a message.
+    Front-end only for now — bot replies with a placeholder response.
+    Back-end LLM integration can be added later.
+    """
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        raise dash.exceptions.PreventUpdate
+
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    # Determine the user text
+    chip_map = {
+        'chip-1': 'How is my EBITDA performing?',
+        'chip-2': 'Who is my top competitor right now?',
+        'chip-3': 'What are my cash flow risks?',
+    }
+    if trigger_id in chip_map:
+        user_text = chip_map[trigger_id]
+    else:
+        user_text = (input_value or '').strip()
+
+    if not user_text:
+        raise dash.exceptions.PreventUpdate
+
+    # Append user message
+    messages = list(messages)
+    messages.append({'role': 'user', 'text': user_text})
+
+    # ── Placeholder bot response (swap this for a real LLM call later) ──
+    bot_replies = {
+        'How is my EBITDA performing?':
+            '📊 Your EBITDA margin is 15.0% vs. an industry median of 18.2%. '
+            'You are slightly below benchmark — cost optimisation in OpEx could close the gap.',
+        'Who is my top competitor right now?':
+            '🏆 Based on current data, META leads with the highest similarity score '
+            'to your financial profile among selected peers.',
+        'What are my cash flow risks?':
+            '⚠️ Working capital of $800M looks adequate, but your interest coverage ratio '
+            'of 8× should be monitored if rates rise. Cash from operations ($1.7B) is healthy.',
+    }
+    bot_text = bot_replies.get(
+        user_text,
+        f'🤖 Got it! You asked: *"{user_text}"*. '
+        'Full LLM integration coming soon — this response is a placeholder.'
+    )
+    messages.append({'role': 'bot', 'text': bot_text})
+
+    # Render all messages as Dash components
+    def render_msg(m):
+        role = m['role']
+        return html.Div([
+            html.Div(m['text'], className='chat-bubble'),
+        ], className=f'chat-msg {role}')
+
+    rendered = [render_msg(m) for m in messages]
+    return rendered, messages, ''
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
