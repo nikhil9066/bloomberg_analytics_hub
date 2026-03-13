@@ -250,62 +250,55 @@ class MLService:
             return pd.DataFrame()
     
     def _analyze_ratios_without_model(self, df: pd.DataFrame) -> Dict:
-        """Fallback ratio analysis without ML model - uses data directly"""
-        ratio_metrics = ['CUR_RATIO', 'QUICK_RATIO', 'GROSS_MARGIN', 'EBITDA_MARGIN', 
-                        'TOT_DEBT_TO_TOT_ASSET', 'INTEREST_COVERAGE_RATIO']
-        available = [m for m in ratio_metrics if m in df.columns]
-        
+        """
+        Return ACTUAL ratio values (not normalised 0-100 scores) so the UI
+        can compare My Company vs Industry Average truthfully.
+
+        ratio_scores dict stores the raw values (e.g. GROSS_MARGIN = 74.99),
+        not an artificial 0-100 score — which was the root cause of the
+        'everything shows 100%' bug.
+        """
+        RATIO_FIELDS = [
+            'GROSS_MARGIN', 'EBITDA_MARGIN', 'OPER_MARGIN', 'PROF_MARGIN',
+            'RETURN_ON_ASSET', 'RETURN_COM_EQY',
+            'CUR_RATIO', 'QUICK_RATIO',
+            'TOT_DEBT_TO_TOT_ASSET', 'TOT_DEBT_TO_EBITDA',
+            'INTEREST_COVERAGE_RATIO',
+        ]
+        available = [f for f in RATIO_FIELDS if f in df.columns]
+
         if not available:
             logger.warning("No ratio metrics available in data")
             return {"error": "No metrics", "companies": []}
-        
+
         results = []
         for _, row in df.iterrows():
             ticker = row.get('TICKER', 'Unknown')
-            
-            ratio_scores = {}
-            total_score = 0
-            count = 0
-            
-            for feat in available:
-                val = float(row[feat]) if pd.notna(row[feat]) else 0
-                # Normalize to 0-100 scale
-                if feat in ['CUR_RATIO', 'QUICK_RATIO']:
-                    score = min(100, val * 40)  # Target ~2.5
-                elif feat in ['GROSS_MARGIN', 'EBITDA_MARGIN']:
-                    score = min(100, val * 2)  # Target ~50%
-                elif feat == 'TOT_DEBT_TO_TOT_ASSET':
-                    score = max(0, 100 - val * 2)  # Lower is better
-                else:
-                    score = min(100, max(0, val * 5))
-                
-                ratio_scores[feat] = score
-                total_score += score
-                count += 1
-            
-            avg_score = total_score / count if count > 0 else 50
-            health_label = 'Excellent' if avg_score >= 80 else ('Good' if avg_score >= 60 else ('Fair' if avg_score >= 40 else 'Weak'))
-            
+            raw_ratios = {}
+            for field in available:
+                val = row.get(field)
+                raw_ratios[field] = float(val) if pd.notna(val) else None
+
+            # Simple health label based on gross margin as proxy
+            gm = raw_ratios.get('GROSS_MARGIN') or 0
+            health = ('Excellent' if gm >= 60
+                      else 'Good'  if gm >= 40
+                      else 'Fair'  if gm >= 20
+                      else 'Weak')
+
             results.append({
                 'ticker': ticker,
                 'cluster': 0,
-                'health_label': health_label,
-                'ratio_scores': ratio_scores,
-                'overall_score': avg_score
+                'health_label': health,
+                'ratio_scores': raw_ratios,   # ← raw values, not 0-100 scores
+                'overall_score': gm,
             })
-        
-        logger.info(f"Analyzed {len(results)} companies using data-only mode")
-        
+
+        logger.info(f"Analyzed {len(results)} companies (raw-value mode)")
         return {
             "companies": results,
-            "cluster_labels": [
-                {"cluster_id": 0, "label": "Excellent", "sample_count": len([r for r in results if r['health_label'] == 'Excellent']), "avg_health_score": 85},
-                {"cluster_id": 1, "label": "Good", "sample_count": len([r for r in results if r['health_label'] == 'Good']), "avg_health_score": 70},
-                {"cluster_id": 2, "label": "Fair", "sample_count": len([r for r in results if r['health_label'] == 'Fair']), "avg_health_score": 50},
-                {"cluster_id": 3, "label": "Weak", "sample_count": len([r for r in results if r['health_label'] == 'Weak']), "avg_health_score": 30},
-            ],
             "features": available,
-            "model_metrics": {"mode": "data-only"}
+            "model_metrics": {"mode": "raw_values"},
         }
 
     # ==================== RATIO ANALYZER ====================
