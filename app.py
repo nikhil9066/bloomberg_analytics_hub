@@ -4335,6 +4335,7 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
     # ==================== SCENARIO SIMULATOR ====================
     elif active_tab == "scenario-simulator":
         try:
+            import traceback as _tb
             logger.info("[SCENARIO SIMULATOR] Rendering with META reference dataset")
 
             # ── Styling ───────────────────────────────────────────────
@@ -4675,8 +4676,9 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
             ])
 
         except Exception as e:
-            logger.error(f"Error rendering scenario simulator: {e}")
-            return _render_error_message("Scenario Simulator", str(e), dark_mode)
+            full_tb = _tb.format_exc()
+            logger.error(f"Error rendering scenario simulator: {e}\nFULL TRACEBACK:\n{full_tb}")
+            return _render_error_message("Scenario Simulator", f"{e} | Check BTP logs for full traceback", dark_mode)
     elif active_tab == "forecast":
         try:
             # ── No company cap: process all selected competitors ──────────────

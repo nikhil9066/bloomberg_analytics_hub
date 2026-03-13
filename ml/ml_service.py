@@ -918,9 +918,9 @@ class MLService:
                         'gross_profit':  [_scale(r[2]) for r in dedup_rows],
                         'ebitda':        [_scale(r[3]) for r in dedup_rows],
                         'net_income':    [_scale(r[4]) for r in dedup_rows],
-                        'gross_margin':  [float(r[5] or 0) for r in dedup_rows],
-                        'ebitda_margin': [float(r[6] or 0) for r in dedup_rows],
-                        'net_margin':    [float(r[7] or 0) for r in dedup_rows],
+                        'gross_margin':  [float(str(r[5] or 0)) for r in dedup_rows],
+                        'ebitda_margin': [float(str(r[6] or 0)) for r in dedup_rows],
+                        'net_margin':    [float(str(r[7] or 0)) for r in dedup_rows],
                     }
 
         except Exception as e:
@@ -994,32 +994,36 @@ class MLService:
             whatif_proj_net.append(round(r * (hist['net_margin'][-1] + margin_adj_pct) / 100, 1))
 
         logger.info(f"Scenario sim complete: base_rev_growth={avg_rev_growth:.1%}, whatif={what_if_params}")
+        # Ensure all years are plain Python ints (HANA may return numpy/Decimal types)
+        safe_years_hist = [int(y) for y in hist['years']]
+        safe_years_proj = [int(y) for y in proj_years]
+
         return {
             "ticker": "META",
             "source": "META Reference Dataset",
-            "years_hist":  hist['years'],
-            "years_proj":  proj_years,
+            "years_hist":  safe_years_hist,
+            "years_proj":  safe_years_proj,
             "historical": {
-                "revenue":       hist['revenue'],
-                "ebitda":        hist['ebitda'],
-                "net_income":    hist['net_income'],
-                "gross_margin":  hist['gross_margin'],
-                "ebitda_margin": hist['ebitda_margin'],
-                "net_margin":    hist['net_margin'],
+                "revenue":       [float(v) for v in hist['revenue']],
+                "ebitda":        [float(v) for v in hist['ebitda']],
+                "net_income":    [float(v) for v in hist['net_income']],
+                "gross_margin":  [float(v) for v in hist['gross_margin']],
+                "ebitda_margin": [float(v) for v in hist['ebitda_margin']],
+                "net_margin":    [float(v) for v in hist['net_margin']],
             },
             "projection_base": {
-                "revenue":    base_proj_revenue,
-                "ebitda":     base_proj_ebitda,
-                "net_income": base_proj_net,
+                "revenue":    [float(v) for v in base_proj_revenue],
+                "ebitda":     [float(v) for v in base_proj_ebitda],
+                "net_income": [float(v) for v in base_proj_net],
             },
             "projection_whatif": {
-                "revenue":    whatif_proj_revenue,
-                "ebitda":     whatif_proj_ebitda,
-                "net_income": whatif_proj_net,
+                "revenue":    [float(v) for v in whatif_proj_revenue],
+                "ebitda":     [float(v) for v in whatif_proj_ebitda],
+                "net_income": [float(v) for v in whatif_proj_net],
             },
-            "base_revenue":    last_revenue,
-            "base_margin":     last_margin,
-            "avg_rev_growth":  round(avg_rev_growth * 100, 2),
+            "base_revenue":    float(last_revenue),
+            "base_margin":     float(last_margin),
+            "avg_rev_growth":  float(round(avg_rev_growth * 100, 2)),
             "what_if_params":  what_if_params,
             # legacy scenario list (kept for backward compat)
             "scenarios": [
