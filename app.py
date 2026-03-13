@@ -237,6 +237,11 @@ except Exception as e:
     logger.error(f"Failed to load CSV files: {e}")
     csv_data = None
 
+# Wire CSV fallback into ml_service so benchmark_competitors can use basic.csv when HANA is empty
+if ml_service is not None and csv_data and csv_data.get('financial_ratios') is not None:
+    ml_service.csv_fallback_df = csv_data['financial_ratios']
+    logger.info(f"ML service CSV fallback wired: {len(ml_service.csv_fallback_df)} rows from basic.csv")
+
 # Define numeric columns for competitor analysis metrics
 NUMERIC_METRIC_COLUMNS = [
     'TOT_DEBT_TO_TOT_ASSET',

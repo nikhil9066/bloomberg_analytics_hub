@@ -32,6 +32,8 @@ class MLService:
         self.schema = ml_schema or "BLOOMBERG_DATA"
         self.data_schema = data_schema or "BLOOMBERG_DATA"
         self._model_cache = {}
+        # Optional CSV fallback DataFrame — set from app.py after csv_data loads
+        self.csv_fallback_df = None
         logger.info(f"MLService initialized with ML schema: {self.schema}, Data schema: {self.data_schema}")
         
     def get_active_models(self) -> List[Dict]:
@@ -164,6 +166,11 @@ class MLService:
             
             df = pd.DataFrame(rows, columns=columns)
             logger.info(f"Loaded {len(df)} rows from FINANCIAL_RATIOS")
+
+            # If HANA table is empty, use CSV fallback immediately
+            if df.empty and self.csv_fallback_df is not None:
+                logger.info("get_company_data: FINANCIAL_RATIOS empty, using CSV fallback")
+                return self._filter_csv_fallback(self.csv_fallback_df, tickers)
             
             # Convert Decimal to float
             for col in df.columns:
@@ -212,8 +219,30 @@ class MLService:
             
         except Exception as e:
             logger.error(f"Error getting company data: {e}")
+            if self.csv_fallback_df is not None:
+                logger.info("get_company_data: HANA error, falling back to CSV data")
+                return self._filter_csv_fallback(self.csv_fallback_df, tickers)
             return pd.DataFrame()
     
+    def _filter_csv_fallback(self, df: pd.DataFrame, tickers: List[str] = None) -> pd.DataFrame:
+        """Filter and return CSV fallback data, applying same normalisation as HANA path."""
+        df = df.copy()
+        if 'TICKER' in df.columns:
+            df['TICKER'] = df['TICKER'].str.replace(' US Equity', '', regex=False)
+            df = df.drop_duplicates(subset=['TICKER'], keep='first')
+        if tickers and 'TICKER' in df.columns:
+            normalized = [t.replace(' US Equity', '').strip() for t in tickers
+                          if t.replace(' US Equity', '').strip().isupper()
+                          and len(t.replace(' US Equity', '').strip()) <= 5]
+            if normalized:
+                df = df[df['TICKER'].isin(normalized)]
+        # Convert numeric columns
+        for col in df.columns:
+            if df[col].dtype == object:
+                df[col] = pd.to_numeric(df[col], errors='ignore')
+        logger.info(f"CSV fallback returned {len(df)} rows")
+        return df
+
     def get_advanced_data(self, tickers: List[str] = None) -> pd.DataFrame:
         """Get advanced financial data"""
         try:
@@ -852,27 +881,46 @@ class MLService:
             rows = cursor.fetchall()
 
             if rows and len(rows) >= 2:
-                years = [int(r[0]) for r in rows]
+                def _safe_int_year(val):
+                    """Convert HANA FISCAL_YEAR to plain Python int.
+                    Handles int, float, Decimal, and date-strings like '2024-01-01'."""
+                    try:
+                        return int(str(val)[:4])
+                    except Exception:
+                        return None
 
                 def _scale(v):
                     """Convert raw dollars → $M; handle None."""
                     val = float(v or 0)
                     return round(val / 1e6, 1) if val > 1e8 else round(val, 1)
 
-                rev_list = [_scale(r[1]) for r in rows]
+                # Deduplicate: window function returns multiple rows per FISCAL_YEAR.
+                # Keep the LAST row per year (already ordered ASC so last = latest snapshot).
+                seen_years = {}
+                for r in rows:
+                    y = _safe_int_year(r[0])
+                    if y is not None:
+                        seen_years[y] = r  # overwrites → keeps last row per year
+                dedup_rows = [seen_years[y] for y in sorted(seen_years)]
+
+                if len(dedup_rows) < 2:
+                    raise ValueError("Not enough distinct years from HANA")
+
+                years = [_safe_int_year(r[0]) for r in dedup_rows]
+                rev_list = [_scale(r[1]) for r in dedup_rows]
 
                 # Sanity-check: CAGR must be non-zero (> 0.5 % p.a.) to be useful
                 if rev_list[0] > 0 and rev_list[-1] != rev_list[0]:
-                    logger.info(f"META from HANA ANNUAL_FINANCIALS_10K: {len(rows)} years")
+                    logger.info(f"META from HANA ANNUAL_FINANCIALS_10K: {len(dedup_rows)} distinct years")
                     return {
                         'years':         years,
                         'revenue':       rev_list,
-                        'gross_profit':  [_scale(r[2]) for r in rows],
-                        'ebitda':        [_scale(r[3]) for r in rows],
-                        'net_income':    [_scale(r[4]) for r in rows],
-                        'gross_margin':  [float(r[5] or 0) for r in rows],
-                        'ebitda_margin': [float(r[6] or 0) for r in rows],
-                        'net_margin':    [float(r[7] or 0) for r in rows],
+                        'gross_profit':  [_scale(r[2]) for r in dedup_rows],
+                        'ebitda':        [_scale(r[3]) for r in dedup_rows],
+                        'net_income':    [_scale(r[4]) for r in dedup_rows],
+                        'gross_margin':  [float(r[5] or 0) for r in dedup_rows],
+                        'ebitda_margin': [float(r[6] or 0) for r in dedup_rows],
+                        'net_margin':    [float(r[7] or 0) for r in dedup_rows],
                     }
 
         except Exception as e:
@@ -909,7 +957,9 @@ class MLService:
         last_margin    = margins_ebitda[-1]
         last_revenue   = rev[-1]
 
-        proj_years = [hist['years'][-1] + i for i in range(1, 4)]  # 2025, 2026, 2027
+        # Defensively ensure last year is a plain int (HANA may return VARCHAR/float strings)
+        last_year = int(str(hist['years'][-1])[:4])
+        proj_years = [last_year + i for i in range(1, 4)]  # 2025, 2026, 2027
 
         # ── Scenario 1: base trend projection ─────────────────────────
         base_proj_revenue = []
