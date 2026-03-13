@@ -1947,26 +1947,33 @@ def create_kpi_card(kpi, view_mode, dark_mode):
         target_display = f"${kpi['target']/1000000:.1f}M"
         user_value_display = f"${kpi.get('user_value', 0)/1000000:.1f}M"
 
-    # Create sparkline chart with improved visibility
-    sparkline_color = COLORS['success'] if is_good else COLORS['danger']
-    sparkline_fill = 'rgba(16, 185, 129, 0.15)' if is_good else 'rgba(239, 68, 68, 0.15)'
-    
-    sparkline_fig = go.Figure()
-    sparkline_fig.add_trace(go.Scatter(
-        y=kpi['sparkline'],
-        x=list(range(len(kpi['sparkline']))),
-        mode='lines',
-        line=dict(color=sparkline_color, width=2.5, shape='spline'),
-        fill='tozeroy',
-        fillcolor=sparkline_fill,
-        hoverinfo='skip'
+    # Mini bar chart: Your Company vs Competitor Avg (replaces single sparkline)
+    user_val_raw = kpi.get('user_value', 0) or 0
+    comp_val_raw = kpi['value'] or 0
+
+    bar_fig = go.Figure()
+    bar_fig.add_trace(go.Bar(
+        x=['Your Co.', 'Comp. Avg'],
+        y=[user_val_raw, comp_val_raw],
+        marker_color=[COLORS['primary'], 'rgba(160,160,160,0.55)'],
+        text=[
+            user_value_display,
+            value_display
+        ],
+        textposition='outside',
+        textfont=dict(size=10),
+        hoverinfo='skip',
+        width=[0.45, 0.45],
     ))
-    sparkline_fig.update_layout(
+    bar_fig.update_layout(
         showlegend=False,
-        xaxis=dict(showgrid=False, showticklabels=False, zeroline=False, fixedrange=True),
-        yaxis=dict(showgrid=False, showticklabels=False, zeroline=False, fixedrange=True),
-        margin=dict(l=0, r=0, t=4, b=4),
-        height=70,
+        xaxis=dict(showgrid=False, showticklabels=True, zeroline=False, fixedrange=True,
+                   tickfont=dict(size=10, color='rgba(180,180,180,0.85)')),
+        yaxis=dict(showgrid=False, showticklabels=False, zeroline=False, fixedrange=True,
+                   range=[0, max(user_val_raw, comp_val_raw) * 1.35] if max(user_val_raw, comp_val_raw) > 0 else [0, 1]),
+        margin=dict(l=4, r=4, t=22, b=4),
+        height=90,
+        bargap=0.35,
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
         hovermode=False
@@ -2037,32 +2044,32 @@ def create_kpi_card(kpi, view_mode, dark_mode):
             ], style={"display": "flex", "alignItems": "center"})
         ], style={"marginBottom": "16px"}),
 
-        # Value display - Show Competitor Average
+        # Value display - Your Company first (primary), Competitor Avg second (muted)
         html.Div([
             html.Div([
-                html.Span("Competitor Avg: ", style={
+                html.Span("Your Company: ", style={
                     "fontSize": "14px"
                 }, className="text-secondary-theme"),
-                html.Span(value_display, style={
-                    "fontSize": "28px",
-                    "fontWeight": "700"
-                }, className="text-primary-theme")
-            ], style={"marginBottom": "8px"}),
-            html.Div([
-                html.Span("Your Company: ", style={
-                    "fontSize": "13px"
-                }, className="text-secondary-theme"),
                 html.Span(user_value_display, style={
-                    "fontSize": "16px",
-                    "fontWeight": "600",
+                    "fontSize": "28px",
+                    "fontWeight": "700",
                     "color": COLORS['success'] if is_good else COLORS['danger']
                 })
+            ], style={"marginBottom": "8px"}),
+            html.Div([
+                html.Span("Competitor Avg: ", style={
+                    "fontSize": "13px"
+                }, className="text-secondary-theme"),
+                html.Span(value_display, style={
+                    "fontSize": "16px",
+                    "fontWeight": "500"
+                }, className="text-primary-theme")
             ])
         ]),
 
-        # Sparkline (for chart view)
+        # Mini bar chart: Your Company vs Competitor Avg (for chart view)
         html.Div([
-            dcc.Graph(figure=sparkline_fig, config={'displayModeBar': False}, style={"marginTop": "16px"})
+            dcc.Graph(figure=bar_fig, config={'displayModeBar': False}, style={"marginTop": "8px"})
         ]) if view_mode == 'chart' else html.Div(),
 
         # Progress bar (for ratio view)
