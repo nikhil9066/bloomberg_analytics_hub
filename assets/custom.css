@@ -229,10 +229,10 @@ small {
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  background: #212121;
-  border: 1px solid rgba(255,255,255,0.1);
+  background: #FFFFFF;
+  border: 2px solid #000000;
   cursor: pointer;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -242,10 +242,13 @@ small {
 }
 #chatbot-toggle-btn:hover {
   transform: scale(1.1);
-  background: #2a2a2a;
-  box-shadow: 0 6px 28px rgba(0,0,0,0.65);
+  background: #F3F4F6;
+  box-shadow: 0 6px 28px rgba(0,0,0,0.2);
 }
-#chatbot-toggle-btn svg { width: 22px; height: 22px; fill: #ececec; }
+#chatbot-toggle-btn:active {
+  background: #E5E7EB;
+}
+#chatbot-toggle-btn svg { width: 22px; height: 22px; fill: #000000; }
 
 /* Unread badge */
 #chatbot-unread-badge {

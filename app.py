@@ -1993,7 +1993,7 @@ def create_kpi_card(kpi, view_mode, dark_mode):
     bar_fig.add_trace(go.Bar(
         x=['Your Co.', 'Comp. Avg'],
         y=[user_val_raw, comp_val_raw],
-        marker_color=[COLORS['primary'], '#0f172a'],
+        marker_color=[COLORS['primary'], '#374151'],
         text=[
             user_value_display,
             value_display
