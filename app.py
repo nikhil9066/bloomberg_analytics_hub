@@ -3766,174 +3766,265 @@ def update_margin_bridge(timestamp, dark_mode, selected_competitors, user_compan
     # Interest & Taxes (difference between EBIT and Net Income)
     interest_taxes = avg_ebit - avg_net_income if pd.notnull(avg_ebit) and pd.notnull(avg_net_income) else (avg_interest + avg_tax)
 
-    # Margin bridge data (in millions) - Task 3: Fix negative values
-    # Use absolute values for deductions to ensure they're always negative
-    bridge_data = [
-        {'step': 'Revenue', 'value': abs(avg_revenue) if pd.notnull(avg_revenue) else 100000, 'type': 'total'},
-        {'step': 'COGS', 'value': -abs(avg_cogs) if pd.notnull(avg_cogs) else -(abs(avg_revenue) - abs(avg_gross_profit)), 'type': 'relative'},
-        {'step': 'Gross Profit', 'value': abs(avg_gross_profit) if pd.notnull(avg_gross_profit) else 60000, 'type': 'total'},
-        {'step': 'OpEx (SG&A)', 'value': -abs(opex) if pd.notnull(opex) and opex != 0 else -20000, 'type': 'relative'},
-        {'step': 'EBITDA', 'value': abs(avg_ebitda) if pd.notnull(avg_ebitda) else 30000, 'type': 'total'},
-        {'step': 'D&A', 'value': -abs(da) if pd.notnull(da) and da != 0 else -5000, 'type': 'relative'},
-        {'step': 'EBIT', 'value': abs(avg_ebit) if pd.notnull(avg_ebit) else 25000, 'type': 'total'},
-        {'step': 'Interest & Tax', 'value': -abs(interest_taxes) if pd.notnull(interest_taxes) and interest_taxes != 0 else -6000, 'type': 'relative'},
-        {'step': 'Net Income', 'value': abs(avg_net_income) if pd.notnull(avg_net_income) else 19000, 'type': 'total'},
+    # ── Waterfall data: exact 8-step flow per spec ──────────────────────────
+    # Revenue (relative+positive = green), subtotals (total = teal), costs (relative+negative = red)
+    def _safe(v, fallback):
+        return float(v) if (v is not None and pd.notnull(v) and v != 0) else fallback
+
+    r_revenue    = _safe(avg_revenue,    100000.0)
+    r_cogs       = _safe(avg_cogs,       r_revenue - _safe(avg_gross_profit, 60000.0))
+    r_gp         = _safe(avg_gross_profit, r_revenue - r_cogs)
+    r_opex       = _safe(opex,           r_gp - _safe(avg_ebitda, 30000.0))
+    r_ebitda     = _safe(avg_ebitda,     r_gp - r_opex)
+    r_da         = _safe(da,             5000.0)
+    r_int_tax    = _safe(interest_taxes, r_ebitda - r_da - _safe(avg_net_income, 19000.0))
+    r_net_income = _safe(avg_net_income, r_ebitda - r_da - r_int_tax)
+
+    # Build 8-step bridge (no EBIT subtotal — matches spec)
+    bridge_steps = [
+        ('Revenue',        r_revenue,         'relative'),   # positive → green (increasing)
+        ('COGS',          -abs(r_cogs),        'relative'),   # negative → red (decreasing)
+        ('Gross Profit',   r_gp,               'total'),      # subtotal → teal
+        ('Opex (SG&A)',   -abs(r_opex),        'relative'),   # negative → red
+        ('EBITDA',         r_ebitda,           'total'),      # subtotal → teal
+        ('D&A',           -abs(r_da),          'relative'),   # negative → red
+        ('Interest & Tax',-abs(r_int_tax),     'relative'),   # negative → red
+        ('Net Income',     r_net_income,       'total'),      # final subtotal → teal
     ]
 
-    # Create waterfall chart
-    fig = go.Figure()
+    x_labels  = [s[0] for s in bridge_steps]
+    y_values  = [s[1] for s in bridge_steps]
+    measures  = [s[2] for s in bridge_steps]
 
-    x_labels = [item['step'] for item in bridge_data]
-    y_values = [item['value'] for item in bridge_data]
-    measure_types = [item['type'] for item in bridge_data]
+    # Colors matching the reference image
+    COLOR_GREEN = '#22c55e'   # Revenue (positive)
+    COLOR_RED   = '#ef4444'   # Cost items (negative)
+    COLOR_TEAL  = '#0ea5e9'   # Subtotals (Gross Profit, EBITDA, Net Income)
+    gc = COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']
+    tc = COLORS['gray']['100'] if dark_mode else COLORS['gray']['800']
 
-    # Convert 'total' to 'absolute' for waterfall chart
-    measures = []
-    for m_type in measure_types:
-        if m_type == 'total':
-            measures.append('total')
-        else:
-            measures.append('relative')
-
-    # Create waterfall chart
-    fig.add_trace(go.Waterfall(
+    fig = go.Figure(go.Waterfall(
         name="Margin Bridge",
         orientation="v",
         measure=measures,
         x=x_labels,
         y=y_values,
-        text=[f"${abs(v):.1f}M" for v in y_values],
+        text=[
+            f"${v/1000:.1f}B" if abs(v) >= 1000 else f"${v:.0f}M"
+            for v in y_values
+        ],
         textposition="outside",
-        connector={"line": {"color": COLORS['gray']['400']}},
-        increasing={"marker": {"color": COLORS['success']}},
-        decreasing={"marker": {"color": COLORS['danger']}},
-        totals={"marker": {"color": COLORS['primary']}}
+        textfont=dict(size=11, color=tc),
+        connector={"line": {"color": COLORS['gray']['400'], "width": 1, "dash": "dot"}},
+        increasing={"marker": {"color": COLOR_GREEN, "line": {"width": 0}}},
+        decreasing={"marker": {"color": COLOR_RED,   "line": {"width": 0}}},
+        totals={"marker":    {"color": COLOR_TEAL,   "line": {"width": 0}}},
     ))
 
     fig.update_layout(
-        title="Margin Bridge: Revenue to Net Income ($M)",
-        height=450,
+        title=dict(
+            text="Margin Bridge: Revenue to Net Income",
+            font=dict(size=16, color=tc, weight="bold"),
+            x=0,
+        ),
+        height=460,
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
-        font=dict(color=COLORS['gray']['300'] if dark_mode else COLORS['gray']['600']),
-        xaxis=dict(showgrid=False, tickangle=-45),
-        yaxis=dict(showgrid=True, gridcolor=COLORS['gray']['700'] if dark_mode else COLORS['gray']['200'], title="Amount ($M)"),
-        showlegend=False
+        font=dict(color=tc, size=12),
+        xaxis=dict(showgrid=False, tickfont=dict(size=12, color=tc)),
+        yaxis=dict(
+            showgrid=True,
+            gridcolor=gc,
+            title="Amount ($M)",
+            tickfont=dict(color=tc),
+            zeroline=True,
+            zerolinecolor=gc,
+        ),
+        showlegend=True,
+        legend=dict(
+            orientation='h', yanchor='bottom', y=-0.18, xanchor='center', x=0.5,
+            bgcolor='rgba(0,0,0,0)',
+            font=dict(color=tc, size=11),
+        ),
+        margin=dict(l=60, r=40, t=60, b=80),
     )
+
+    # Custom legend entries (Plotly waterfall legend is limited)
+    for label, color in [("Revenue / Positive", COLOR_GREEN), ("Cost Item", COLOR_RED), ("Subtotal", COLOR_TEAL)]:
+        fig.add_trace(go.Scatter(
+            x=[None], y=[None], mode='markers',
+            marker=dict(size=10, color=color, symbol='square'),
+            name=label, showlegend=True,
+        ))
 
     waterfall_chart = dcc.Graph(figure=fig, config={'displayModeBar': False})
 
-    # Margin metrics cards - using calculated averages from selected competitors
+    # ── Margin metric cards ───────────────────────────────────────────────────
     margin_metrics = [
-        {'label': 'Gross Margin', 'value': avg_gross_margin, 'target': avg_gross_margin * 1.05, 'icon': 'fa-chart-line'},
-        {'label': 'EBITDA Margin', 'value': avg_ebitda_margin, 'target': avg_ebitda_margin * 1.1, 'icon': 'fa-coins'},
-        {'label': 'EBIT Margin', 'value': avg_ebit_margin, 'target': avg_ebit_margin * 1.1, 'icon': 'fa-percentage'},
-        {'label': 'Net Margin', 'value': avg_net_margin, 'target': avg_net_margin * 1.15, 'icon': 'fa-trophy'}
+        {'label': 'Gross Margin',  'value': avg_gross_margin,  'icon': 'fa-chart-line'},
+        {'label': 'EBITDA Margin', 'value': avg_ebitda_margin, 'icon': 'fa-coins'},
+        {'label': 'EBIT Margin',   'value': avg_ebit_margin,   'icon': 'fa-percentage'},
+        {'label': 'Net Margin',    'value': avg_net_margin,    'icon': 'fa-trophy'},
     ]
-
     metric_cards = []
     for metric in margin_metrics:
-        is_above_target = metric['value'] >= metric['target']
-        metric_cards.append(
-            dbc.Col([
-                html.Div([
-                    html.Div([
-                        html.I(className=f"fas {metric['icon']}", style={
-                            "fontSize": "24px",
-                            "color": COLORS['success'] if is_above_target else COLORS['warning']
-                        })
-                    ], style={
-                        "width": "48px",
-                        "height": "48px",
-                        "borderRadius": "12px",
-                        "backgroundColor": f"rgba({int((COLORS['success'] if is_above_target else COLORS['warning'])[1:3], 16)}, {int((COLORS['success'] if is_above_target else COLORS['warning'])[3:5], 16)}, {int((COLORS['success'] if is_above_target else COLORS['warning'])[5:7], 16)}, 0.1)",
-                        "display": "flex",
-                        "alignItems": "center",
-                        "justifyContent": "center",
-                        "marginBottom": "12px"
-                    }),
-                    html.Div(metric['label'], style={
-                        "fontSize": "13px",
-                        "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600'],
-                        "marginBottom": "4px"
-                    }),
-                    html.Div(f"{metric['value']:.1f}%", style={
-                        "fontSize": "24px",
-                        "fontWeight": "700",
-                        "color": COLORS['gray']['100'] if dark_mode else COLORS['gray']['900'],
-                        "marginBottom": "4px"
-                    }),
-                    html.Div(f"Target: {metric['target']:.1f}%", style={
-                        "fontSize": "12px",
-                        "color": COLORS['gray']['500']
-                    })
-                ], style={
-                    "backgroundColor": COLORS['gray']['700'] if dark_mode else COLORS['gray']['50'],
-                    "border": f"1px solid {COLORS['gray']['600'] if dark_mode else COLORS['gray']['200']}",
-                    "borderRadius": "12px",
-                    "padding": "20px",
-                    "textAlign": "center"
-                })
-            ], md=3)
-        )
+        v = metric['value'] if pd.notnull(metric['value']) else 0.0
+        target = v * 1.1
+        good = v >= target * 0.9
+        icon_color = COLOR_GREEN if good else COLORS['warning']
+        metric_cards.append(dbc.Col([
+            html.Div([
+                html.I(className=f"fas {metric['icon']}", style={"fontSize": "22px", "color": icon_color, "marginBottom": "10px"}),
+                html.Div(metric['label'], style={"fontSize": "12px", "color": COLORS['gray']['400'] if dark_mode else COLORS['gray']['600'], "marginBottom": "4px"}),
+                html.Div(f"{v:.1f}%", style={"fontSize": "22px", "fontWeight": "700", "color": tc, "marginBottom": "2px"}),
+                html.Div(f"Target: {target:.1f}%", style={"fontSize": "11px", "color": COLORS['gray']['500']}),
+            ], style={
+                "backgroundColor": COLORS['gray']['700'] if dark_mode else COLORS['gray']['50'],
+                "border": f"1px solid {COLORS['gray']['600'] if dark_mode else COLORS['gray']['200']}",
+                "borderRadius": "12px", "padding": "18px", "textAlign": "center",
+            })
+        ], md=3))
 
-    # Detailed breakdown table
+    # ── Breakdown table ───────────────────────────────────────────────────────
     breakdown_rows = []
-    cumulative = 0
-    for item in bridge_data:
-        if item['type'] == 'relative':
-            cumulative += item['value']
-            running_total = cumulative
+    running = 0.0
+    for step, val, mtype in bridge_steps:
+        if mtype == 'total':
+            running = val
         else:
-            cumulative = item['value']
-            running_total = item['value']
-
+            running += val
         breakdown_rows.append(html.Tr([
-            html.Td(item['step'], style={"fontWeight": "600" if item['type'] == 'total' else "400",
-                                        "color": COLORS['gray']['100'] if dark_mode else COLORS['gray']['900'],
-                                        "padding": "12px"}),
-            html.Td(f"${item['value']:.1f}M", style={
-                "textAlign": "right",
-                "color": COLORS['success'] if item['value'] > 0 else COLORS['danger'],
-                "fontWeight": "600" if item['type'] == 'total' else "400"
+            html.Td(step, style={
+                "fontWeight": "700" if mtype == 'total' else "400",
+                "color": tc, "padding": "10px 12px",
             }),
-            html.Td(f"${running_total:.1f}M" if item['type'] == 'total' else "-",
-                   style={"textAlign": "right", "color": COLORS['gray']['200'] if dark_mode else COLORS['gray']['800']}),
+            html.Td(
+                f"${val/1000:.1f}B" if abs(val) >= 1000 else f"${val:,.0f}M",
+                style={"textAlign": "right", "fontFamily": "monospace",
+                       "color": COLOR_GREEN if val > 0 else COLOR_RED,
+                       "fontWeight": "600" if mtype == 'total' else "400"}
+            ),
+            html.Td(
+                f"${running/1000:.1f}B" if abs(running) >= 1000 else f"${running:,.0f}M",
+                style={"textAlign": "right", "fontFamily": "monospace",
+                       "color": COLOR_TEAL if mtype == 'total' else (COLORS['gray']['200'] if dark_mode else COLORS['gray']['600'])}
+            ),
         ], style={
             "borderBottom": f"1px solid {COLORS['gray']['700'] if dark_mode else COLORS['gray']['200']}",
-            "backgroundColor": f"rgba(59, 130, 246, 0.1)" if item['type'] == 'total' else "transparent"
+            "backgroundColor": "rgba(14, 165, 233, 0.08)" if mtype == 'total' else "transparent",
         }))
 
     breakdown_table = dbc.Table([
         html.Thead(html.Tr([
-            html.Th("Category", style={"fontWeight": "600", "color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700'], "padding": "12px"}),
-            html.Th("Amount", style={"fontWeight": "600", "textAlign": "right", "color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700']}),
-            html.Th("Cumulative", style={"fontWeight": "600", "textAlign": "right", "color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700']}),
+            html.Th("P&L Step",   style={"color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700'], "padding": "10px 12px"}),
+            html.Th("Change",     style={"color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700'], "textAlign": "right"}),
+            html.Th("Cumulative", style={"color": COLORS['gray']['300'] if dark_mode else COLORS['gray']['700'], "textAlign": "right"}),
         ])),
-        html.Tbody(breakdown_rows)
-    ], bordered=False, hover=True, style={"backgroundColor": "transparent", "marginTop": "20px"})
+        html.Tbody(breakdown_rows),
+    ], bordered=False, hover=True, style={"backgroundColor": "transparent", "marginTop": "16px"})
+
+    # ── FUTURE ENHANCEMENT: Comparative Analysis ──────────────────────────────
+    # Placeholder grouped bar charts for QoQ and YoY analysis
+    # (Quarterly data not yet available; wired when HANA quarterly tables are ready)
+    comp_metrics   = ['Revenue', 'Gross Profit', 'EBITDA', 'Net Income']
+    comp_values    = [r_revenue,  r_gp,           r_ebitda,  r_net_income]
+    # Simulated prior periods (±5-15% variation) until real quarterly data is wired
+    qoq_prev  = [v * 0.92 for v in comp_values]
+    yoy_prev  = [v * 0.84 for v in comp_values]
+
+    def _make_comparison_chart(title, current_vals, prior_vals, current_label, prior_label):
+        cfig = go.Figure()
+        cfig.add_trace(go.Bar(
+            name=prior_label,
+            x=comp_metrics,
+            y=[v / 1000 for v in prior_vals],
+            marker_color=COLORS['gray']['400'],
+            text=[f"${v/1000:.1f}B" if v >= 1000 else f"${v:.0f}M" for v in prior_vals],
+            textposition='outside', textfont=dict(size=10, color=tc),
+        ))
+        cfig.add_trace(go.Bar(
+            name=current_label,
+            x=comp_metrics,
+            y=[v / 1000 for v in current_vals],
+            marker_color=COLOR_TEAL,
+            text=[f"${v/1000:.1f}B" if v >= 1000 else f"${v:.0f}M" for v in current_vals],
+            textposition='outside', textfont=dict(size=10, color=tc),
+        ))
+        cfig.update_layout(
+            title=dict(text=title, font=dict(size=14, color=tc, weight="bold"), x=0),
+            barmode='group',
+            height=320,
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            font=dict(color=tc, size=11),
+            xaxis=dict(showgrid=False, tickfont=dict(color=tc)),
+            yaxis=dict(showgrid=True, gridcolor=gc, title="Amount ($B)", tickfont=dict(color=tc)),
+            legend=dict(orientation='h', yanchor='bottom', y=-0.28, xanchor='center', x=0.5,
+                        bgcolor='rgba(0,0,0,0)', font=dict(color=tc, size=11)),
+            margin=dict(l=50, r=20, t=50, b=60),
+        )
+        return cfig
+
+    fig_qoq = _make_comparison_chart(
+        "QoQ Analysis — Current Quarter vs Previous Quarter",
+        comp_values, qoq_prev,
+        "Current Quarter", "Previous Quarter",
+    )
+    fig_yoy = _make_comparison_chart(
+        "YoY Analysis — Current Quarter vs Same Quarter Last Year",
+        comp_values, yoy_prev,
+        "Current Quarter", "Same Quarter LY",
+    )
+
+    comp_note_style = {
+        "fontSize": "11px", "color": COLORS['gray']['500'],
+        "fontStyle": "italic", "marginBottom": "12px",
+    }
+
+    future_enhancement_section = html.Div([
+        html.Div([
+            html.H3("Comparative Analysis", style={
+                "fontSize": "18px", "fontWeight": "700",
+                "color": tc, "marginBottom": "4px",
+            }),
+            html.Span("Future Enhancement", style={
+                "fontSize": "10px", "fontWeight": "700",
+                "backgroundColor": COLORS['warning'],
+                "color": "#000", "padding": "2px 8px",
+                "borderRadius": "20px", "verticalAlign": "middle",
+                "marginLeft": "10px",
+            }),
+            html.P(
+                "Powered by live quarterly data once HANA quarterly tables are connected. "
+                "Currently showing illustrative period-over-period trends.",
+                style=comp_note_style,
+            ),
+        ], style={"marginBottom": "16px"}),
+        dbc.Row([
+            dbc.Col([dcc.Graph(figure=fig_qoq, config={'displayModeBar': False})], md=6),
+            dbc.Col([dcc.Graph(figure=fig_yoy, config={'displayModeBar': False})], md=6),
+        ], className="g-3"),
+    ], style={
+        "backgroundColor": COLORS['gray']['700'] if dark_mode else COLORS['gray']['50'],
+        "border": f"1px solid {COLORS['gray']['600'] if dark_mode else COLORS['gray']['200']}",
+        "borderRadius": "12px", "padding": "24px", "marginTop": "20px",
+    })
 
     return html.Div([
         html.H2("Margin Bridge Analysis", style={
-            "fontSize": "24px",
-            "fontWeight": "600",
-            "marginBottom": "20px",
-            "color": COLORS['gray']['100'] if dark_mode else COLORS['gray']['900']
+            "fontSize": "22px", "fontWeight": "700",
+            "marginBottom": "20px", "color": tc,
         }),
-        dbc.Card([
-            dbc.CardBody([
-                dbc.Row(metric_cards, className="g-3", style={"marginBottom": "24px"}),
-                waterfall_chart,
-                html.H3("Detailed Breakdown", style={
-                    "fontSize": "18px",
-                    "fontWeight": "600",
-                    "marginTop": "24px",
-                    "marginBottom": "12px",
-                    "color": COLORS['gray']['100'] if dark_mode else COLORS['gray']['900']
-                }),
-                breakdown_table
-            ])
-        ], style=card_style)
+        dbc.Card([dbc.CardBody([
+            dbc.Row(metric_cards, className="g-3", style={"marginBottom": "24px"}),
+            waterfall_chart,
+            html.H3("P&L Breakdown", style={
+                "fontSize": "16px", "fontWeight": "600",
+                "marginTop": "24px", "marginBottom": "8px", "color": tc,
+            }),
+            breakdown_table,
+        ])], style=card_style),
+        future_enhancement_section,
     ])
 
 @app.callback(
