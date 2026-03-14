@@ -4483,13 +4483,26 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
                     ))
 
                 # Add vertical divider between history and projection
+                # NOTE: add_vline crashes on categorical (string) x-axes in Plotly 5.x
+                # because it internally calls sum() on x-values starting with int 0.
+                # Use add_shape with xref='paper' instead — positions by fraction of plot width.
                 if yh and yp:
-                    fig.add_vline(
-                        x=str(yh[-1]), line_dash="solid",
-                        line_color=COLORS['gray']['400'], line_width=1,
-                        annotation_text="Forecast →",
-                        annotation_position="top right",
-                        annotation_font_color=COLORS['gray']['400'],
+                    n_total = len(yh) + len(yp)
+                    divider_x = len(yh) / n_total  # fraction of the way across
+                    fig.add_shape(
+                        type="line",
+                        xref="paper", yref="paper",
+                        x0=divider_x, x1=divider_x,
+                        y0=0, y1=0.92,
+                        line=dict(color=COLORS['gray']['400'], width=1, dash="solid"),
+                    )
+                    fig.add_annotation(
+                        xref="paper", yref="paper",
+                        x=divider_x + 0.01, y=0.96,
+                        text="Forecast →",
+                        showarrow=False,
+                        font=dict(color=COLORS['gray']['400'], size=11),
+                        xanchor="left",
                     )
 
                 fig.update_layout(
