@@ -287,14 +287,21 @@ class MLService:
         not an artificial 0-100 score — which was the root cause of the
         'everything shows 100%' bug.
         """
-        RATIO_FIELDS = [
-            'GROSS_MARGIN', 'EBITDA_MARGIN', 'OPER_MARGIN', 'PROF_MARGIN',
+        # Priority fields — must exist in FINANCIAL_RATIOS; extend with any other numeric columns
+        PRIORITY_FIELDS = [
+            'PROF_MARGIN', 'GROSS_MARGIN', 'EBITDA_MARGIN', 'OPER_MARGIN',
             'RETURN_ON_ASSET', 'RETURN_COM_EQY',
             'CUR_RATIO', 'QUICK_RATIO',
-            'TOT_DEBT_TO_TOT_ASSET', 'TOT_DEBT_TO_EBITDA',
-            'INTEREST_COVERAGE_RATIO',
+            'TOT_DEBT_TO_TOT_ASSET', 'TOT_DEBT_TO_EBITDA', 'TOT_DEBT_TO_COM_EQY',
+            'NET_DEBT_TO_SHRHLDR_EQTY', 'INTEREST_COVERAGE_RATIO',
+            'ASSET_TURNOVER', 'TOT_DEBT_TO_TOT_EQY',
         ]
-        available = [f for f in RATIO_FIELDS if f in df.columns]
+        # Use ALL numeric columns so we never miss a field that exists in HANA
+        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        non_id_cols  = [c for c in numeric_cols if c not in ('ID',)]
+        # Merge: priority fields first (if present), then any extras
+        available = [f for f in PRIORITY_FIELDS if f in df.columns]
+        available += [c for c in non_id_cols if c not in available and c not in ('ID',)]
 
         if not available:
             logger.warning("No ratio metrics available in data")
@@ -306,7 +313,8 @@ class MLService:
             raw_ratios = {}
             for field in available:
                 val = row.get(field)
-                raw_ratios[field] = float(val) if pd.notna(val) else None
+                # Always store a float — None/NaN become 0.0 so downstream code is safe
+                raw_ratios[field] = float(val) if pd.notna(val) else 0.0
 
             # Simple health label based on gross margin as proxy
             gm = raw_ratios.get('GROSS_MARGIN') or 0
