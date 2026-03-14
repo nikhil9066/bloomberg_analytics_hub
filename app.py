@@ -13,6 +13,7 @@ import plotly.express as px
 import pandas as pd
 import numpy as np
 import logging
+import traceback as _tb
 from datetime import datetime, timedelta
 from utils.config import load_config, setup_logging
 from db.data_service import FinancialDataService
@@ -4347,7 +4348,6 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
     # ==================== SCENARIO SIMULATOR ====================
     elif active_tab == "scenario-simulator":
         try:
-            import traceback as _tb
             logger.info("[SCENARIO SIMULATOR] Rendering with META reference dataset")
 
             # ── Styling ───────────────────────────────────────────────
