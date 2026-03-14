@@ -206,13 +206,18 @@ class MLService:
                 
                 df_filtered = df[df['TICKER'].isin(normalized_tickers)]
                 logger.info(f"Filtered to {len(df_filtered)} rows for tickers: {normalized_tickers[:5]}")
-                
+
                 # Log which tickers weren't found
                 found_tickers = df_filtered['TICKER'].unique().tolist()
                 missing = [t for t in normalized_tickers if t not in found_tickers]
                 if missing:
-                    logger.warning(f"Tickers not found in data: {missing}")
-                
+                    logger.warning(f"Tickers not found in HANA data: {missing}")
+
+                # If filtered result is empty, try CSV fallback for those tickers
+                if df_filtered.empty and self.csv_fallback_df is not None:
+                    logger.info("Filtered HANA result empty — falling back to CSV for requested tickers")
+                    return self._filter_csv_fallback(self.csv_fallback_df, tickers)
+
                 return df_filtered
             
             return df
@@ -534,88 +539,123 @@ class MLService:
         """
         Benchmark companies against each other.
         Returns similarity scores and rankings.
+        Falls back gracefully when requested tickers aren't in FINANCIAL_RATIOS.
         """
         logger.info(f"benchmark_competitors called with tickers: {tickers}, target: {target_ticker}")
-        
+
+        # ── Step 1: try filtered data, escalating fallbacks ────────────────────
         df = self.get_company_data(tickers)
+        logger.info(f"benchmark_competitors STEP1: get_company_data(tickers) → {len(df)} rows")
+
         if df.empty:
+            logger.warning("benchmark_competitors STEP1b: filtered empty, retrying with all FINANCIAL_RATIOS data")
+            df = self.get_company_data(None)
+            logger.info(f"benchmark_competitors STEP1b result: {len(df)} rows")
+
+        if df.empty and self.csv_fallback_df is not None:
+            logger.warning("benchmark_competitors STEP1c: HANA empty, using full CSV fallback")
+            df = self._filter_csv_fallback(self.csv_fallback_df, None)
+            logger.info(f"benchmark_competitors STEP1c CSV result: {len(df)} rows")
+
+        if df.empty:
+            logger.error("benchmark_competitors: no data from HANA or CSV — giving up")
             return {"error": "No data", "companies": []}
-        
+
+        logger.info(f"benchmark_competitors: csv_fallback_df is {'set' if self.csv_fallback_df is not None else 'None'}")
+
+        logger.info(f"benchmark_competitors: working with {len(df)} rows, tickers={df['TICKER'].unique().tolist() if 'TICKER' in df.columns else 'N/A'}")
+
+        # ── Step 2: resolve target ticker ────────────────────────────────────
+        available_tickers = df['TICKER'].unique().tolist() if 'TICKER' in df.columns else []
         if target_ticker is None and tickers:
             target_ticker = tickers[0]
-        
+
+        # If target not in actual data, use first available
+        if target_ticker not in available_tickers:
+            if available_tickers:
+                logger.warning(f"Target {target_ticker} not in data, using {available_tickers[0]} instead")
+                target_ticker = available_tickers[0]
+            else:
+                return {"error": "No tickers found in FINANCIAL_RATIOS", "companies": []}
+
+        # ── Step 3: resolve features ──────────────────────────────────────────
         model, scaler, features, metrics = self.load_model('competitor_benchmark')
-        
-        # Use data-driven approach if no model
         if model is None:
             logger.info("Competitor benchmark model not loaded, using data-driven approach")
-        
-        # Get available features
+
+        # Prefer key financial ratio columns; fall back to any numeric
+        PREFERRED_FEATURES = [
+            'GROSS_MARGIN', 'EBITDA_MARGIN', 'OPER_MARGIN', 'PROF_MARGIN',
+            'RETURN_ON_ASSET', 'RETURN_COM_EQY',
+            'CUR_RATIO', 'QUICK_RATIO',
+            'TOT_DEBT_TO_TOT_ASSET', 'TOT_DEBT_TO_EBITDA',
+        ]
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-        available_features = [c for c in numeric_cols if c not in ['ID', 'DATA_DATE']][:10]
-        
+        non_id_cols  = [c for c in numeric_cols if c not in ('ID', 'DATA_DATE')]
+
         if features:
-            available_features = [f for f in features if f in df.columns] or available_features
-        
+            available_features = [f for f in features if f in df.columns]
+        else:
+            available_features = [c for c in PREFERRED_FEATURES if c in df.columns]
+            if not available_features:
+                available_features = non_id_cols[:10]
+
+        if not available_features:
+            logger.warning("benchmark_competitors: no numeric features available, using all numeric cols")
+            available_features = non_id_cols[:10]
+
+        logger.info(f"benchmark_competitors: using features={available_features}")
+
+        # ── Step 4: compute benchmark ─────────────────────────────────────────
+        target_row  = df[df['TICKER'] == target_ticker]
+        target_data = np.array([float(v) for v in target_row[available_features].fillna(0).values[0]])
+
         results = []
-        
-        # Get target company data
-        target_row = df[df['TICKER'] == target_ticker]
-        if target_row.empty:
-            logger.warning(f"Target company {target_ticker} not found")
-            return {"error": f"Target company {target_ticker} not found", "companies": []}
-        
-        target_data = target_row[available_features].fillna(0).values[0]
-        target_data = np.array([float(x) for x in target_data])
-        
         for _, row in df.iterrows():
             ticker = row.get('TICKER', 'Unknown')
-            
-            X = row[available_features].fillna(0).values
-            X = np.array([float(x) for x in X])
-            
             try:
-                # Calculate similarity (cosine similarity)
-                if np.linalg.norm(X) > 0 and np.linalg.norm(target_data) > 0:
-                    similarity = np.dot(X, target_data) / (np.linalg.norm(X) * np.linalg.norm(target_data))
+                X = np.array([float(v) for v in row[available_features].fillna(0).values])
+
+                # Cosine similarity
+                norm_X  = np.linalg.norm(X)
+                norm_tgt = np.linalg.norm(target_data)
+                if norm_X > 0 and norm_tgt > 0:
+                    similarity = float(np.dot(X, target_data) / (norm_X * norm_tgt))
                 else:
-                    similarity = 0
-                
+                    similarity = 1.0 if ticker == target_ticker else 0.0
+
                 # Per-metric comparison
                 metric_comparison = {}
                 for i, feat in enumerate(available_features):
-                    target_val = target_data[i]
-                    company_val = X[i]
-                    if target_val != 0:
-                        pct_diff = ((company_val - target_val) / abs(target_val)) * 100
-                    else:
-                        pct_diff = 0
-                    
+                    target_val  = float(target_data[i])
+                    company_val = float(X[i])
+                    pct_diff = ((company_val - target_val) / abs(target_val) * 100) if target_val != 0 else 0.0
                     metric_comparison[feat] = {
-                        'value': float(company_val),
-                        'target_value': float(target_val),
-                        'pct_diff': float(pct_diff),
-                        'status': 'above' if pct_diff > 5 else ('below' if pct_diff < -5 else 'similar')
+                        'value':        company_val,
+                        'target_value': target_val,
+                        'pct_diff':     round(pct_diff, 2),
+                        'status':       'above' if pct_diff > 5 else ('below' if pct_diff < -5 else 'similar'),
                     }
-                
+
                 results.append({
-                    'ticker': ticker,
-                    'similarity': float(similarity),
-                    'is_target': ticker == target_ticker,
-                    'metric_comparison': metric_comparison
+                    'ticker':            ticker,
+                    'similarity':        round(similarity, 4),
+                    'is_target':         ticker == target_ticker,
+                    'metric_comparison': metric_comparison,
                 })
-                
             except Exception as e:
-                logger.error(f"Error benchmarking {ticker}: {e}")
-        
-        # Sort by similarity
+                logger.error(f"benchmark_competitors: error for {ticker}: {e}")
+
+        if not results:
+            logger.error("benchmark_competitors: results list is empty after processing")
+            return {"error": "Benchmark computation failed", "companies": []}
+
         results.sort(key=lambda x: x['similarity'], reverse=True)
-        
-        logger.info(f"Benchmarked {len(results)} companies")
+        logger.info(f"benchmark_competitors: returning {len(results)} companies, target={target_ticker}")
         return {
-            "target": target_ticker,
+            "target":    target_ticker,
             "companies": results,
-            "features": available_features
+            "features":  available_features,
         }
     
     # ==================== FORECASTER ====================
