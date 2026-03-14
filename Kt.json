@@ -70,5 +70,41 @@
     "CURRENT_RATIO": 1.18,
     "INTEREST_COVERAGE_RATIO": 39.009,
     "NET_DEBT_TO_SHRHLDR_EQTY": 150.355
+  },
+  "QUARTERLY": {
+    "_note": "Derived from ANNUAL_FINANCIALS using seasonal weights. Replace with live data when available.",
+    "current_quarter": {
+      "period": "Q4 FY2026",
+      "revenue": 3953.808,
+      "cogs": 1964.051,
+      "gross_profit": 1989.757,
+      "opex_sga": 1114.538,
+      "ebitda": 875.219,
+      "da": 228.59,
+      "interest_tax": 446.883,
+      "net_income": 199.747
+    },
+    "previous_quarter": {
+      "period": "Q3 FY2026",
+      "revenue": 3514.496,
+      "cogs": 1745.823,
+      "gross_profit": 1768.673,
+      "opex_sga": 990.7,
+      "ebitda": 777.973,
+      "da": 203.191,
+      "interest_tax": 397.229,
+      "net_income": 177.552
+    },
+    "same_quarter_ly": {
+      "period": "Q4 FY2025",
+      "revenue": 3456.972,
+      "cogs": 1717.248,
+      "gross_profit": 1739.724,
+      "opex_sga": 974.485,
+      "ebitda": 765.239,
+      "da": 199.865,
+      "interest_tax": 390.728,
+      "net_income": 174.647
+    }
   }
 }
