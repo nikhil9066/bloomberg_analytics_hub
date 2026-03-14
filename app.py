@@ -5306,9 +5306,12 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
     elif active_tab == "competitor":
         try:
             target = selected_competitors[0] if selected_competitors else 'NVDA'
+            logger.info(f"[COMPETITOR BENCHMARK] Rendering, target={target}, competitors={selected_competitors}")
             data = ml_service.benchmark_competitors(selected_competitors, target)
-            
+            logger.info(f"[COMPETITOR BENCHMARK] Got {len(data.get('companies', []))} companies, error={data.get('error')}")
+
             if "error" in data or not data.get("companies"):
+                logger.warning(f"[COMPETITOR BENCHMARK] No data: {data.get('error', 'empty companies list')}")
                 return _render_no_data_message("Competitor Benchmark", dark_mode)
             
             companies = data["companies"]
@@ -5384,8 +5387,8 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
             ])
             
         except Exception as e:
-            logger.error(f"Error rendering competitor benchmark: {e}")
-            return _render_error_message("Competitor Benchmark", str(e), dark_mode)
+            logger.error(f"[COMPETITOR BENCHMARK] RENDER FAILED: {type(e).__name__}: {e}\n{_tb.format_exc()}")
+            return _render_error_message("Competitor Benchmark", f"{type(e).__name__}: {e}", dark_mode)
 
     # ==================== GOAL TRACKER ====================
     elif active_tab == "goals":
