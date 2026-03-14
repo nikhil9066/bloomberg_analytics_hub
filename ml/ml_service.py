@@ -206,13 +206,18 @@ class MLService:
                 
                 df_filtered = df[df['TICKER'].isin(normalized_tickers)]
                 logger.info(f"Filtered to {len(df_filtered)} rows for tickers: {normalized_tickers[:5]}")
-                
+
                 # Log which tickers weren't found
                 found_tickers = df_filtered['TICKER'].unique().tolist()
                 missing = [t for t in normalized_tickers if t not in found_tickers]
                 if missing:
-                    logger.warning(f"Tickers not found in data: {missing}")
-                
+                    logger.warning(f"Tickers not found in HANA data: {missing}")
+
+                # If filtered result is empty, try CSV fallback for those tickers
+                if df_filtered.empty and self.csv_fallback_df is not None:
+                    logger.info("Filtered HANA result empty — falling back to CSV for requested tickers")
+                    return self._filter_csv_fallback(self.csv_fallback_df, tickers)
+
                 return df_filtered
             
             return df
@@ -538,14 +543,25 @@ class MLService:
         """
         logger.info(f"benchmark_competitors called with tickers: {tickers}, target: {target_ticker}")
 
-        # ── Step 1: try filtered data, fall back to ALL available data ────────
+        # ── Step 1: try filtered data, escalating fallbacks ────────────────────
         df = self.get_company_data(tickers)
+        logger.info(f"benchmark_competitors STEP1: get_company_data(tickers) → {len(df)} rows")
+
         if df.empty:
-            logger.warning("benchmark_competitors: filtered df empty, retrying with all FINANCIAL_RATIOS data")
-            df = self.get_company_data(None)   # fetch everything
+            logger.warning("benchmark_competitors STEP1b: filtered empty, retrying with all FINANCIAL_RATIOS data")
+            df = self.get_company_data(None)
+            logger.info(f"benchmark_competitors STEP1b result: {len(df)} rows")
+
+        if df.empty and self.csv_fallback_df is not None:
+            logger.warning("benchmark_competitors STEP1c: HANA empty, using full CSV fallback")
+            df = self._filter_csv_fallback(self.csv_fallback_df, None)
+            logger.info(f"benchmark_competitors STEP1c CSV result: {len(df)} rows")
+
         if df.empty:
-            logger.error("benchmark_competitors: FINANCIAL_RATIOS has no data at all")
+            logger.error("benchmark_competitors: no data from HANA or CSV — giving up")
             return {"error": "No data", "companies": []}
+
+        logger.info(f"benchmark_competitors: csv_fallback_df is {'set' if self.csv_fallback_df is not None else 'None'}")
 
         logger.info(f"benchmark_competitors: working with {len(df)} rows, tickers={df['TICKER'].unique().tolist() if 'TICKER' in df.columns else 'N/A'}")
 
