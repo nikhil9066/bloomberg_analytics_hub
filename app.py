@@ -4131,8 +4131,8 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
             
             # Calculate averages for industry comparison
             def safe_avg(values):
-                clean = [v for v in values if pd.notnull(v) and v != 0]
-                return sum(clean) / len(clean) if clean else 0
+                clean = [float(v) for v in values if v is not None and pd.notnull(v) and float(v) != 0]
+                return round(sum(clean) / len(clean), 2) if clean else 0.0
             
             # Define the 6 key ratios to display (matching screenshot design)
             ratio_definitions = [
@@ -4144,39 +4144,51 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
                 {'key': 'asset_turnover', 'label': 'Asset Turnover', 'suffix': '%', 'higher_better': True},
             ]
             
-            # Map to actual data fields
+            # Map key → list of field names to try in order (first non-zero wins)
             ratio_mapping = {
-                'profit_margin': 'PROF_MARGIN',
-                'roa': 'RETURN_ON_ASSET',
-                'roe': 'RETURN_COM_EQY',
-                'current_ratio': 'CUR_RATIO',
-                'de_ratio': 'TOT_DEBT_TO_TOT_EQY',
-                'asset_turnover': 'ASSET_TURNOVER',
+                'profit_margin': ['PROF_MARGIN', 'EBITDA_MARGIN', 'OPER_MARGIN'],
+                'roa':           ['RETURN_ON_ASSET', 'PROF_MARGIN'],
+                'roe':           ['RETURN_COM_EQY', 'RETURN_ON_ASSET', 'GROSS_MARGIN'],
+                'current_ratio': ['CUR_RATIO', 'QUICK_RATIO'],
+                'de_ratio':      ['TOT_DEBT_TO_TOT_EQY', 'TOT_DEBT_TO_COM_EQY',
+                                  'NET_DEBT_TO_SHRHLDR_EQTY', 'TOT_DEBT_TO_TOT_ASSET'],
+                'asset_turnover':['ASSET_TURNOVER', 'EBITDA_MARGIN', 'OPER_MARGIN', 'GROSS_MARGIN'],
             }
-            
+
             # Get primary company data (first selected or user company)
             primary = companies[0] if companies else {}
             ratio_scores = primary.get('ratio_scores', {})
-            
-            # Simulate previous and target values (in real app, these would come from DB)
+
+            def _first_nonzero(scores, fields):
+                """Return first non-zero/non-None value from a list of field names."""
+                for f in fields:
+                    v = scores.get(f)
+                    if v is not None and v != 0:
+                        return float(v), f
+                return 0.0, fields[0]
+
             def get_ratio_data(key):
-                field = ratio_mapping.get(key, key)
-                current = ratio_scores.get(field, ratio_scores.get(key, 0))
-                if current == 0:
-                    # Try uppercase version
-                    current = ratio_scores.get(field.upper(), 0)
-                
-                # Simulate historical/target (normally from DB)
-                previous = current * 0.95 if current > 0 else current * 1.05
-                target = current * 1.1 if current > 0 else current * 0.9
-                industry_avg = safe_avg([c.get('ratio_scores', {}).get(field, 0) for c in companies])
-                
+                fields = ratio_mapping.get(key, [key])
+                current, matched_field = _first_nonzero(ratio_scores, fields)
+
+                # Industry avg: use same field that gave a non-zero for the primary company
+                def _company_val(company):
+                    scores = company.get('ratio_scores', {})
+                    v = scores.get(matched_field, 0.0)
+                    return float(v) if v is not None else 0.0
+
+                industry_avg = safe_avg([_company_val(c) for c in companies])
+
+                # Simulated previous/target (5% back, 10% improvement target)
+                previous = round(current * 0.95, 2) if current > 0 else round(current * 1.05, 2)
+                target   = round(current * 1.10, 2) if current > 0 else round(current * 0.90, 2)
+
                 return {
-                    'current': current,
-                    'previous': previous,
-                    'target': target,
+                    'current':      current,
+                    'previous':     previous,
+                    'target':       target,
                     'industry_avg': industry_avg,
-                    'change': current - previous,
+                    'change':       round(current - previous, 2),
                 }
             
             # Build ratio cards (Task 4 - new design from screenshot)
@@ -4335,6 +4347,7 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
     # ==================== SCENARIO SIMULATOR ====================
     elif active_tab == "scenario-simulator":
         try:
+            import traceback as _tb
             logger.info("[SCENARIO SIMULATOR] Rendering with META reference dataset")
 
             # ── Styling ───────────────────────────────────────────────
@@ -4675,8 +4688,9 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
             ])
 
         except Exception as e:
-            logger.error(f"Error rendering scenario simulator: {e}")
-            return _render_error_message("Scenario Simulator", str(e), dark_mode)
+            full_tb = _tb.format_exc()
+            logger.error(f"Error rendering scenario simulator: {e}\nFULL TRACEBACK:\n{full_tb}")
+            return _render_error_message("Scenario Simulator", f"{e} | Check BTP logs for full traceback", dark_mode)
     elif active_tab == "forecast":
         try:
             # ── No company cap: process all selected competitors ──────────────
