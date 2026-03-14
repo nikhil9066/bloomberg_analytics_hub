@@ -955,18 +955,44 @@ class MLService:
 
         hist = self._get_meta_base_data()
 
+        # ── Coerce all hist values to plain Python types ──────────────
+        # Defensive cast — HANA may return Decimal, numpy, or string types
+        def _to_float(v, fallback=0.0):
+            try:
+                return float(v) if v is not None else fallback
+            except Exception:
+                return fallback
+
+        def _to_int_year(v, fallback=2024):
+            try:
+                return int(str(v)[:4])
+            except Exception:
+                return fallback
+
+        hist = {
+            'years':         [_to_int_year(y) for y in hist.get('years', [])],
+            'revenue':       [_to_float(v) for v in hist.get('revenue', [])],
+            'gross_profit':  [_to_float(v) for v in hist.get('gross_profit', [])],
+            'ebitda':        [_to_float(v) for v in hist.get('ebitda', [])],
+            'net_income':    [_to_float(v) for v in hist.get('net_income', [])],
+            'gross_margin':  [_to_float(v) for v in hist.get('gross_margin', [])],
+            'ebitda_margin': [_to_float(v) for v in hist.get('ebitda_margin', [])],
+            'net_margin':    [_to_float(v) for v in hist.get('net_margin', [])],
+        }
+        logger.info(f"simulate_scenarios: hist years={hist['years']}, rev_len={len(hist['revenue'])}")
+
         # ── Derive average growth rates from history ──────────────────
         rev = hist['revenue']
         n   = len(rev)
-        avg_rev_growth = ((rev[-1] / rev[0]) ** (1 / (n - 1)) - 1) if rev[0] else 0.12
+        avg_rev_growth = ((rev[-1] / rev[0]) ** (1 / (n - 1)) - 1) if (rev and rev[0]) else 0.12
 
-        margins_ebitda = hist['ebitda_margin']
+        margins_ebitda = hist['ebitda_margin'] or [34.3]
         avg_margin     = sum(margins_ebitda) / len(margins_ebitda)
-        last_margin    = margins_ebitda[-1]
-        last_revenue   = rev[-1]
+        last_margin    = _to_float(margins_ebitda[-1], 49.1)
+        last_revenue   = _to_float(rev[-1] if rev else 164500, 164500)
 
-        # Defensively ensure last year is a plain int (HANA may return VARCHAR/float strings)
-        last_year = int(str(hist['years'][-1])[:4])
+        # Defensively ensure last year is a plain int
+        last_year  = _to_int_year(hist['years'][-1] if hist['years'] else 2024, 2024)
         proj_years = [last_year + i for i in range(1, 4)]  # 2025, 2026, 2027
 
         # ── Scenario 1: base trend projection ─────────────────────────

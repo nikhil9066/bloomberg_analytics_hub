@@ -4348,7 +4348,7 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
     # ==================== SCENARIO SIMULATOR ====================
     elif active_tab == "scenario-simulator":
         try:
-            logger.info("[SCENARIO SIMULATOR] Rendering with META reference dataset")
+            logger.info("[SCENARIO SIMULATOR] STEP 1: start render")
 
             # ── Styling ───────────────────────────────────────────────
             text_color  = COLORS['gray']['100'] if dark_mode else COLORS['gray']['800']
@@ -4358,10 +4358,16 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
             slider_col  = COLORS['gray']['300'] if dark_mode else COLORS['gray']['700']
 
             # ── Fetch META data ───────────────────────────────────────
+            logger.info("[SCENARIO SIMULATOR] STEP 2: fetching sim_data from ml_service")
             sim_data = {}
             if ml_service:
-                sim_data = ml_service.simulate_scenarios('META')
-            
+                try:
+                    sim_data = ml_service.simulate_scenarios('META')
+                    logger.info(f"[SCENARIO SIMULATOR] STEP 2 OK: sim_data keys={list(sim_data.keys()) if sim_data else 'empty'}")
+                except Exception as _sim_err:
+                    logger.error(f"[SCENARIO SIMULATOR] STEP 2 FAILED: {_sim_err}\n{_tb.format_exc()}")
+                    sim_data = {}
+
             # Fallback to hardcoded META reference if service unavailable
             if not sim_data or "error" in sim_data:
                 sim_data = {
@@ -4391,20 +4397,50 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
                     "scenarios": [],
                 }
 
+            logger.info("[SCENARIO SIMULATOR] STEP 3: parsing sim_data fields")
             hist      = sim_data.get("historical", {})
             proj_base = sim_data.get("projection_base", {})
             proj_wi   = sim_data.get("projection_whatif", {})
-            # Ensure years are plain Python ints for safe arithmetic & string ops
-            yh        = [int(y) for y in sim_data.get("years_hist", [])]
-            yp        = [int(y) for y in sim_data.get("years_proj", [])]
-            avg_rg    = float(sim_data.get("avg_rev_growth", 11.5) or 11.5)
-            base_rev  = float(sim_data.get("base_revenue", 164500) or 164500)
-            base_marg = float(sim_data.get("base_margin", 49.1) or 49.1)
-            # Ensure all historical series contain plain floats
-            hist = {k: [float(v) for v in vals] for k, vals in hist.items()}
-            proj_base = {k: [float(v) for v in vals] for k, vals in proj_base.items()}
-            proj_wi   = {k: [float(v) for v in vals] for k, vals in proj_wi.items()}
 
+            # ── Coerce years to plain Python ints ────────────────────
+            def _safe_int(v, fallback=0):
+                try:
+                    return int(str(v)[:4]) if v is not None else fallback
+                except Exception:
+                    return fallback
+
+            def _safe_float(v, fallback=0.0):
+                try:
+                    return float(v) if v is not None else fallback
+                except Exception:
+                    return fallback
+
+            raw_yh = sim_data.get("years_hist", [2020, 2021, 2022, 2023, 2024])
+            raw_yp = sim_data.get("years_proj", [2025, 2026, 2027])
+            yh     = [_safe_int(y) for y in raw_yh]
+            yp     = [_safe_int(y) for y in raw_yp]
+            logger.info(f"[SCENARIO SIMULATOR] STEP 3a: yh={yh}, yp={yp}")
+
+            avg_rg    = _safe_float(sim_data.get("avg_rev_growth"), 11.5) or 11.5
+            base_rev  = _safe_float(sim_data.get("base_revenue"), 164500) or 164500
+            base_marg = _safe_float(sim_data.get("base_margin"), 49.1) or 49.1
+            logger.info(f"[SCENARIO SIMULATOR] STEP 3b: avg_rg={avg_rg}, base_rev={base_rev}, base_marg={base_marg}")
+
+            # ── Coerce all series to plain Python floats ──────────────
+            def _coerce_series(d):
+                out = {}
+                for k, vals in d.items():
+                    if not isinstance(vals, (list, tuple)):
+                        continue
+                    out[k] = [_safe_float(v) for v in vals]
+                return out
+
+            hist      = _coerce_series(hist)
+            proj_base = _coerce_series(proj_base)
+            proj_wi   = _coerce_series(proj_wi)
+            logger.info(f"[SCENARIO SIMULATOR] STEP 3c: hist keys={list(hist.keys())}, proj_base keys={list(proj_base.keys())}")
+
+            logger.info("[SCENARIO SIMULATOR] STEP 4: building charts")
             # ── Build dual-line chart (Revenue) ───────────────────────
             def make_scenario_chart(metric_key, metric_label, unit="$M", dark=False):
                 fig = go.Figure()
@@ -4447,13 +4483,26 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
                     ))
 
                 # Add vertical divider between history and projection
+                # NOTE: add_vline crashes on categorical (string) x-axes in Plotly 5.x
+                # because it internally calls sum() on x-values starting with int 0.
+                # Use add_shape with xref='paper' instead — positions by fraction of plot width.
                 if yh and yp:
-                    fig.add_vline(
-                        x=str(yh[-1]), line_dash="solid",
-                        line_color=COLORS['gray']['400'], line_width=1,
-                        annotation_text="Forecast →",
-                        annotation_position="top right",
-                        annotation_font_color=COLORS['gray']['400'],
+                    n_total = len(yh) + len(yp)
+                    divider_x = len(yh) / n_total  # fraction of the way across
+                    fig.add_shape(
+                        type="line",
+                        xref="paper", yref="paper",
+                        x0=divider_x, x1=divider_x,
+                        y0=0, y1=0.92,
+                        line=dict(color=COLORS['gray']['400'], width=1, dash="solid"),
+                    )
+                    fig.add_annotation(
+                        xref="paper", yref="paper",
+                        x=divider_x + 0.01, y=0.96,
+                        text="Forecast →",
+                        showarrow=False,
+                        font=dict(color=COLORS['gray']['400'], size=11),
+                        xanchor="left",
                     )
 
                 fig.update_layout(
@@ -4478,13 +4527,19 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
             # Build charts for Revenue and EBITDA
             fig_revenue = make_scenario_chart('revenue', 'Revenue', '$M', dark_mode)
             fig_margin  = make_scenario_chart('ebitda_margin', 'EBITDA Margin', '%', dark_mode)
+            logger.info("[SCENARIO SIMULATOR] STEP 4 OK: charts built")
 
-                # ── Pre-compute initial (0 %, 0 %) display values ────────
-            _base_proj_rev   = float(proj_base.get("revenue",    [base_rev * 1.115])[0])
-            _base_proj_ebitda= float(proj_base.get("ebitda",     [base_rev * base_marg / 100 * 1.115])[0])
-            _base_proj_net   = float(proj_base.get("net_income",  [base_rev * 0.38 * 1.115])[0])
-            _base_net_margin = float(hist.get("net_margin",  [37.9])[-1])
-            _base_costs      = _base_proj_rev * (1 - base_marg / 100)
+            # ── Pre-compute initial (0 %, 0 %) display values ────────
+            logger.info("[SCENARIO SIMULATOR] STEP 5: pre-compute display values")
+            _rev_fallback     = [_safe_float(base_rev) * 1.115]
+            _ebitda_fallback  = [_safe_float(base_rev) * _safe_float(base_marg) / 100 * 1.115]
+            _net_fallback     = [_safe_float(base_rev) * 0.38 * 1.115]
+            _base_proj_rev    = _safe_float((proj_base.get("revenue")    or _rev_fallback)[0],    base_rev * 1.115)
+            _base_proj_ebitda = _safe_float((proj_base.get("ebitda")     or _ebitda_fallback)[0], base_rev * base_marg / 100 * 1.115)
+            _base_proj_net    = _safe_float((proj_base.get("net_income") or _net_fallback)[0],    base_rev * 0.38 * 1.115)
+            _base_net_margin  = _safe_float((hist.get("net_margin")      or [37.9])[-1], 37.9)
+            _base_costs       = _safe_float(_base_proj_rev) * (1 - _safe_float(base_marg) / 100)
+            logger.info(f"[SCENARIO SIMULATOR] STEP 5 OK: rev={_base_proj_rev}, ebitda={_base_proj_ebitda}, costs={_base_costs}")
 
             def _fmt_b(val):
                 """Format dollar amount in $B or $M."""
@@ -4689,8 +4744,8 @@ def render_tab_content(active_tab, dark_mode, selected_competitors):
 
         except Exception as e:
             full_tb = _tb.format_exc()
-            logger.error(f"Error rendering scenario simulator: {e}\nFULL TRACEBACK:\n{full_tb}")
-            return _render_error_message("Scenario Simulator", f"{e} | Check BTP logs for full traceback", dark_mode)
+            logger.error(f"[SCENARIO SIMULATOR] RENDER FAILED: {type(e).__name__}: {e}\nFULL TRACEBACK:\n{full_tb}")
+            return _render_error_message("Scenario Simulator", f"{type(e).__name__}: {e} | Check BTP logs for full traceback", dark_mode)
     elif active_tab == "forecast":
         try:
             # ── No company cap: process all selected competitors ──────────────
